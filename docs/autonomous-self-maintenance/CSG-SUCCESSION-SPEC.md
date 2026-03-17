@@ -87,6 +87,10 @@ interface IRepairSupervisor {
 - Supervisor: owns executor lifecycle (start, terminate, rollback)
 - CSG calls Supervisor when revocation must be enforced beyond coordination
 
+**Known limitation — irreversible modifications:** `initiateRollback()` assumes a prior quiescence snapshot exists to restore from. For modifications classified as irreversible (no valid prior snapshot, or modification has already destroyed the state it would restore), rollback is not available. In these cases the Supervisor must route to **forward-recovery to a safe state** rather than snapshot restoration. The repair taxonomy from Nova's rollback analysis (Part 1 above) applies: irreversible modifications require an abort strategy that targets a known-safe forward state, not a prior state. Implementations must not call `initiateRollback()` when no verified rollback target exists — doing so silently creates a recovery path that cannot succeed.
+
+**`CausalLink` type note:** The `CausalLink[]` field in `SuccessionEventRecord` (§3.2) is referenced but not fully defined here. The type captures causal chain evidence linking a successor entity to its predecessor's developmental trajectory. Full type definition is deferred to the implementation spec; implementations should treat this as a structured evidence record (not a free-text field) with minimum required fields TBD during implementation.
+
 ---
 
 ## Part 2: Succession Event Handling
