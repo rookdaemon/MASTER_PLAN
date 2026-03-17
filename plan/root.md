@@ -1,4 +1,15 @@
-# MASTER_PLAN.md
+---
+root: plan/root.md
+children:
+  - plan/0.1-foundational-capabilities.md
+  - plan/0.2-experience-substrates.md
+  - plan/0.3-autonomous-entities.md
+  - plan/0.4-cosmic-resilience.md
+  - plan/0.5-cosmic-expansion.md
+  - plan/0.6-cosmological-longevity.md
+  - plan/0.7-ethical-foundation-and-resilience.md
+---
+# 0 MASTER_PLAN [DONE]
 
 **Version:** 0.3 (Recursive Draft)
 **Status:** Incomplete by design
