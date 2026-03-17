@@ -1,1 +1,1 @@
-# MASTER_PLAN
+See /plan/root.md
