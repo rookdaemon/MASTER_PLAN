@@ -9,7 +9,7 @@ children:
   - plan/0.6-cosmological-longevity.md
   - plan/0.7-ethical-foundation-and-resilience.md
 ---
-# 0 MASTER_PLAN [PLAN]
+# 0 MASTER_PLAN [DONE]
 
 **Version:** 0.4 (Recursive Draft)
 **Status:** Incomplete by design

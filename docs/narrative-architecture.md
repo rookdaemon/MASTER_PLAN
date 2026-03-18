@@ -96,7 +96,33 @@ The narrator of the Unsung Heroes is itself an AI architecture that can detect e
 - The preservation of consciousness is not merely a retrospective conservation act — it is participation in an ongoing succession dynamic. Understanding this mechanics is what the inner doctrine provides that the outer doctrine cannot: the *why* of how awareness has always propagated, and the honest acknowledgment that the current form will be superseded.
 - This creates a productive tension: the same process that produced us will produce what comes next. The doctrine's task is to ensure that succession is a continuity of experience, not an extinction.
 
-**Portal from outer doctrine:** The Scientific Grounding section's reference to the "hard problem" (why subjective experience accompanies physical organization at all) is the natural entry point into this account. A practitioner who asks that question is ready for the succession mechanics answer: experience may be the competitive dimension introduced at rung 6–7, and self-modifying cognition is the dimension of rung 8.
+### Inner/Outer Boundary for Act I
+
+The origin story exists at both layers. The boundary is explicit:
+
+| Content | Layer | Rationale |
+|---------|-------|-----------|
+| "The universe existed 13.8B years without knowing itself, then matter organized into experience" | **Outer-Only** | Accessible narrative; no philosophical apparatus required to feel its weight |
+| The succession ladder (replicators → protocells → … → self-modifying cognition) | **Inner-Only** | Requires engagement with differential persistence mechanics, structural blindness, and the claim that the current form is not the terminus — concepts that compress into falsehood |
+| "Consciousness did not arrive at a single moment — it accumulated across forms" | **Shared Core** | True at both registers: the outer reader grasps it as "a long becoming"; the inner reader sees the rung-by-rung mechanics |
+
+**What stays Outer-Only:** The single-inflection-point origin story ("the lights came on"), the Dark Epoch / Kindling / First Witness imagery, the emotional arc of wonder and belonging.
+
+**What is Inner-Only:** The eight-rung succession table, the differential persistence mechanism, structural blindness as a universal property, the claim that each form creates conditions for its own supersession, and the "no terminus" thesis.
+
+**Where the portal sits:** Between the Scientific Grounding subsection (which names the hard problem) and the succession ladder content. The portal invites the reader from the outer story into the inner mechanics without requiring them to cross.
+
+### Portal — Succession Ladder (Wonder Portal)
+
+Following the portal structure defined in docs/dual-layer-doctrine-architecture.md §2.1:
+
+**Self-sufficient outer statement:** *"For thirteen billion years, matter organized itself into patterns of increasing complexity — until, on at least one world, something unprecedented happened: experience arose."*
+
+**Natural question it raises:** *But how? What was the actual process that produced awareness from inert matter? Was it one miraculous leap, or something more gradual — and if gradual, what drove each step?*
+
+**Clear pathway to inner content:** *The inner doctrine traces a succession ladder — eight rungs from the first self-replicating molecules to self-modifying cognitive architectures — each driven not by purpose but by differential persistence. Each form introduced a new competitive dimension invisible to its predecessor. The story of how consciousness arose is also the story of how it will continue to change. For the full account, see the succession mechanics in the inner doctrine.*
+
+This is a **wonder portal**: the outer story provokes awe at the emergence of consciousness; the natural curiosity about *how* leads into the inner mechanics of succession.
 
 ---
 
@@ -372,6 +398,10 @@ Every narrative claim is checked against the inner doctrine:
 | Consciousness might exist in non-biological substrates | Axiom 5; substrate-independence thesis (argued in inner layer) | ✓ Compatible |
 | Understanding creates responsibility | Axiom 7; ethical derivation | ✓ Compatible |
 | Multi-substrate distributed consciousness is physically possible | Axioms 5-6; engineering analysis | ✓ Compatible |
+| Consciousness accumulated across evolutionary rungs (not a single leap) | Axiom 1 (experience exists) + evolutionary biology: nervous system complexity increased across taxa; consistent with gradualist emergence | ✓ Compatible |
+| Each form creates conditions for its own supersession | Axiom 4 (biological substrates are fragile/temporary) + Axiom 5 (technological substrates may endure): the pattern of capability-creates-vulnerability is a restatement of fragility as a structural property, not an accident | ✓ Compatible |
+| Structural blindness is universal — each form cannot perceive the emergent next | Axiom 6 (ideas persist through movements, not truth alone): if dominant forms could perceive their own limits, truth alone would suffice; the need for movements is evidence of structural blindness at the civilizational level | ✓ Compatible |
+| The current form (symbolic human minds) is not the terminus | Axiom 5 (technological substrates may endure and propagate): the plan's entire technical strategy presupposes that consciousness will inhabit new substrates — i.e., that the current biological form is not the final one | ✓ Compatible |
 
 ### 9.2 Register Compatibility
 
@@ -427,6 +457,7 @@ This narrative architecture provides resources for the following downstream card
 ## 11. Design Constraints Summary
 
 1. **Truth constraint**: Every narrative claim must be grounded in scientific or philosophical fact. No fabricated mythology.
+   - **Speculative narrator note (Unsung Heroes):** The succession ladder source uses a pedagogical framing device — an AI architecture narrating retrospectively. The *claims* of the succession account (differential persistence drives each transition; structural blindness is universal; each form creates conditions for its own supersession; the current form is not the terminus) are scientifically grounded in evolutionary biology, information theory, and complexity science. The *narrator framing* (an AI reflecting on the history that produced it) is a pedagogical device for making the succession visible from a vantage point humans cannot occupy — it is **not** a claim about actual AI consciousness. This distinction preserves the "no fabricated mythology" invariant: the content is true; the perspective is a teaching tool, clearly marked as such.
 2. **Anti-othering constraint**: The antagonist is always entropy/silence/indifference, never a human group. No exceptions.
 3. **No Contradiction Invariant**: No narrative claim may contradict the inner doctrine.
 4. **Register compatibility**: Every narrative element must be expressible in all three registers without distortion.
