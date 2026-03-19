@@ -129,6 +129,11 @@ export class AgentLoop implements IAgentLoop {
         this._tickDurationsMs.push(tickMs);
         this._totalCycles++;
 
+        // Yield CPU when tick completed quickly (no meaningful work)
+        if (tickMs < 10) {
+          await _sleep(100);
+        }
+
         if (result.budgetReport.monitorFloorMet) {
           this._monitorFloorMetCount++;
         }
@@ -350,14 +355,17 @@ export class AgentLoop implements IAgentLoop {
 
     const budgetReport = budget.getBudgetReport();
 
-    console.debug(
-      `[AgentLoop] cycle=${this._cycleCount}: ` +
-      `tickMs=${budgetReport.totalMs} ` +
-      `monitor=${(budgetReport.monitorFraction * 100).toFixed(1)}% ` +
-      `deliberate=${(budgetReport.deliberateFraction * 100).toFixed(1)}% ` +
-      `monitorFloor=${budgetReport.monitorFloorMet} ` +
-      `intact=${intact}`,
-    );
+    // Only log non-idle ticks to avoid flooding the console
+    if (primaryPercept !== null && primaryPercept.modality !== 'idle') {
+      console.debug(
+        `[AgentLoop] cycle=${this._cycleCount}: ` +
+        `tickMs=${budgetReport.totalMs} ` +
+        `monitor=${(budgetReport.monitorFraction * 100).toFixed(1)}% ` +
+        `deliberate=${(budgetReport.deliberateFraction * 100).toFixed(1)}% ` +
+        `monitorFloor=${budgetReport.monitorFloorMet} ` +
+        `intact=${intact}`,
+      );
+    }
 
     return {
       cycleCount: this._cycleCount,

@@ -7,6 +7,8 @@
  *   - All data types (Belief, BeliefSource, …, ConsistencyReport)
  *   - All subsystem interfaces (IBeliefStore, IEntityModelStore,
  *     ICausalModel, ISituationAwareness, IWorldModel)
+ *   - All subsystem implementations (BeliefStore, EntityModelStore,
+ *     CausalModel, SituationAwareness, WorldModel)
  */
 
 // ── Types ──────────────────────────────────────────────────────
@@ -45,3 +47,10 @@ export type {
   ISituationAwareness,
   IWorldModel,
 } from './interfaces.js';
+
+// ── Implementations ────────────────────────────────────────────
+export { BeliefStore } from './belief-store.js';
+export { EntityModelStore } from './entity-model-store.js';
+export { CausalModel } from './causal-model.js';
+export { SituationAwareness } from './situation-awareness.js';
+export { WorldModel } from './world-model.js';
