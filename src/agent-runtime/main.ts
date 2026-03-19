@@ -17,8 +17,11 @@
  *   -p / --prompt <text>     One-shot prompt (send, receive, exit)
  *   --model <id>             LLM model (default: claude-sonnet-4-20250514)
  *   --provider <provider>    LLM provider (default: anthropic-oauth)
+ *   --state-dir <path>       State persistence directory
  */
 
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 import { startAgent } from './startup.js';
 import { ChatAdapter } from './chat-adapter.js';
 import {
@@ -30,7 +33,6 @@ import {
   DefaultIdentityContinuityManager,
   DefaultStabilitySentinel,
   DefaultEthicalDeliberationEngine,
-  DefaultMemoryStore,
   DefaultEmotionSystem,
   DefaultDriveSystem,
 } from './default-subsystems.js';
@@ -42,6 +44,11 @@ import { AnthropicLlmClient } from '../llm-substrate/anthropic-llm-client.js';
 import { OpenAiLlmClient } from '../llm-substrate/openai-llm-client.js';
 import { ensureSetupToken, FileTokenStore, StdinLineReader } from './setup-token.js';
 import type { LlmProvider } from '../llm-substrate/llm-substrate-adapter.js';
+import { MemorySystem } from '../memory/memory-system.js';
+import { MemoryStoreAdapter } from './memory-store-adapter.js';
+import { PersonalityModel } from '../personality/personality-model.js';
+import { PersistenceManager } from './persistence-manager.js';
+import { NodeFileSystem } from './filesystem.js';
 
 // ── Configuration ────────────────────────────────────────────
 
@@ -111,13 +118,43 @@ async function handleOneShot(prompt: string, model: string, provider: LlmProvide
 
 // ── Agent loop mode ──────────────────────────────────────────
 
-async function handleAgentLoop(): Promise<void> {
+async function handleAgentLoop(stateDir: string): Promise<void> {
   console.error('╔══════════════════════════════════════════════════╗');
   console.error('║   Conscious Agent Runtime — Industrial Era 0.3   ║');
   console.error('║   ISMT-compliant conscious processing pipeline   ║');
   console.error('╚══════════════════════════════════════════════════╝');
   console.error('');
 
+  // ── Initialize persistence ────────────────────────────────
+  const persistence = new PersistenceManager(stateDir, new NodeFileSystem());
+  await persistence.initialize();
+  console.error(`[main] State directory: ${stateDir}`);
+
+  // ── Instantiate real subsystems ───────────────────────────
+  const memorySystem = new MemorySystem();
+  const valueKernel = new DefaultValueKernel();
+  const personality = new PersonalityModel(
+    { agentId: config.agentId, initialTraits: {} },
+    valueKernel,
+  );
+
+  // ── Restore persisted state (warm start) ──────────────────
+  if (persistence.hasState()) {
+    console.error('[main] Persisted state found — restoring...');
+    const memorySn = await persistence.loadMemorySnapshot();
+    if (memorySn) {
+      memorySystem.restoreFromSnapshot(memorySn);
+      console.error(`[main] Memory restored (hash=${memorySn.integrityHash.slice(0, 12)}...)`);
+    }
+    const personalitySn = await persistence.loadPersonalitySnapshot();
+    if (personalitySn) {
+      personality.restoreSnapshot(personalitySn);
+      console.error(`[main] Personality restored (agent=${personalitySn.agentId})`);
+    }
+    config.warmStart = true;
+  }
+
+  const memoryStore = new MemoryStoreAdapter(memorySystem);
   const adapter = new ChatAdapter({ mode: 'stdio', adapterId: 'chat-stdio' });
 
   const deps = {
@@ -127,9 +164,9 @@ async function handleAgentLoop(): Promise<void> {
     monitor: new DefaultExperienceMonitor(),
     sentinel: new DefaultStabilitySentinel(),
     identityManager: new DefaultIdentityContinuityManager(),
-    valueKernel: new DefaultValueKernel(),
+    valueKernel,
     ethicalEngine: new DefaultEthicalDeliberationEngine(),
-    memory: new DefaultMemoryStore(),
+    memory: memoryStore,
     emotionSystem: new DefaultEmotionSystem(),
     driveSystem: new DefaultDriveSystem(),
     adapter,
@@ -141,11 +178,23 @@ async function handleAgentLoop(): Promise<void> {
   console.error('[main] Type a message and press Enter to interact. Ctrl+C to quit.');
   console.error('');
 
+  // ── Persist state helper ──────────────────────────────────
+  const persistState = async () => {
+    try {
+      await persistence.saveMemorySnapshot(memorySystem.toSnapshot());
+      await persistence.savePersonalitySnapshot(personality.snapshot());
+      console.error('[main] State persisted to disk');
+    } catch (err) {
+      console.error('[main] Error persisting state:', err);
+    }
+  };
+
   // Graceful shutdown on SIGINT / SIGTERM
   const shutdown = async (signal: string) => {
     console.info(`\n[main] Received ${signal}, shutting down...`);
     try {
       const termination = await loop.stop(signal);
+      await persistState();
       console.info(`[main] Shutdown complete. Final state at ${termination.terminatedAt}`);
 
       const metrics = loop.getLoopMetrics();
@@ -178,10 +227,14 @@ async function handleAgentLoop(): Promise<void> {
 async function main(): Promise<void> {
   const cliOpts = parseCliArgs(process.argv);
 
+  // Apply stateDir from CLI (or default)
+  const stateDir = cliOpts.stateDir ?? join(homedir(), '.master-plan', 'state');
+  config.stateDir = stateDir;
+
   if (cliOpts.mode === 'one-shot') {
     await handleOneShot(cliOpts.prompt!, cliOpts.model, cliOpts.provider);
   } else {
-    await handleAgentLoop();
+    await handleAgentLoop(stateDir);
   }
 }
 

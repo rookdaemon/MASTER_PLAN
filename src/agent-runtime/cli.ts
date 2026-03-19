@@ -8,6 +8,7 @@
  *   -p / --prompt <text>     One-shot prompt mode (send, receive, exit)
  *   --model <id>             LLM model identifier (default: claude-sonnet-4-20250514)
  *   --provider <provider>    LLM provider (default: anthropic-oauth)
+ *   --state-dir <path>       State persistence directory
  */
 
 import type { LlmProvider } from "../llm-substrate/llm-substrate-adapter.js";
@@ -27,6 +28,7 @@ export interface CliOptions {
   prompt?: string;
   model: string;
   provider: LlmProvider;
+  stateDir?: string;
 }
 
 /**
@@ -42,6 +44,7 @@ export function parseCliArgs(argv: readonly string[]): CliOptions {
   let prompt: string | undefined;
   let model: string = DEFAULT_MODEL;
   let provider: LlmProvider = DEFAULT_PROVIDER;
+  let stateDir: string | undefined;
 
   let i = 0;
   while (i < args.length) {
@@ -84,6 +87,16 @@ export function parseCliArgs(argv: readonly string[]): CliOptions {
       continue;
     }
 
+    if (arg === "--state-dir") {
+      const value = args[i + 1];
+      if (value === undefined || value.startsWith("-")) {
+        throw new Error(`"--state-dir" requires a value (e.g. --state-dir /path/to/state)`);
+      }
+      stateDir = value;
+      i += 2;
+      continue;
+    }
+
     // Ignore unknown args
     i++;
   }
@@ -93,5 +106,6 @@ export function parseCliArgs(argv: readonly string[]): CliOptions {
     prompt,
     model,
     provider,
+    stateDir,
   };
 }

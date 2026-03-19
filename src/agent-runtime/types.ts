@@ -80,6 +80,8 @@ export interface AgentConfig {
   tickBudgetMs: number;
   /** Whether this is a warm start (checkpoint exists) or cold start. */
   warmStart: boolean;
+  /** Directory for persisting agent state (memory, personality). */
+  stateDir?: string;
 }
 
 /** Aggregate metrics for the loop — accumulated across multiple ticks. */

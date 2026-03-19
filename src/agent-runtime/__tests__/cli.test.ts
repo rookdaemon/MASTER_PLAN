@@ -109,6 +109,7 @@ describe("parseCliArgs", () => {
         prompt: "Explain consciousness",
         model: "gpt-4o",
         provider: "openai",
+        stateDir: undefined,
       });
     });
 
@@ -134,6 +135,45 @@ describe("parseCliArgs", () => {
       const opts = parseCliArgs(BASE_ARGV);
       expect(opts.model).toBe("claude-sonnet-4-20250514");
       expect(opts.provider).toBe("anthropic-oauth");
+    });
+  });
+
+  describe("--state-dir flag", () => {
+    it("defaults stateDir to undefined", () => {
+      const opts = parseCliArgs(BASE_ARGV);
+      expect(opts.stateDir).toBeUndefined();
+    });
+
+    it("accepts --state-dir with a path", () => {
+      const opts = parseCliArgs([...BASE_ARGV, "--state-dir", "/tmp/agent-state"]);
+      expect(opts.stateDir).toBe("/tmp/agent-state");
+    });
+
+    it("throws if --state-dir is given without a value", () => {
+      expect(() =>
+        parseCliArgs([...BASE_ARGV, "--state-dir"])
+      ).toThrow(/requires a value/i);
+    });
+
+    it("throws if --state-dir value looks like another flag", () => {
+      expect(() =>
+        parseCliArgs([...BASE_ARGV, "--state-dir", "--provider"])
+      ).toThrow(/requires a value/i);
+    });
+
+    it("works combined with other flags", () => {
+      const opts = parseCliArgs([
+        ...BASE_ARGV,
+        "--state-dir",
+        "/data/state",
+        "-p",
+        "hello",
+        "--model",
+        "gpt-4o",
+      ]);
+      expect(opts.stateDir).toBe("/data/state");
+      expect(opts.mode).toBe("one-shot");
+      expect(opts.model).toBe("gpt-4o");
     });
   });
 });
