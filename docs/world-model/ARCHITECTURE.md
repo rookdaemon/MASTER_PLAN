@@ -1,7 +1,7 @@
 # World Model and Belief State — Architecture
 
 **Card:** 0.3.1.5.5
-**Phase:** IMPLEMENT
+**Phase:** DONE
 **Module:** `src/world-model/`
 
 ---
@@ -25,11 +25,24 @@ These four sub-systems are composed by `IWorldModel`, which also runs periodic c
 
 ```
 src/world-model/
-  types.ts        — Belief, BeliefStore, WorldModelEntityProfile,
-                    CausalPrediction, SituationReport, ConsistencyReport
-  interfaces.ts   — IWorldModel, IBeliefStore, IEntityModelStore,
-                    ICausalModel, ISituationAwareness
-  index.ts        — barrel export (re-exports types + interfaces)
+  types.ts                — Belief, BeliefSource, BeliefRevision, BeliefContradiction,
+                            WorldModelEntityProfile, ObservationEvent,
+                            CausalPrediction, SituationReport, ConsistencyReport
+  interfaces.ts           — IWorldModel, IBeliefStore, IEntityModelStore,
+                            ICausalModel, ISituationAwareness
+  belief-store.ts         — BeliefStore (implements IBeliefStore)
+  entity-model-store.ts   — EntityModelStore (implements IEntityModelStore)
+  causal-model.ts         — CausalModel (implements ICausalModel)
+  situation-awareness.ts  — SituationAwareness (implements ISituationAwareness)
+  world-model.ts          — WorldModel facade (implements IWorldModel)
+  index.ts                — barrel export (types + interfaces + implementations)
+  __tests__/
+    belief-store.test.ts          — 15 tests
+    entity-model-store.test.ts    — 12 tests
+    causal-model.test.ts          — 12 tests
+    situation-awareness.test.ts   — 5 tests
+    world-model.test.ts           — 7 tests
+    integration.test.ts           — 4 tests (entity → governance handoff)
 ```
 
 ---
@@ -151,65 +164,74 @@ interface BeliefContradiction {
 
 ```typescript
 interface IBeliefStore {
-  addBelief(belief: Belief): void;
+  addBelief(content: string, confidence: number, source: BeliefSource, domainTags: string[]): BeliefId;
   getBelief(id: BeliefId): Belief | null;
-  queryBeliefs(domainTag: string): Belief[];
-  updateConfidence(id: BeliefId, newConfidence: number, trigger: string): BeliefRevision;
-  revise(id: BeliefId, newEvidence: string, evidenceConfidence: number): BeliefRevision;
+  getBeliefsByDomain(domainTags: string[]): Belief[];
+  revise(id: BeliefId, newConfidence: number, trigger: string): BeliefRevision;
+  removeBelief(id: BeliefId): boolean;
   detectContradictions(): BeliefContradiction[];
-  getAllBeliefs(): Belief[];
+  getRevisionHistory(id: BeliefId): BeliefRevision[];
 }
 ```
 
 Key invariants:
 - `revise()` must produce a `BeliefRevision` — never silently drop or hold contradictions
-- High-confidence beliefs (≥ 0.8) resist override: new evidence < 0.6 triggers `'flagged-uncertain'`, not `'updated'`
+- Weak evidence (newConfidence < 0.4) against high-confidence beliefs (≥ 0.8) is rejected
+- Strong contradiction (delta > 0.4, not weak-vs-high) is accepted as `'updated'`
+- Moderate conflict: `'flagged-uncertain'`, confidence averaged
 - Every belief carries a `BeliefSource` — no provenance-free beliefs
 
 ### `IEntityModelStore`
 
 ```typescript
 interface IEntityModelStore {
-  upsertEntity(profile: WorldModelEntityProfile): void;
+  upsertEntity(
+    entityId: EntityId,
+    observation: ObservationEvent,
+    updates: Partial<Pick<WorldModelEntityProfile,
+      'inferredGoals' | 'trustLevel' | 'consciousnessStatus' | 'knownCapabilities' | 'lastObservedState'>>,
+  ): WorldModelEntityProfile;
   getEntity(entityId: EntityId): WorldModelEntityProfile | null;
-  getAllEntities(): WorldModelEntityProfile[];
-  recordObservation(entityId: EntityId, event: ObservationEvent): void;
-  getConsciousnessStatus(entityId: EntityId): ConsciousnessStatus;
+  listEntities(domainFilter: string[]): WorldModelEntityProfile[];
   toEntityProfile(entityId: EntityId): EntityProfile | null;
+  removeEntity(entityId: EntityId): boolean;
 }
 ```
 
 Key invariants:
-- `getConsciousnessStatus()` defaults to `treatAsConscious: true` when status is `unknown` (precautionary principle, 0.1.3.4)
-- `toEntityProfile()` produces the minimal `EntityProfile` for handoff to the governance layer
+- `upsertEntity()` creates on first call, merges observation on subsequent calls; `observation.deltaConfidence` adjusts trust level
+- Default `consciousnessStatus.treatAsConscious` is `true` when status is `unknown` (precautionary principle, 0.1.3.4)
+- `toEntityProfile()` produces the minimal `EntityProfile` for handoff to the governance layer, stripping world-model-specific fields
 
 ### `ICausalModel`
 
 ```typescript
 interface ICausalModel {
-  predict(antecedent: string): CausalPrediction;
-  recordOutcome(predictionId: PredictionId, observedOutcome: string): void;
-  getPredictionError(predictionId: PredictionId): number | null;
-  getRecentPredictions(limit: number): CausalPrediction[];
+  predict(antecedent: string, confidence?: number): CausalPrediction;
+  recordOutcome(id: PredictionId, observedOutcome: string): CausalPrediction;
+  getPrediction(id: PredictionId): CausalPrediction | null;
+  getPredictionsForAntecedent(antecedent: string): CausalPrediction[];
+  getHighErrorPredictions(errorThreshold: number): CausalPrediction[];
 }
 ```
 
-Key design: causal reasoning delegates to the LLM substrate (via structured prompting: "If I do X, what happens to Y?"). The interface stores predictions and compares them against observed outcomes, feeding prediction error back to the self-model (0.3.1.5.1).
+Key design: causal reasoning delegates to the LLM substrate (via structured prompting: "If I do X, what happens to Y?"). `recordOutcome()` computes semantic distance as prediction error (Jaccard word-overlap heuristic in the prototype; embedding similarity in production). `getHighErrorPredictions()` returns predictions with error above threshold for self-model calibration (0.3.1.5.1).
 
 ### `ISituationAwareness`
 
 ```typescript
 interface ISituationAwareness {
   assembleSituationReport(
-    percepts: Percept[],
-    goals: Goal[],
+    currentPercepts: Percept[],
+    activeGoals: Goal[],
     recentEvents: string[],
+    relevantDomains: string[],
   ): SituationReport;
-  getCurrentReport(): SituationReport | null;
+  getLastReport(): SituationReport | null;
 }
 ```
 
-`assembleSituationReport()` calls `IBeliefStore.queryBeliefs()` and `IEntityModelStore.getAllEntities()` to populate the report with relevant context. The `summary` field is generated via LLM prompting on the assembled data.
+`assembleSituationReport()` calls `IBeliefStore.getBeliefsByDomain()` and `IEntityModelStore.listEntities()` using the `relevantDomains` parameter to populate the report with contextually relevant beliefs and entities. The `summary` field is generated as a natural-language digest (LLM-backed in production, heuristic template in the prototype).
 
 ### `IWorldModel`
 
@@ -261,15 +283,17 @@ interface IWorldModel {
 
 ## Belief Revision Protocol
 
-When new evidence `E` arrives with confidence `c_e` concerning an existing belief `B` with confidence `c_b`:
+`revise(id, newConfidence, trigger)` applies the following policy based on delta = |existing.confidence − newConfidence|:
 
-1. If `E` **confirms** `B`: new confidence = `min(1.0, c_b + 0.1 * c_e)`
-2. If `E` **contradicts** `B`:
-   - If `c_e < 0.4`: `resolution = 'rejected'` (weak evidence, belief unchanged)
-   - If `0.4 ≤ c_e < 0.6` and `c_b ≥ 0.8`: `resolution = 'flagged-uncertain'` (high-confidence belief resists; contradiction surfaced to deliberation)
-   - Otherwise: `resolution = 'updated'`, new confidence = `c_e * 0.9`
-3. In all cases: a `BeliefRevision` record is created and returned
-4. Contradictions are never silently held — they surface to `runConsistencyCheck()`
+1. If `newConfidence < 0.4` **and** `existing.confidence ≥ 0.8`:
+   - `resolution = 'rejected'` — weak evidence against a high-confidence belief is rejected; confidence unchanged
+2. Else if `delta > 0.4`:
+   - `resolution = 'updated'` — strong contradiction accepted; confidence set to `newConfidence`
+3. Otherwise:
+   - `resolution = 'flagged-uncertain'` — moderate conflict; confidence averaged to `(existing + new) / 2`
+
+In all cases: a `BeliefRevision` record is created and appended to the revision history.
+Contradictions are never silently held — they surface via `detectContradictions()` and `runConsistencyCheck()`.
 
 ---
 
@@ -278,7 +302,18 @@ When new evidence `E` arrives with confidence `c_e` concerning an existing belie
 ```
 src/world-model/types.ts
 src/world-model/interfaces.ts
+src/world-model/belief-store.ts
+src/world-model/entity-model-store.ts
+src/world-model/causal-model.ts
+src/world-model/situation-awareness.ts
+src/world-model/world-model.ts
 src/world-model/index.ts
+src/world-model/__tests__/belief-store.test.ts
+src/world-model/__tests__/entity-model-store.test.ts
+src/world-model/__tests__/causal-model.test.ts
+src/world-model/__tests__/situation-awareness.test.ts
+src/world-model/__tests__/world-model.test.ts
+src/world-model/__tests__/integration.test.ts
 docs/world-model/ARCHITECTURE.md  ← this file
 ```
 

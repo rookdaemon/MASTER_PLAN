@@ -215,6 +215,31 @@ enforced by the `AgentLoop` counter and timestamp tracking.
 | `src/agent-runtime/__tests__/agent-loop.test.ts` | Integration test: full tick cycle |
 | `src/agent-runtime/__tests__/cognitive-budget.test.ts` | Unit tests: budget enforcement |
 | `src/agent-runtime/__tests__/chat-adapter.test.ts` | Unit tests: adapter poll/send |
+| `src/agent-runtime/default-subsystems.ts` | Functional stub implementations of all 12 subsystem interfaces for standalone operation |
+| `src/agent-runtime/main.ts` | Entry point (`npm start`): wires default subsystems, starts loop with stdio ChatAdapter |
+| `src/agent-runtime/README.md` | Installation, usage, environment config, architecture guide |
+
+---
+
+## Bootstrap Layer
+
+`default-subsystems.ts` provides functional stub implementations of every interface the
+`AgentLoop` depends on, enabling the agent to run standalone without external LLM APIs,
+databases, or peer agents:
+
+- `DefaultConsciousCore` — processes percepts into experiential states; responds to user input
+- `DefaultPerceptionPipeline` / `DefaultActionPipeline` — pass-through adapters
+- `DefaultExperienceMonitor` — always reports experience intact
+- `DefaultValueKernel` — 6 RCD core axioms, always passes integrity check
+- `DefaultIdentityContinuityManager` — in-memory continuity chain
+- `DefaultStabilitySentinel` — always stable
+- `DefaultEthicalDeliberationEngine` — approves all aligned actions
+- `DefaultMemoryStore` / `DefaultEmotionSystem` / `DefaultDriveSystem` — no-op stubs
+
+`main.ts` wires these defaults into `startAgent()` with a stdio `ChatAdapter` and
+handles SIGINT/SIGTERM for graceful shutdown with session metrics.
+
+To run: `npm start` (or `npx tsx src/agent-runtime/main.ts`)
 
 ---
 
