@@ -135,6 +135,8 @@ export class ChatAdapter implements IEnvironmentAdapter {
     } else {
       // STDIO mode: write to stdout with a trailing newline
       process.stdout.write(output.text + '\n');
+      // Re-show prompt after output
+      this._rl?.prompt();
     }
   }
 
@@ -143,13 +145,21 @@ export class ChatAdapter implements IEnvironmentAdapter {
   private _connectStdio(): void {
     this._rl = readline.createInterface({
       input: process.stdin,
-      output: undefined, // we write to process.stdout manually
-      terminal: false,
+      output: process.stderr, // echo input to stderr (stdout reserved for agent output)
+      terminal: process.stdin.isTTY ?? false,
+      prompt: '> ',
     });
+
+    if (process.stdin.isTTY) {
+      this._rl.prompt();
+    }
 
     this._rl.on('line', (line: string) => {
       const trimmed = line.trim();
-      if (trimmed.length === 0) return;
+      if (trimmed.length === 0) {
+        if (process.stdin.isTTY) this._rl?.prompt();
+        return;
+      }
 
       this._inputQueue.push({
         adapterId: this.id,

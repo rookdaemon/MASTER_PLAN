@@ -35,6 +35,7 @@ type RlHandler = (arg?: unknown) => void;
 interface MockRlInterface {
   on(event: string, handler: RlHandler): void;
   close(): void;
+  prompt(): void;
   /** Test helper — fire an event on the interface. */
   _emit(event: string, arg?: unknown): void;
 }
@@ -53,6 +54,7 @@ vi.mock('node:readline', () => ({
         listeners.set(event, arr);
       },
       close: mockRlClose,
+      prompt: vi.fn(),
       _emit(event: string, arg?: unknown) {
         (listeners.get(event) ?? []).forEach(fn => fn(arg));
       },
