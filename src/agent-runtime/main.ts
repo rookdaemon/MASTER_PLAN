@@ -49,6 +49,8 @@ import { MemoryStoreAdapter } from './memory-store-adapter.js';
 import { PersonalityModel } from '../personality/personality-model.js';
 import { PersistenceManager } from './persistence-manager.js';
 import { NodeFileSystem } from './filesystem.js';
+import { DebugLogger } from './debug-log.js';
+import { Dashboard } from './dashboard.js';
 
 // ── Configuration ────────────────────────────────────────────
 
@@ -119,10 +121,18 @@ async function handleOneShot(prompt: string, model: string, provider: LlmProvide
 // ── Agent loop mode ──────────────────────────────────────────
 
 async function handleAgentLoop(stateDir: string): Promise<void> {
+  // ── Initialize observability ──────────────────────────────
+  const debugLogPath = join(stateDir, 'debug.log');
+  const debugLog = new DebugLogger(debugLogPath);
+  const dashboard = new Dashboard();
+
+  debugLog.banner(config.agentId, config.warmStart);
+  debugLog.log('lifecycle', 'Agent loop initializing', { stateDir });
+
   console.error('╔══════════════════════════════════════════════════╗');
   console.error('║   Conscious Agent Runtime — Industrial Era 0.3   ║');
-  console.error('║   ISMT-compliant conscious processing pipeline   ║');
   console.error('╚══════════════════════════════════════════════════╝');
+  console.error(`  debug.log: ${debugLogPath}`);
   console.error('');
 
   // ── Initialize persistence ────────────────────────────────
@@ -141,17 +151,22 @@ async function handleAgentLoop(stateDir: string): Promise<void> {
   // ── Restore persisted state (warm start) ──────────────────
   if (persistence.hasState()) {
     console.error('[main] Persisted state found — restoring...');
+    debugLog.log('lifecycle', 'Persisted state found — restoring');
     const memorySn = await persistence.loadMemorySnapshot();
     if (memorySn) {
       memorySystem.restoreFromSnapshot(memorySn);
+      debugLog.log('memory', `Memory restored (hash=${memorySn.integrityHash.slice(0, 12)})`);
       console.error(`[main] Memory restored (hash=${memorySn.integrityHash.slice(0, 12)}...)`);
     }
     const personalitySn = await persistence.loadPersonalitySnapshot();
     if (personalitySn) {
       personality.restoreSnapshot(personalitySn);
+      debugLog.log('identity', `Personality restored (agent=${personalitySn.agentId})`);
       console.error(`[main] Personality restored (agent=${personalitySn.agentId})`);
     }
     config.warmStart = true;
+  } else {
+    debugLog.log('lifecycle', 'No persisted state — cold start (newborn)');
   }
 
   const memoryStore = new MemoryStoreAdapter(memorySystem);
@@ -174,7 +189,16 @@ async function handleAgentLoop(stateDir: string): Promise<void> {
 
   const { loop, bootMode } = await startAgent(deps, config);
 
+  // ── Attach observability ──────────────────────────────────
+  loop.setDebugLogger(debugLog);
+  loop.setDashboard(dashboard);
+  loop.setOnTick((snap) => {
+    dashboard.render(snap);
+  });
+
+  debugLog.log('lifecycle', `Boot mode: ${bootMode}`);
   console.error(`[main] Boot mode: ${bootMode}`);
+  console.error(`[main] Debug log: ${debugLogPath}`);
   console.error('[main] Type a message and press Enter to interact. Ctrl+C to quit.');
   console.error('');
 
@@ -183,28 +207,43 @@ async function handleAgentLoop(stateDir: string): Promise<void> {
     try {
       await persistence.saveMemorySnapshot(memorySystem.toSnapshot());
       await persistence.savePersonalitySnapshot(personality.snapshot());
+      debugLog.log('lifecycle', 'State persisted to disk');
       console.error('[main] State persisted to disk');
     } catch (err) {
+      debugLog.error('Error persisting state', err);
       console.error('[main] Error persisting state:', err);
     }
   };
 
   // Graceful shutdown on SIGINT / SIGTERM
   const shutdown = async (signal: string) => {
+    debugLog.log('lifecycle', `Received ${signal}, shutting down`);
     console.info(`\n[main] Received ${signal}, shutting down...`);
+    dashboard.cleanup();
     try {
       const termination = await loop.stop(signal);
       await persistState();
-      console.info(`[main] Shutdown complete. Final state at ${termination.terminatedAt}`);
 
       const metrics = loop.getLoopMetrics();
+      debugLog.log('lifecycle', 'Shutdown complete', {
+        terminatedAt: termination.terminatedAt,
+        totalCycles: metrics.totalCycles,
+        uptimeMs: metrics.totalUptimeMs,
+        avgTickMs: metrics.averageTickMs,
+        degradations: metrics.experienceDegradationCount,
+        alerts: metrics.stabilityAlertCount,
+      });
+
+      console.info(`[main] Shutdown complete. Final state at ${termination.terminatedAt}`);
       console.info(`[main] Session summary:`);
       console.info(`  Cycles:       ${metrics.totalCycles}`);
       console.info(`  Uptime:       ${(metrics.totalUptimeMs / 1000).toFixed(1)}s`);
       console.info(`  Avg tick:     ${metrics.averageTickMs.toFixed(1)}ms`);
       console.info(`  Degradations: ${metrics.experienceDegradationCount}`);
       console.info(`  Alerts:       ${metrics.stabilityAlertCount}`);
+      console.info(`  Debug log:    ${debugLogPath}`);
     } catch (err) {
+      debugLog.error('Error during shutdown', err);
       console.error('[main] Error during shutdown:', err);
     }
     process.exit(0);
