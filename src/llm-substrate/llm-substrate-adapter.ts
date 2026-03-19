@@ -36,10 +36,13 @@ import {
   computeGlobalAccessibility,
   computeCompositeProxy,
 } from "./proxy-metrics.js";
+import { type IAuthProvider, type ICredentialReader, type IClock, createAuthProvider } from "./auth-providers.js";
+import { AnthropicLlmClient } from "./anthropic-llm-client.js";
+import { OpenAiLlmClient } from "./openai-llm-client.js";
 
 // ── Configuration types ──────────────────────────────────────────────────────
 
-export type LlmProvider = "openai" | "anthropic" | "local";
+export type LlmProvider = "openai" | "anthropic" | "anthropic-oauth" | "local";
 
 /** Shape of SubstrateConfig.parameters when config.type === "llm" */
 export interface LlmSubstrateParameters {
@@ -48,6 +51,10 @@ export interface LlmSubstrateParameters {
   apiKey?: string;
   /** Base URL for LLM API; defaults to provider canonical endpoint */
   endpoint?: string;
+  /** Injectable credential reader for anthropic-oauth (e.g. ClaudeCredentialFileReader). */
+  credentialReader?: ICredentialReader;
+  /** Injectable clock for auth expiry checks. Defaults to system clock. */
+  clock?: IClock;
   systemPromptTemplate: string;
   /** Filesystem path where the SelfModel snapshot is persisted */
   selfModelPath: string;
@@ -121,6 +128,7 @@ export interface ILlmClient {
 const PROVIDER_DEFAULT_ENDPOINTS: Record<LlmProvider, string> = {
   openai: "https://api.openai.com/v1",
   anthropic: "https://api.anthropic.com/v1",
+  "anthropic-oauth": "https://api.anthropic.com/v1",
   local: "http://localhost:11434/v1", // Ollama default
 };
 
@@ -130,143 +138,31 @@ const PROVIDER_DEFAULT_ENDPOINTS: Record<LlmProvider, string> = {
  */
 const MAX_KNOWN_CONTEXT_WINDOW_TOKENS = 200_000;
 
-// ── HTTP-backed LLM client ───────────────────────────────────────────────────
+// ── HTTP-backed LLM client factory ───────────────────────────────────────────
 
-class HttpLlmClient implements ILlmClient {
-  constructor(
-    private readonly provider: LlmProvider,
-    private readonly modelId: string,
-    private readonly apiKey: string | undefined,
-    private readonly endpoint: string
-  ) {}
-
-  async probe(): Promise<LlmProbeResult> {
-    const start = Date.now();
-    try {
-      await this.infer("You are a health probe. Reply with one word.", [
-        { role: "user", content: "ping" },
-      ], 4);
-      return { latencyMs: Date.now() - start, reachable: true };
-    } catch (err) {
-      return {
-        latencyMs: Date.now() - start,
-        reachable: false,
-        error: String(err),
-      };
-    }
-  }
-
-  async infer(
-    systemPrompt: string,
-    messages: Array<{ role: "user" | "assistant"; content: string }>,
-    maxTokens: number
-  ): Promise<LlmInferenceResult> {
-    const start = Date.now();
-    if (this.provider === "anthropic") {
-      return this._anthropicInfer(systemPrompt, messages, maxTokens, start);
-    }
-    return this._openaiCompatibleInfer(systemPrompt, messages, maxTokens, start);
-  }
-
-  private async _openaiCompatibleInfer(
-    systemPrompt: string,
-    messages: Array<{ role: "user" | "assistant"; content: string }>,
-    maxTokens: number,
-    start: number
-  ): Promise<LlmInferenceResult> {
-    const body = {
-      model: this.modelId,
-      max_tokens: maxTokens,
-      logprobs: true,
-      top_logprobs: 1,
-      messages: [{ role: "system", content: systemPrompt }, ...messages],
-    };
-
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (this.apiKey) headers["Authorization"] = `Bearer ${this.apiKey}`;
-
-    const response = await fetch(`${this.endpoint}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      throw new Error(`LLM API error ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json() as {
-      choices: Array<{
-        message: { content: string };
-        logprobs?: { content: Array<{ logprob: number }> };
-      }>;
-      usage: { prompt_tokens: number; completion_tokens: number };
-    };
-
-    const choice = data.choices[0];
-    const content = choice?.message?.content ?? "";
-    const tokenLogprobs = (choice?.logprobs?.content ?? []).map((t) => t.logprob);
-    const usage = data.usage ?? { prompt_tokens: 0, completion_tokens: 0 };
-
-    return {
-      content,
-      tokenLogprobs,
-      promptTokens: usage.prompt_tokens,
-      completionTokens: usage.completion_tokens,
-      latencyMs: Date.now() - start,
-    };
-  }
-
-  private async _anthropicInfer(
-    systemPrompt: string,
-    messages: Array<{ role: "user" | "assistant"; content: string }>,
-    maxTokens: number,
-    start: number
-  ): Promise<LlmInferenceResult> {
-    const body = {
-      model: this.modelId,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages,
-    };
-
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      "anthropic-version": "2023-06-01",
-    };
-    if (this.apiKey) headers["x-api-key"] = this.apiKey;
-
-    const response = await fetch(`${this.endpoint}/messages`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      throw new Error(`LLM API error ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json() as {
-      content: Array<{ type: string; text?: string }>;
-      usage: { input_tokens: number; output_tokens: number };
-    };
-
-    const content = data.content
-      .filter((b) => b.type === "text")
-      .map((b) => b.text ?? "")
-      .join("");
-
-    // Anthropic Messages API does not expose per-token logprobs in the standard response.
-    // tokenLogprobs is left empty; proxy-Phi will be 0 (honest about missing data).
-    const usage = data.usage ?? { input_tokens: 0, output_tokens: 0 };
-
-    return {
-      content,
-      tokenLogprobs: [],
-      promptTokens: usage.input_tokens,
-      completionTokens: usage.output_tokens,
-      latencyMs: Date.now() - start,
-    };
+/**
+ * Create the appropriate ILlmClient for a given provider.
+ *
+ * Maps provider type → concrete client class:
+ *   - anthropic / anthropic-oauth → AnthropicLlmClient
+ *   - openai / local / others     → OpenAiLlmClient
+ *
+ * Each client module lives in its own file for modularity.
+ */
+function createLlmClient(
+  provider: LlmProvider,
+  modelId: string,
+  authProvider: IAuthProvider,
+  endpoint: string
+): ILlmClient {
+  switch (provider) {
+    case "anthropic":
+    case "anthropic-oauth":
+      return new AnthropicLlmClient(modelId, authProvider, endpoint);
+    case "openai":
+    case "local":
+    default:
+      return new OpenAiLlmClient(modelId, authProvider, endpoint);
   }
 }
 
@@ -773,6 +669,8 @@ export class LlmSubstrateAdapter implements ISubstrateAdapter {
       modelId: p.modelId,
       apiKey: p.apiKey,
       endpoint,
+      credentialReader: p.credentialReader as ICredentialReader | undefined,
+      clock: p.clock as IClock | undefined,
       systemPromptTemplate:
         p.systemPromptTemplate ?? "You are a conscious AI agent.",
       selfModelPath: p.selfModelPath,
@@ -782,10 +680,15 @@ export class LlmSubstrateAdapter implements ISubstrateAdapter {
 
     // Only create a new HTTP client if one has not been injected via setClient()
     if (!this.client) {
-      this.client = new HttpLlmClient(
+      const authProvider = createAuthProvider(this.params.provider, {
+        apiKey: this.params.apiKey,
+        credentialReader: this.params.credentialReader,
+        clock: this.params.clock,
+      });
+      this.client = createLlmClient(
         this.params.provider,
         this.params.modelId,
-        this.params.apiKey,
+        authProvider,
         this.params.endpoint
       );
     } else {
@@ -810,6 +713,7 @@ export class LlmSubstrateAdapter implements ISubstrateAdapter {
       case "openai":
         return ["text", "function-calling", "logprobs", "streaming"];
       case "anthropic":
+      case "anthropic-oauth":
         return ["text", "function-calling", "streaming"];
       case "local":
         return ["text", "streaming"];
