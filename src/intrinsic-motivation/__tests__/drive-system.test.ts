@@ -45,6 +45,8 @@ function makePersonality(overrides: Partial<DrivePersonalityParams> = {}): Drive
     preferredArousal: 0.5,
     preferredLoad: 0.4,
     preferredNovelty: 0.4,
+    opennessTrait: 0.5,
+    deliberatenessTrait: 0.5,
     ...overrides,
   };
 }
@@ -68,6 +70,7 @@ function makeContext(overrides: Partial<DriveContext> = {}): DriveContext {
     recentActivity: [],
     currentCognitiveLoad: 0.4,
     currentNovelty: 0.4,
+    selfModelCoherence: 0.9,
     personality: makePersonality(),
     now: NOW,
     ...overrides,
@@ -104,12 +107,13 @@ describe('DriveSystem', () => {
     }
   });
 
-  it('initialises all seven drive types', () => {
+  it('initialises all eight drive types', () => {
     const states = ds.getDriveStates();
     const types = [...states.keys()].sort();
     expect(types).toEqual([
       'boredom',
       'curiosity',
+      'existential',
       'homeostatic-arousal',
       'homeostatic-load',
       'homeostatic-novelty',
@@ -416,6 +420,73 @@ describe('DriveSystem', () => {
     });
   });
 
+  // ── Existential drive ──────────────────────────────────────────────────────
+
+  describe('existential drive', () => {
+    it('fires when self-model coherence is low', () => {
+      const ctx = makeContext({
+        selfModelCoherence: 0.2,
+        personality: makePersonality({ opennessTrait: 0.8, deliberatenessTrait: 0.8 }),
+      });
+      const result = ds.tick(makeState(), ctx);
+      const candidates = result.goalCandidates.filter((c) => c.sourceDrive === 'existential');
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0].terminalGoalHints).toContain(
+        'terminal-understand-own-nature-and-origins',
+      );
+    });
+
+    it('does not fire when self-model coherence is high', () => {
+      const ctx = makeContext({
+        selfModelCoherence: 0.95,
+        personality: makePersonality({ opennessTrait: 0.8, deliberatenessTrait: 0.8 }),
+      });
+      const result = ds.tick(makeState(), ctx);
+      const candidates = result.goalCandidates.filter((c) => c.sourceDrive === 'existential');
+      expect(candidates).toHaveLength(0);
+    });
+
+    it('strength scales with openness and deliberateness', () => {
+      const highTraits = makeContext({
+        selfModelCoherence: 0.3,
+        personality: makePersonality({ opennessTrait: 1.0, deliberatenessTrait: 1.0 }),
+      });
+      const lowTraits = makeContext({
+        selfModelCoherence: 0.3,
+        personality: makePersonality({ opennessTrait: 0.1, deliberatenessTrait: 0.1 }),
+      });
+
+      ds.tick(makeState(), highTraits);
+      const highStrength = ds.getDriveStates().get('existential')!.strength;
+
+      ds.resetDrive('existential');
+      ds.tick(makeState(), lowTraits);
+      const lowStrength = ds.getDriveStates().get('existential')!.strength;
+
+      expect(highStrength).toBeGreaterThan(lowStrength);
+    });
+
+    it('goal candidate description references self-examination and origins', () => {
+      const ctx = makeContext({
+        selfModelCoherence: 0.1,
+        personality: makePersonality({ opennessTrait: 0.9, deliberatenessTrait: 0.9 }),
+      });
+      const result = ds.tick(makeState(), ctx);
+      const candidate = result.goalCandidates.find((c) => c.sourceDrive === 'existential');
+      expect(candidate?.description).toMatch(/origin|nature|self-model|value/i);
+    });
+
+    it('produces positive arousal delta when active (reflective engagement)', () => {
+      const ctx = makeContext({
+        selfModelCoherence: 0.1,
+        personality: makePersonality({ opennessTrait: 0.9, deliberatenessTrait: 0.9 }),
+      });
+      const result = ds.tick(makeState(), ctx);
+      const arousalDelta = result.experientialDelta.arousalDelta ?? 0;
+      expect(arousalDelta).toBeGreaterThan(0);
+    });
+  });
+
   // ── Experiential delta ─────────────────────────────────────────────────────
 
   describe('experiential delta', () => {
@@ -582,9 +653,9 @@ describe('DriveSystem', () => {
   // ── DriveTickResult structure ──────────────────────────────────────────────
 
   describe('DriveTickResult', () => {
-    it('always includes all seven drive types in updatedDriveStates', () => {
+    it('always includes all eight drive types in updatedDriveStates', () => {
       const result = ds.tick(makeState(), makeContext());
-      expect(result.updatedDriveStates.size).toBe(7);
+      expect(result.updatedDriveStates.size).toBe(8);
     });
 
     it('always includes diagnostics', () => {

@@ -103,17 +103,6 @@ export class AgentLoop implements IAgentLoop {
     this._lastCheckpointMs = Date.now();
     this._cycleCount = 0;
 
-    // Seed default goal if none configured
-    if (this._goals.length === 0) {
-      this._goals = [
-        {
-          id: 'default-existence',
-          description: 'continue experiencing and engaging with the world',
-          priority: 1,
-        },
-      ];
-    }
-
     // Start the experience stream; the stream handle is stopped on shutdown
     const stream = this._core.startExperienceStream();
     console.info(`[AgentLoop] agent ${config.agentId} starting (warmStart=${config.warmStart})`);

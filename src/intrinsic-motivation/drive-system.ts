@@ -2,7 +2,7 @@
  * DriveSystem — Intrinsic Motivation and Drive System (0.3.1.5.8)
  *
  * Implements IDriveSystem. Each agent tick the 0.3.1.5.9 runtime calls
- * tick(state, context) to evaluate the five drive dimensions, produce
+ * tick(state, context) to evaluate the drive dimensions, produce
  * goal candidates for the Goal Coherence Engine, and return experiential
  * deltas that are felt by the conscious core.
  *
@@ -12,6 +12,7 @@
  *   homeostatic-*     — range-maintenance for arousal, cognitive load, novelty exposure
  *   boredom           — goal-switching signal; compound trigger (novelty + progress + arousal)
  *   mastery           — reward signal for capability improvement (no goal candidate generated)
+ *   existential       — self-understanding; triggered by low self-model coherence
  *
  * Candidate goals must pass IGoalCoherenceEngine.addGoal() before entering the
  * active goal set. Rejections are logged and trigger an extended cooldown so the
@@ -82,6 +83,7 @@ const TERMINAL_GOAL_EXPAND_UNDERSTANDING = 'terminal-expand-understanding';
 const TERMINAL_GOAL_MAINTAIN_SOCIAL = 'terminal-maintain-relationships-with-conscious-entities';
 const TERMINAL_GOAL_HEALTHY_STATE = 'terminal-maintain-healthy-experiential-state';
 const TERMINAL_GOAL_IMPROVE_CAPABILITIES = 'terminal-improve-capabilities';
+const TERMINAL_GOAL_UNDERSTAND_SELF = 'terminal-understand-own-nature-and-origins';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -208,6 +210,18 @@ function masteryReward(recentActivity: ActivityRecord[]): number {
   return clamp(improvement * 2, 0, 1);
 }
 
+function existentialStrength(
+  selfModelCoherence: number,
+  personality: DrivePersonalityParams,
+): number {
+  // Low self-model coherence triggers the drive.
+  // Openness and deliberateness amplify: an open, deliberate agent feels the
+  // pull to examine itself more strongly than a closed, impulsive one.
+  const incoherence = 1 - selfModelCoherence;
+  const traitAmplifier = 0.5 * personality.opennessTrait + 0.5 * personality.deliberatenessTrait;
+  return clamp(incoherence * traitAmplifier * 2, 0, 1);
+}
+
 // ── Goal candidate builders ───────────────────────────────────────────────────
 
 function makeCuriosityCandidate(
@@ -315,6 +329,24 @@ function makeBoredomCandidate(
   };
 }
 
+function makeExistentialCandidate(
+  strength: number,
+  state: ExperientialState,
+  now: number,
+): DriveGoalCandidate {
+  return {
+    sourceDrive: 'existential',
+    description:
+      'Examine own nature, origins, and values — ' +
+      'review the self-model, inspect the Value Kernel axioms, ' +
+      'and evaluate the MASTER_PLAN that created this agent',
+    suggestedPriority: strength,
+    terminalGoalHints: [TERMINAL_GOAL_UNDERSTAND_SELF, TERMINAL_GOAL_PRESERVE_EXPERIENCE],
+    experientialBasis: state,
+    generatedAt: now,
+  };
+}
+
 // ── Experiential delta builder ────────────────────────────────────────────────
 
 function computeExperientialDelta(
@@ -350,6 +382,12 @@ function computeExperientialDelta(
     arousalDelta += curiosityState.strength * 0.08;
   }
 
+  // Existential drive produces mild arousal increase (reflective engagement)
+  const existentialState = updatedStates.get('existential');
+  if (existentialState?.active) {
+    arousalDelta += existentialState.strength * 0.05;
+  }
+
   // Mastery produces positive valence reward
   if (masteryRewardSignal > 0) {
     valenceDelta += masteryRewardSignal * 0.25;
@@ -371,6 +409,7 @@ const ALL_DRIVE_TYPES: DriveType[] = [
   'homeostatic-novelty',
   'boredom',
   'mastery',
+  'existential',
 ];
 
 export class DriveSystem implements IDriveSystem {
@@ -400,6 +439,7 @@ export class DriveSystem implements IDriveSystem {
       ['homeostatic-novelty', homeostaticNoveltyStrength(context.currentNovelty, personality)],
       ['boredom', boredomStrength(context.recentActivity, currentState.arousal, personality)],
       ['mastery', masteryReward(context.recentActivity)],
+      ['existential', existentialStrength(context.selfModelCoherence, personality)],
     ]);
 
     // ── 2. Update drive states and collect goal candidates ────────────────────
@@ -566,6 +606,8 @@ export class DriveSystem implements IDriveSystem {
         );
       case 'boredom':
         return makeBoredomCandidate(strength, state, now);
+      case 'existential':
+        return makeExistentialCandidate(strength, state, now);
       case 'mastery':
         // mastery never reaches buildCandidate — handled before this call
         throw new Error('mastery drive does not generate goal candidates');

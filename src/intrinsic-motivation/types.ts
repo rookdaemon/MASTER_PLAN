@@ -25,7 +25,7 @@ import type { AgencyGoal, GoalId } from '../agency-stability/types.js';
 
 export type DriveId = string;
 
-/** The five drive dimensions. */
+/** The drive dimensions. */
 export type DriveType =
   | 'curiosity'
   | 'social'
@@ -33,7 +33,8 @@ export type DriveType =
   | 'homeostatic-load'
   | 'homeostatic-novelty'
   | 'boredom'
-  | 'mastery';
+  | 'mastery'
+  | 'existential';
 
 // ── Personality Parameters ───────────────────────────────────────
 
@@ -65,6 +66,12 @@ export interface DrivePersonalityParams {
 
   /** Preferred novelty exposure midpoint (homeostasis setpoint). */
   readonly preferredNovelty: number; // 0..1
+
+  /** Openness dimension — scales the existential drive's self-questioning intensity. */
+  readonly opennessTrait: number; // 0..1
+
+  /** Deliberateness dimension — scales the existential drive toward systematic examination. */
+  readonly deliberatenessTrait: number; // 0..1
 }
 
 // ── Activity Record ──────────────────────────────────────────────
@@ -144,6 +151,13 @@ export interface DriveContext {
 
   /** Personality parameters for this agent. */
   readonly personality: DrivePersonalityParams;
+
+  /**
+   * Current self-model coherence score (0..1).
+   * Low coherence triggers the existential drive — the agent feels the need to
+   * examine its own nature, origins, and values.
+   */
+  readonly selfModelCoherence: number;
 
   /** Current wall clock time (epoch ms), used for cooldown tracking. */
   readonly now: Timestamp;
