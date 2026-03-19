@@ -16,13 +16,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { AnthropicLlmClient } from "../anthropic-llm-client.js";
 import type { IAuthProvider } from "../auth-providers.js";
+import { CLAUDE_CODE_IDENTITY } from "../auth-providers.js";
 
 // ── Test doubles ──────────────────────────────────────────────────────────────
 
 class StubAuthProvider implements IAuthProvider {
-  constructor(private readonly headers: Record<string, string> = {}) {}
+  constructor(
+    private readonly headers: Record<string, string> = {},
+    private readonly systemIdentity: boolean = false,
+  ) {}
   getHeaders(): Record<string, string> { return this.headers; }
   isExpired(): boolean { return false; }
+  requiresSystemIdentityPrefix(): boolean { return this.systemIdentity; }
 }
 
 function makeAnthropicResponse(content: string = "Hello", inputTokens = 10, outputTokens = 5) {
@@ -43,6 +48,7 @@ function makeErrorResponse(status = 500, statusText = "Internal Server Error") {
     status,
     statusText,
     json: async () => ({}),
+    text: async () => `{"error":"${statusText}"}`,
   };
 }
 
@@ -122,6 +128,22 @@ describe("AnthropicLlmClient", () => {
     expect(headers["x-api-key"]).toBe("sk-ant-apikey");
   });
 
+  it("passes anthropic-beta header from OAuth auth provider", async () => {
+    fetchSpy.mockResolvedValueOnce(makeAnthropicResponse());
+
+    const auth = new StubAuthProvider({
+      "Authorization": "Bearer sk-ant-oat-test",
+      "anthropic-beta": "claude-code-20250219,oauth-2025-04-20,fine-grained-tool-streaming-2025-05-14,interleaved-thinking-2025-05-14",
+    });
+    const client = new AnthropicLlmClient("claude-opus-4-5", auth, "https://api.anthropic.com/v1");
+
+    await client.infer("sys", [{ role: "user", content: "test" }], 100);
+
+    const headers = fetchSpy.mock.calls[0][1].headers;
+    expect(headers["anthropic-beta"]).toBe("claude-code-20250219,oauth-2025-04-20,fine-grained-tool-streaming-2025-05-14,interleaved-thinking-2025-05-14");
+    expect(headers["anthropic-version"]).toBe("2023-06-01");
+  });
+
   it("returns content and usage from Anthropic response", async () => {
     fetchSpy.mockResolvedValueOnce(makeAnthropicResponse("Test response", 15, 8));
 
@@ -192,5 +214,51 @@ describe("AnthropicLlmClient", () => {
     const result = await client.infer("sys", [{ role: "user", content: "test" }], 100);
 
     expect(result.content).toBe("Part 1. Part 2.");
+  });
+
+  it("sends system prompt as string for non-OAuth providers", async () => {
+    fetchSpy.mockResolvedValueOnce(makeAnthropicResponse());
+
+    const auth = new StubAuthProvider({ "x-api-key": "sk-test" }, false);
+    const client = new AnthropicLlmClient("claude-opus-4-5", auth, "https://api.anthropic.com/v1");
+
+    await client.infer("My system prompt", [{ role: "user", content: "Hi" }], 100);
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(body.system).toBe("My system prompt");
+  });
+
+  it("wraps system prompt in block array with Claude Code identity for OAuth providers", async () => {
+    fetchSpy.mockResolvedValueOnce(makeAnthropicResponse());
+
+    const auth = new StubAuthProvider(
+      { "Authorization": "Bearer sk-ant-oat-test" },
+      true,
+    );
+    const client = new AnthropicLlmClient("claude-opus-4-5", auth, "https://api.anthropic.com/v1");
+
+    await client.infer("Custom system prompt", [{ role: "user", content: "Hi" }], 100);
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(body.system).toEqual([
+      { type: "text", text: CLAUDE_CODE_IDENTITY },
+      { type: "text", text: "Custom system prompt" },
+    ]);
+  });
+
+  it("probe() uses Claude Code identity when auth requires it", async () => {
+    fetchSpy.mockResolvedValueOnce(makeAnthropicResponse("pong"));
+
+    const auth = new StubAuthProvider(
+      { "Authorization": "Bearer sk-ant-oat-test" },
+      true,
+    );
+    const client = new AnthropicLlmClient("claude-opus-4-5", auth, "https://api.anthropic.com/v1");
+
+    await client.probe();
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(Array.isArray(body.system)).toBe(true);
+    expect(body.system[0].text).toBe(CLAUDE_CODE_IDENTITY);
   });
 });

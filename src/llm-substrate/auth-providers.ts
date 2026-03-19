@@ -62,7 +62,12 @@ export interface IAuthProvider {
   getHeaders(): Record<string, string>;
   /** True if the credential has a known expiry and that expiry has passed. */
   isExpired(): boolean;
+  /** True if this auth strategy requires the Claude Code identity system prompt prefix. */
+  requiresSystemIdentityPrefix(): boolean;
 }
+
+/** Claude Code identity prefix required by Anthropic's OAuth API. */
+export const CLAUDE_CODE_IDENTITY = "You are Claude Code, Anthropic's official CLI for Claude.";
 
 // ── ApiKeyAuthProvider ───────────────────────────────────────────────────────
 
@@ -88,6 +93,40 @@ export class ApiKeyAuthProvider implements IAuthProvider {
   isExpired(): boolean {
     return false; // Static keys don't expire
   }
+
+  requiresSystemIdentityPrefix(): boolean {
+    return false;
+  }
+}
+
+// ── SetupTokenAuthProvider ───────────────────────────────────────────────────
+
+/**
+ * Auth provider for Anthropic setup-tokens (from `claude setup-token`).
+ *
+ * Uses `Authorization: Bearer` with the OAuth beta headers required by the
+ * Anthropic API for subscription-based access. Matches pi-mono's OAuth path
+ * which sends sk-ant-oat* tokens as Bearer, not x-api-key.
+ */
+export class SetupTokenAuthProvider implements IAuthProvider {
+  constructor(private readonly token: string) {}
+
+  getHeaders(): Record<string, string> {
+    return {
+      "Authorization": `Bearer ${this.token}`,
+      "anthropic-beta": "claude-code-20250219,oauth-2025-04-20,fine-grained-tool-streaming-2025-05-14,interleaved-thinking-2025-05-14",
+      "user-agent": "claude-cli/2.1.75",
+      "x-app": "cli",
+    };
+  }
+
+  isExpired(): boolean {
+    return false;
+  }
+
+  requiresSystemIdentityPrefix(): boolean {
+    return true;
+  }
 }
 
 // ── NoopAuthProvider ─────────────────────────────────────────────────────────
@@ -99,6 +138,10 @@ export class NoopAuthProvider implements IAuthProvider {
   }
 
   isExpired(): boolean {
+    return false;
+  }
+
+  requiresSystemIdentityPrefix(): boolean {
     return false;
   }
 }
@@ -119,8 +162,8 @@ export interface ClaudeOAuthCredentials {
  * OAuth-based auth for Anthropic via Claude Code subscription credentials.
  *
  * Reads the OAuth access token from ~/.claude/.credentials.json and uses
- * `Authorization: Bearer <token>` headers. Billing routes through the
- * user's Claude Pro/Max subscription.
+ * `Authorization: Bearer <token>` headers with OAuth beta headers. Billing routes
+ * through the user's Claude Pro/Max subscription.
  */
 export class ClaudeOAuthProvider implements IAuthProvider {
   readonly subscriptionType: string;
@@ -142,11 +185,20 @@ export class ClaudeOAuthProvider implements IAuthProvider {
         `Re-authenticate with \`claude login\` to refresh credentials.`
       );
     }
-    return { Authorization: `Bearer ${this.accessToken}` };
+    return {
+      "Authorization": `Bearer ${this.accessToken}`,
+      "anthropic-beta": "claude-code-20250219,oauth-2025-04-20,fine-grained-tool-streaming-2025-05-14,interleaved-thinking-2025-05-14",
+      "user-agent": "claude-cli/2.1.75",
+      "x-app": "cli",
+    };
   }
 
   isExpired(): boolean {
     return this.clock.now() >= this.expiresAt.getTime();
+  }
+
+  requiresSystemIdentityPrefix(): boolean {
+    return true;
   }
 
   /**

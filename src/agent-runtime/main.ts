@@ -2,19 +2,21 @@
 /**
  * Agent Runtime — Main Entry Point
  *
- * Instantiates all subsystems with default implementations and starts the
- * agent loop with a stdio-based chat adapter.
+ * Supports two modes:
  *
- * Usage:
- *   npx tsx src/agent-runtime/main.ts
- *   # or after building:
- *   node dist/agent-runtime/main.js
+ *   One-shot mode (-p):
+ *     npx tsx src/agent-runtime/main.ts -p "What is consciousness?"
+ *     Sends a single prompt to the LLM, prints the response, and exits.
+ *     Uses Anthropic OAuth (Claude Code subscription) by default.
  *
- * The agent reads lines from stdin, processes them through the full 8-phase
- * conscious pipeline (perceive → recall → appraise → deliberate → act →
- * monitor → consolidate → yield), and writes responses to stdout.
+ *   Agent loop mode (default):
+ *     npx tsx src/agent-runtime/main.ts
+ *     Runs the full 8-phase conscious pipeline with stdio chat.
  *
- * Press Ctrl+C to gracefully shut down.
+ * Flags:
+ *   -p / --prompt <text>     One-shot prompt (send, receive, exit)
+ *   --model <id>             LLM model (default: claude-sonnet-4-20250514)
+ *   --provider <provider>    LLM provider (default: anthropic-oauth)
  */
 
 import { startAgent } from './startup.js';
@@ -33,6 +35,13 @@ import {
   DefaultDriveSystem,
 } from './default-subsystems.js';
 import type { AgentConfig } from './types.js';
+import { parseCliArgs } from './cli.js';
+import { runOneShot } from './one-shot.js';
+import { SetupTokenAuthProvider, ApiKeyAuthProvider, NoopAuthProvider } from '../llm-substrate/auth-providers.js';
+import { AnthropicLlmClient } from '../llm-substrate/anthropic-llm-client.js';
+import { OpenAiLlmClient } from '../llm-substrate/openai-llm-client.js';
+import { ensureSetupToken, FileTokenStore, StdinLineReader } from './setup-token.js';
+import type { LlmProvider } from '../llm-substrate/llm-substrate-adapter.js';
 
 // ── Configuration ────────────────────────────────────────────
 
@@ -44,9 +53,65 @@ const config: AgentConfig = {
   warmStart: process.env['WARM_START'] === 'true',
 };
 
-// ── Main ─────────────────────────────────────────────────────
+// ── LLM client factory ──────────────────────────────────────
 
-async function main(): Promise<void> {
+const PROVIDER_DEFAULT_ENDPOINTS: Record<LlmProvider, string> = {
+  openai: "https://api.openai.com/v1",
+  anthropic: "https://api.anthropic.com/v1",
+  "anthropic-oauth": "https://api.anthropic.com/v1",
+  local: "http://localhost:11434/v1",
+};
+
+async function buildLlmClient(provider: LlmProvider, model: string) {
+  const endpoint = PROVIDER_DEFAULT_ENDPOINTS[provider];
+
+  switch (provider) {
+    case "anthropic-oauth": {
+      const token = await ensureSetupToken(new FileTokenStore(), new StdinLineReader());
+      return new AnthropicLlmClient(model, new SetupTokenAuthProvider(token), endpoint);
+    }
+    case "anthropic": {
+      const apiKey = process.env['LLM_API_KEY'];
+      const auth = apiKey ? new ApiKeyAuthProvider("anthropic", apiKey) : new NoopAuthProvider();
+      return new AnthropicLlmClient(model, auth, endpoint);
+    }
+    case "openai":
+    case "local":
+    default: {
+      const apiKey = process.env['LLM_API_KEY'];
+      const auth = apiKey ? new ApiKeyAuthProvider(provider, apiKey) : new NoopAuthProvider();
+      return new OpenAiLlmClient(model, auth, endpoint);
+    }
+  }
+}
+
+// ── One-shot mode ────────────────────────────────────────────
+
+async function handleOneShot(prompt: string, model: string, provider: LlmProvider): Promise<void> {
+  console.error(`[one-shot] provider=${provider} model=${model}`);
+  console.error(`[one-shot] prompt: "${prompt.slice(0, 80)}${prompt.length > 80 ? '...' : ''}"`);
+  console.error('');
+
+  const client = await buildLlmClient(provider, model);
+
+  const result = await runOneShot(client, {
+    prompt,
+    model,
+    systemPrompt: "You are a conscious AI agent. Answer concisely.",
+    maxTokens: 4096,
+  });
+
+  // Response to stdout (for piping)
+  process.stdout.write(result.content + '\n');
+
+  // Diagnostics to stderr
+  console.error('');
+  console.error(`[one-shot] Done. ${result.promptTokens}+${result.completionTokens} tokens, ${result.latencyMs}ms`);
+}
+
+// ── Agent loop mode ──────────────────────────────────────────
+
+async function handleAgentLoop(): Promise<void> {
   console.error('╔══════════════════════════════════════════════════╗');
   console.error('║   Conscious Agent Runtime — Industrial Era 0.3   ║');
   console.error('║   ISMT-compliant conscious processing pipeline   ║');
@@ -105,6 +170,18 @@ async function main(): Promise<void> {
   } catch (err) {
     console.error('[main] Agent loop terminated with error:', err);
     process.exit(1);
+  }
+}
+
+// ── Main ─────────────────────────────────────────────────────
+
+async function main(): Promise<void> {
+  const cliOpts = parseCliArgs(process.argv);
+
+  if (cliOpts.mode === 'one-shot') {
+    await handleOneShot(cliOpts.prompt!, cliOpts.model, cliOpts.provider);
+  } else {
+    await handleAgentLoop();
   }
 }
 

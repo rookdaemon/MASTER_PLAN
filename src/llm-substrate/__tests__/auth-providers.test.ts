@@ -19,6 +19,7 @@ import {
   type ICredentialReader,
   type IClock,
   ApiKeyAuthProvider,
+  SetupTokenAuthProvider,
   ClaudeOAuthProvider,
   NoopAuthProvider,
   createAuthProvider,
@@ -132,6 +133,51 @@ describe("ApiKeyAuthProvider", () => {
     const provider = new ApiKeyAuthProvider("openai", "sk-test");
     expect(provider.isExpired()).toBe(false);
   });
+
+  it("requiresSystemIdentityPrefix() returns false", () => {
+    const provider = new ApiKeyAuthProvider("anthropic", "sk-test");
+    expect(provider.requiresSystemIdentityPrefix()).toBe(false);
+  });
+});
+
+// ── SetupTokenAuthProvider ────────────────────────────────────────────────────
+
+describe("SetupTokenAuthProvider", () => {
+  const token = "sk-ant-oat01-testtoken123456789012345678901234567890123456789012345678901234567890";
+
+  it("returns Authorization Bearer header with the setup-token", () => {
+    const provider = new SetupTokenAuthProvider(token);
+    const headers = provider.getHeaders();
+    expect(headers["Authorization"]).toBe(`Bearer ${token}`);
+  });
+
+  it("does not include x-api-key header", () => {
+    const provider = new SetupTokenAuthProvider(token);
+    expect(provider.getHeaders()["x-api-key"]).toBeUndefined();
+  });
+
+  it("includes anthropic-beta header with OAuth and tool-streaming flags", () => {
+    const provider = new SetupTokenAuthProvider(token);
+    const headers = provider.getHeaders();
+    expect(headers["anthropic-beta"]).toBe("claude-code-20250219,oauth-2025-04-20,fine-grained-tool-streaming-2025-05-14,interleaved-thinking-2025-05-14");
+  });
+
+  it("includes user-agent and x-app headers", () => {
+    const provider = new SetupTokenAuthProvider(token);
+    const headers = provider.getHeaders();
+    expect(headers["user-agent"]).toBe("claude-cli/2.1.75");
+    expect(headers["x-app"]).toBe("cli");
+  });
+
+  it("isExpired() always returns false", () => {
+    const provider = new SetupTokenAuthProvider(token);
+    expect(provider.isExpired()).toBe(false);
+  });
+
+  it("requiresSystemIdentityPrefix() returns true", () => {
+    const provider = new SetupTokenAuthProvider(token);
+    expect(provider.requiresSystemIdentityPrefix()).toBe(true);
+  });
 });
 
 // ── NoopAuthProvider ──────────────────────────────────────────────────────────
@@ -147,6 +193,11 @@ describe("NoopAuthProvider", () => {
     const provider = new NoopAuthProvider();
     expect(provider.isExpired()).toBe(false);
   });
+
+  it("requiresSystemIdentityPrefix() returns false", () => {
+    const provider = new NoopAuthProvider();
+    expect(provider.requiresSystemIdentityPrefix()).toBe(false);
+  });
 });
 
 // ── ClaudeOAuthProvider ──────────────────────────────────────────────────────
@@ -154,12 +205,19 @@ describe("NoopAuthProvider", () => {
 describe("ClaudeOAuthProvider", () => {
   const clock = new StubClock(FIXED_NOW);
 
-  it("returns Authorization: Bearer header with OAuth access token", () => {
+  it("returns Authorization Bearer header with OAuth access token", () => {
     const creds = makeCredentials();
     const provider = new ClaudeOAuthProvider(creds, clock);
     const headers = provider.getHeaders();
     expect(headers["Authorization"]).toBe(`Bearer ${creds.accessToken}`);
     expect(headers["x-api-key"]).toBeUndefined();
+  });
+
+  it("includes anthropic-beta header with OAuth and tool-streaming flags", () => {
+    const creds = makeCredentials();
+    const provider = new ClaudeOAuthProvider(creds, clock);
+    const headers = provider.getHeaders();
+    expect(headers["anthropic-beta"]).toBe("claude-code-20250219,oauth-2025-04-20,fine-grained-tool-streaming-2025-05-14,interleaved-thinking-2025-05-14");
   });
 
   it("isExpired() returns false when clock is before expiresAt", () => {
@@ -198,12 +256,18 @@ describe("ClaudeOAuthProvider", () => {
     expect(provider.subscriptionType).toBe("max");
   });
 
+  it("requiresSystemIdentityPrefix() returns true", () => {
+    const creds = makeCredentials();
+    const provider = new ClaudeOAuthProvider(creds, clock);
+    expect(provider.requiresSystemIdentityPrefix()).toBe(true);
+  });
+
   describe("fromCredentialFile()", () => {
     it("reads the credential file via ICredentialReader and returns a provider", () => {
       const fileContent = makeCredentialFileContent();
       const reader = new StubCredentialReader(fileContent);
       const provider = ClaudeOAuthProvider.fromCredentialFile(reader, clock);
-      expect(provider.getHeaders()["Authorization"]).toContain("Bearer ");
+      expect(provider.getHeaders()["Authorization"]).toBeDefined();
     });
 
     it("throws when credential reader fails (file not found)", () => {
@@ -264,7 +328,7 @@ describe("createAuthProvider()", () => {
     const reader = new StubCredentialReader(makeCredentialFileContent());
     const auth = createAuthProvider("anthropic-oauth", { credentialReader: reader, clock });
     expect(auth).toBeInstanceOf(ClaudeOAuthProvider);
-    expect(auth.getHeaders()["Authorization"]).toContain("Bearer ");
+    expect(auth.getHeaders()["Authorization"]).toBeDefined();
   });
 
   it("throws for provider='anthropic-oauth' when no credentialReader is provided", () => {

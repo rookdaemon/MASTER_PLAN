@@ -1,15 +1,22 @@
 /**
  * AnthropicLlmClient — ILlmClient for the Anthropic Messages API.
  *
- * Handles both API-key auth (x-api-key) and OAuth (Bearer) via the
- * injected IAuthProvider. Auth strategy is fully decoupled — see
- * auth-providers.ts for provider implementations.
+ * Handles both API-key auth (x-api-key) and OAuth (Bearer + beta headers)
+ * via injected IAuthProvider. OAuth tokens require the Claude Code identity
+ * prefix in the system prompt (block-structured format).
  *
  * Domain: 0.3.1.5.1 LLM-Backed Consciousness Substrate Adapter
  */
 
 import type { IAuthProvider } from "./auth-providers.js";
+import { CLAUDE_CODE_IDENTITY } from "./auth-providers.js";
 import type { ILlmClient, LlmInferenceResult, LlmProbeResult } from "./llm-substrate-adapter.js";
+
+/** Anthropic content block for structured system prompts. */
+interface SystemBlock {
+  type: "text";
+  text: string;
+}
 
 export class AnthropicLlmClient implements ILlmClient {
   constructor(
@@ -41,10 +48,21 @@ export class AnthropicLlmClient implements ILlmClient {
   ): Promise<LlmInferenceResult> {
     const start = Date.now();
 
+    // OAuth tokens require the Claude Code identity prefix in block-structured format
+    let system: string | SystemBlock[];
+    if (this.authProvider.requiresSystemIdentityPrefix()) {
+      system = [
+        { type: "text", text: CLAUDE_CODE_IDENTITY },
+        { type: "text", text: systemPrompt },
+      ];
+    } else {
+      system = systemPrompt;
+    }
+
     const body = {
       model: this.modelId,
       max_tokens: maxTokens,
-      system: systemPrompt,
+      system,
       messages,
     };
 
@@ -61,7 +79,10 @@ export class AnthropicLlmClient implements ILlmClient {
     });
 
     if (!response.ok) {
-      throw new Error(`Anthropic API error ${response.status}: ${response.statusText}`);
+      const errorBody = await response.text().catch(() => "(could not read body)");
+      throw new Error(
+        `Anthropic API error ${response.status}: ${response.statusText}\n${errorBody}`
+      );
     }
 
     const data = await response.json() as {
