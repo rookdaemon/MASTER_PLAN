@@ -100,6 +100,9 @@ export interface AgentDependencies {
   /** Optional narrative identity string for introspection. */
   narrativeIdentity?: string;
 
+  /** Workspace path for write_file tool (e.g. ~/.local/share/MASTER_PLAN/). */
+  workspacePath?: string;
+
   /**
    * The last persisted continuity link, loaded from external storage by the
    * caller before invoking startAgent().  Required for warm starts.
@@ -262,6 +265,9 @@ export async function startAgent(
   }
   if (deps.narrativeIdentity) {
     loop.setNarrativeIdentity(deps.narrativeIdentity);
+  }
+  if (deps.workspacePath) {
+    loop.setWorkspacePath(deps.workspacePath);
   }
 
   console.info(`[startup] AgentLoop constructed; ready to start ticking`);

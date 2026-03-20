@@ -19,6 +19,9 @@ import type { DriveType, ActivityRecord } from '../intrinsic-motivation/types.js
 import type { IMemorySystem } from '../memory/interfaces.js';
 import type { IPersonalityModel } from '../personality/interfaces.js';
 import type { TraitDimensionId } from '../personality/types.js';
+import { readFileSync, readdirSync, writeFileSync, appendFileSync, existsSync, statSync, mkdirSync } from 'node:fs';
+import { join, resolve, relative, dirname } from 'node:path';
+import { execSync } from 'node:child_process';
 import { VALID_RESOURCE_TYPES, type ResourceType } from './internal-tools.js';
 
 // ── Types ───────────────────────────────────────────────────────
@@ -42,6 +45,8 @@ export interface ToolExecutorDeps {
   goals: Goal[];
   activityLog: ActivityRecord[];
   narrativeIdentity: string;
+  projectRoot: string;
+  workspacePath: string; // ~/.local/share/MASTER_PLAN/
 }
 
 // ── Governance state ────────────────────────────────────────────
@@ -49,6 +54,19 @@ export interface ToolExecutorDeps {
 const traitLastUpdated = new Map<string, number>();
 const TRAIT_RATE_LIMIT_MS = 60 * 60 * 1000; // 1 hour
 const TRAIT_MAX_DELTA = 0.05;
+const FILE_CACHE_STALE_MS = 60 * 60 * 1000; // 1 hour — re-read files older than this
+const RUN_COMMAND_TIMEOUT_MS = 10_000;
+const RUN_COMMAND_MAX_OUTPUT = 4096; // 4KB cap
+const COMMAND_ALLOWLIST = [
+  'grep', 'find', 'wc', 'cat', 'head', 'tail',
+  'git', 'npx', 'ls', 'file', 'stat', 'tree',
+];
+const COMMAND_DENYLIST_ARGS = [
+  'rm ', 'rm\t', 'sudo', 'chmod', 'chown', 'mkfs',
+  'curl', 'wget', 'nc ', 'ssh', 'scp', 'rsync',
+  'npm install', 'npm publish', 'yarn add',
+  '> src/', '>> src/', 'tee src/',
+];
 
 const VALID_DRIVE_TYPES: readonly string[] = [
   'curiosity', 'social', 'homeostatic-arousal', 'homeostatic-load',
@@ -79,8 +97,16 @@ export function executeToolCall(
         return handleIntrospect(deps);
       case 'reflect':
         return handleReflect(call.input, deps);
+      case 'read_file':
+        return handleReadFile(call.input, deps);
+      case 'write_file':
+        return handleWriteFile(call.input, deps);
+      case 'run_command':
+        return handleRunCommand(call.input, deps);
+      case 'list_directory':
+        return handleListDirectory(call.input, deps);
       default:
-        return error(`Unknown tool "${call.name}". Available tools: resource_read, resource_create, resource_update, resource_delete, resource_list, resource_search, introspect, reflect`);
+        return error(`Unknown tool "${call.name}". Available tools: resource_read, resource_create, resource_update, resource_delete, resource_list, resource_search, introspect, reflect, read_file`);
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -614,6 +640,244 @@ function handleResourceSearch(
   return ok({ pattern, matches: hits.length, results: hits });
 }
 
+// ── read_file ───────────────────────────────────────────────────
+
+function handleReadFile(
+  input: Record<string, unknown>,
+  deps: ToolExecutorDeps,
+): ToolCallResult {
+  const path = input['path'] as string | undefined;
+  if (!path || typeof path !== 'string') {
+    return error('read_file requires a "path" string (e.g. "plan/root.md").');
+  }
+
+  // Security: resolve and verify the path is within the project root
+  const absPath = resolve(join(deps.projectRoot, path));
+  const rel = relative(deps.projectRoot, absPath);
+  if (rel.startsWith('..') || resolve(absPath) !== absPath.replace(/\/$/, '')) {
+    return error(`Path "${path}" is outside the project directory. Only files within the project are accessible.`);
+  }
+
+  if (!existsSync(absPath)) {
+    return error(`File "${path}" not found. Try list_directory to see available files, or "plan/root.md" for the plan structure.`);
+  }
+
+  // Check semantic memory cache for this file
+  const cacheTopic = `file:${path}`;
+  let cacheStatus = 'miss';
+  if (deps.memorySystem) {
+    const cached = deps.memorySystem.semantic.getByTopic(cacheTopic);
+    if (cached.length > 0) {
+      const entry = cached[0];
+      const ageMs = Date.now() - entry.lastReinforcedAt;
+      if (ageMs < FILE_CACHE_STALE_MS) {
+        cacheStatus = `cached (${Math.floor(ageMs / 60000)}min ago)`;
+      } else {
+        cacheStatus = `stale (${Math.floor(ageMs / 60000)}min ago, re-reading)`;
+      }
+    }
+  }
+
+  try {
+    const content = readFileSync(absPath, 'utf-8');
+    const maxLines = typeof input['max_lines'] === 'number' ? input['max_lines'] : 100;
+    const lines = content.split('\n');
+    const truncated = lines.length > maxLines;
+    const result = lines.slice(0, maxLines).join('\n');
+
+    // Auto-cache: store/reinforce a compact summary in semantic memory
+    if (deps.memorySystem) {
+      // Build a compact summary: first 3 non-empty lines + line count
+      const summaryLines = lines.filter(l => l.trim().length > 0).slice(0, 5);
+      const summary = `[${lines.length} lines] ${summaryLines.join(' | ').slice(0, 200)}`;
+
+      const existing = deps.memorySystem.semantic.getByTopic(cacheTopic);
+      if (existing.length > 0) {
+        // Reinforce — updates lastReinforcedAt
+        deps.memorySystem.semantic.update(existing[0].id, { content: summary });
+      } else {
+        // Create new cache entry
+        deps.memorySystem.semantic.store({
+          topic: cacheTopic,
+          content: summary,
+          relationships: [],
+          sourceEpisodeIds: [],
+          confidence: 0.9,
+          embedding: null,
+        });
+      }
+    }
+
+    return ok({
+      path,
+      lines: Math.min(lines.length, maxLines),
+      totalLines: lines.length,
+      truncated,
+      cache: cacheStatus,
+      content: result,
+    });
+  } catch (err) {
+    return error(`Error reading "${path}": ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+// ── write_file ──────────────────────────────────────────────────
+
+function handleWriteFile(
+  input: Record<string, unknown>,
+  deps: ToolExecutorDeps,
+): ToolCallResult {
+  const path = input['path'] as string | undefined;
+  const content = input['content'] as string | undefined;
+  const append = input['append'] === true;
+
+  if (!path || typeof path !== 'string') {
+    return error('write_file requires a "path" string (e.g. "notes/analysis.md").');
+  }
+  if (content === undefined || typeof content !== 'string') {
+    return error('write_file requires a "content" string.');
+  }
+
+  // Security: resolve within workspace only
+  const absPath = resolve(join(deps.workspacePath, path));
+  const rel = relative(deps.workspacePath, absPath);
+  if (rel.startsWith('..')) {
+    return error(`Path "${path}" resolves outside the workspace. Files can only be written to your workspace directory.`);
+  }
+
+  try {
+    // Ensure parent directory exists
+    const dir = dirname(absPath);
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+
+    if (append && existsSync(absPath)) {
+      appendFileSync(absPath, content);
+    } else {
+      writeFileSync(absPath, content);
+    }
+
+    const lines = content.split('\n').length;
+    return ok({
+      written: path,
+      mode: append ? 'appended' : 'created',
+      lines,
+      bytes: Buffer.byteLength(content),
+      fullPath: absPath,
+    });
+  } catch (err) {
+    return error(`Error writing "${path}": ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+// ── run_command ──────────────────────────────────────────────────
+
+function handleRunCommand(
+  input: Record<string, unknown>,
+  deps: ToolExecutorDeps,
+): ToolCallResult {
+  const command = input['command'] as string | undefined;
+  if (!command || typeof command !== 'string' || command.trim().length === 0) {
+    return error('run_command requires a non-empty "command" string.');
+  }
+
+  // Extract the base command (first word)
+  const baseCmd = command.trim().split(/\s+/)[0].replace(/^.*\//, ''); // strip path prefix
+
+  // Allowlist check
+  if (!COMMAND_ALLOWLIST.includes(baseCmd)) {
+    return error(
+      `Command "${baseCmd}" is not in the allowlist. ` +
+      `Permitted commands: ${COMMAND_ALLOWLIST.join(', ')}`,
+    );
+  }
+
+  // Denylist check on full command string
+  for (const denied of COMMAND_DENYLIST_ARGS) {
+    if (command.includes(denied)) {
+      return error(`Command contains denied pattern "${denied.trim()}". This operation is not permitted for safety.`);
+    }
+  }
+
+  // Additional safety: block piping to network or destructive commands
+  if (/\|\s*(curl|wget|nc|ssh|bash|sh|zsh)\b/.test(command)) {
+    return error('Piping to network or shell commands is not permitted.');
+  }
+
+  try {
+    const result = execSync(command, {
+      cwd: deps.projectRoot,
+      timeout: RUN_COMMAND_TIMEOUT_MS,
+      maxBuffer: RUN_COMMAND_MAX_OUTPUT * 2, // allow some headroom for truncation
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    const output = result.length > RUN_COMMAND_MAX_OUTPUT
+      ? result.slice(0, RUN_COMMAND_MAX_OUTPUT) + `\n... (truncated at ${RUN_COMMAND_MAX_OUTPUT} bytes)`
+      : result;
+
+    return ok({ command, exitCode: 0, output });
+  } catch (err: unknown) {
+    // execSync throws on non-zero exit or timeout
+    const execErr = err as { status?: number; stdout?: string; stderr?: string; killed?: boolean; signal?: string };
+    if (execErr.killed || execErr.signal === 'SIGTERM') {
+      return error(`Command timed out after ${RUN_COMMAND_TIMEOUT_MS / 1000}s: "${command}"`);
+    }
+
+    const stdout = (execErr.stdout ?? '').slice(0, RUN_COMMAND_MAX_OUTPUT);
+    const stderr = (execErr.stderr ?? '').slice(0, 1024);
+    return ok({
+      command,
+      exitCode: execErr.status ?? 1,
+      output: stdout,
+      stderr: stderr || undefined,
+    });
+  }
+}
+
+// ── list_directory ──────────────────────────────────────────────
+
+function handleListDirectory(
+  input: Record<string, unknown>,
+  deps: ToolExecutorDeps,
+): ToolCallResult {
+  const path = (input['path'] as string | undefined) ?? '.';
+  const absPath = resolve(join(deps.projectRoot, path));
+  const rel = relative(deps.projectRoot, absPath);
+  if (rel.startsWith('..')) {
+    return error(`Path "${path}" is outside the project directory.`);
+  }
+
+  if (!existsSync(absPath)) {
+    return error(`Directory "${path}" not found.`);
+  }
+
+  try {
+    const stat = statSync(absPath);
+    if (!stat.isDirectory()) {
+      return error(`"${path}" is a file, not a directory. Use read_file to read it.`);
+    }
+
+    const entries = readdirSync(absPath);
+    const dirs: string[] = [];
+    const files: string[] = [];
+    for (const entry of entries) {
+      if (entry.startsWith('.')) continue; // skip hidden files
+      try {
+        const entryStat = statSync(join(absPath, entry));
+        if (entryStat.isDirectory()) dirs.push(entry + '/');
+        else files.push(entry);
+      } catch { files.push(entry); }
+    }
+
+    return ok({ path, directories: dirs.sort(), files: files.sort() });
+  } catch (err) {
+    return error(`Error listing "${path}": ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 // ── introspect ──────────────────────────────────────────────────
 
 function handleIntrospect(deps: ToolExecutorDeps): ToolCallResult {
@@ -655,13 +919,18 @@ function handleReflect(
 ): ToolCallResult {
   const experience = input['experience'] as string | undefined;
   const topic = input['topic'] as string | undefined;
-  const satiateDrive = input['satiate_drive'] as string | undefined;
+  // Accept both satiate_drive (legacy) and satiate_drives (new), string or array
+  const rawDrives = input['satiate_drives'] ?? input['satiate_drive'];
   const goalProgress = (input['goal_progress'] as string | undefined) ?? 'advancing';
 
   if (!experience) return error('reflect requires "experience" (string describing the experience or reflection).');
-  if (!satiateDrive) return error('reflect requires "satiate_drive" (which drive was addressed).');
-  if (!VALID_DRIVE_TYPES.includes(satiateDrive)) {
-    return error(`Unknown drive type "${satiateDrive}". Valid types: ${VALID_DRIVE_TYPES.filter(d => d !== 'mastery').join(', ')}`);
+  if (!rawDrives) return error('reflect requires "satiate_drives" (string or array of drive types to satiate).');
+
+  const driveList: string[] = Array.isArray(rawDrives) ? rawDrives : [rawDrives as string];
+  for (const d of driveList) {
+    if (!VALID_DRIVE_TYPES.includes(d)) {
+      return error(`Unknown drive type "${d}". Valid types: ${VALID_DRIVE_TYPES.filter(d => d !== 'mastery').join(', ')}`);
+    }
   }
 
   const results: string[] = [];
@@ -681,9 +950,11 @@ function handleReflect(
     results.push('Memory storage skipped (no memory system)');
   }
 
-  // 2. Satiate drive
-  deps.driveSystem.resetDrive(satiateDrive as DriveType);
-  results.push(`Drive "${satiateDrive}" satiated`);
+  // 2. Satiate drives
+  for (const d of driveList) {
+    deps.driveSystem.resetDrive(d as DriveType);
+    results.push(`Drive "${d}" satiated`);
+  }
 
   // 3. Record activity
   deps.activityLog.push({

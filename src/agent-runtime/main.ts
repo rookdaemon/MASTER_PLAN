@@ -189,7 +189,37 @@ async function handleAgentLoop(stateDir: string, model: string, provider: LlmPro
   }
 
   const memoryStore = new MemoryStoreAdapter(memorySystem);
-  const adapter = new ChatAdapter({ mode: 'stdio', adapterId: 'chat-stdio' });
+  const chatAdapter = new ChatAdapter({ mode: 'stdio', adapterId: 'chat-stdio' });
+
+  // Optionally attach AgoraAdapter if config exists
+  let adapter: import('./interfaces.js').IEnvironmentAdapter = chatAdapter;
+  const agoraConfigPath = join(homedir(), '.config', 'agora', 'config.json');
+  try {
+    const { existsSync: exists, readFileSync: readF } = await import('node:fs');
+    if (exists(agoraConfigPath)) {
+      const agoraConfig = JSON.parse(readF(agoraConfigPath, 'utf-8'));
+      if (agoraConfig.relay?.url && agoraConfig.identity?.publicKey) {
+        const { AgoraAdapter } = await import('./agora-adapter.js');
+        const { CompositeAdapter } = await import('./composite-adapter.js');
+        const peers = Object.entries(agoraConfig.peers ?? {}).map(([key, val]: [string, any]) => ({
+          publicKey: key,
+          name: val.name ?? key.slice(0, 12),
+          url: val.url,
+        }));
+        const agoraAdapter = new AgoraAdapter({
+          relayUrl: agoraConfig.relay.url,
+          apiToken: agoraConfig.relay.token,
+          agentPublicKey: agoraConfig.identity.publicKey,
+          peers,
+        });
+        adapter = new CompositeAdapter([chatAdapter, agoraAdapter]);
+        console.error(`[main] Agora adapter attached (${peers.length} peers, relay: ${agoraConfig.relay.url})`);
+        debugLog.log('lifecycle', `Agora adapter attached`, { peerCount: peers.length, relay: agoraConfig.relay.url });
+      }
+    }
+  } catch (err) {
+    console.error(`[main] Agora config load failed (continuing without): ${err}`);
+  }
 
   // Build real LLM client for agent-loop mode
   console.error(`[main] Building LLM client: provider=${provider} model=${model}`);
@@ -282,6 +312,38 @@ async function _runAgentLoop(
   const innerMonologue = externalMonologue ?? new InnerMonologueLogger(innerMonologuePath);
   console.error(`[main] Inner monologue log: ${innerMonologuePath}`);
 
+  // Pre-seed semantic memory from codebase map on cold start
+  if (!config.warmStart) {
+    const mapPath = join(process.cwd(), 'docs', 'codebase-map.md');
+    try {
+      const { existsSync: exists, readFileSync: readF } = await import('node:fs');
+      if (exists(mapPath)) {
+        const mapContent = readF(mapPath, 'utf-8');
+        // Split by ## headings into sections, store each as a semantic entry
+        const sections = mapContent.split(/^## /m).slice(1); // skip preamble
+        for (const section of sections) {
+          const lines = section.split('\n');
+          const heading = lines[0].trim();
+          const body = lines.slice(1).join('\n').trim();
+          if (body.length > 0) {
+            memoryStore.inner.semantic.store({
+              topic: `self-model:${heading.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+              content: `${heading}: ${body}`,
+              relationships: [],
+              sourceEpisodeIds: [],
+              confidence: 0.95,
+              embedding: null,
+            });
+          }
+        }
+        console.error(`[main] Pre-seeded ${sections.length} semantic entries from codebase map`);
+        debugLog.log('memory', `Pre-seeded ${sections.length} sections from docs/codebase-map.md`);
+      }
+    } catch (err) {
+      console.error(`[main] Could not pre-seed codebase map: ${err}`);
+    }
+  }
+
   // Get narrative identity for introspection tool
   const identityManager = new DefaultIdentityContinuityManager();
   const narrativeIdentity = identityManager.getNarrativeIdentity().selfModel;
@@ -306,6 +368,7 @@ async function _runAgentLoop(
     personalityModel: personality,
     innerMonologue,
     narrativeIdentity,
+    workspacePath: join(homedir(), '.local', 'share', 'MASTER_PLAN'),
   };
 
   const { loop, bootMode } = await startAgent(deps, config);

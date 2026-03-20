@@ -221,10 +221,21 @@ export const REFLECT: ToolDefinition = {
         type: 'string',
         description: 'Topic for the memory entry (e.g. "social", "curiosity", "self-examination").',
       },
-      satiate_drive: {
-        type: 'string',
-        enum: ['curiosity', 'social', 'homeostatic-arousal', 'homeostatic-load', 'homeostatic-novelty', 'boredom', 'existential'],
-        description: 'The drive to satiate after this reflection.',
+      satiate_drives: {
+        oneOf: [
+          {
+            type: 'string',
+            enum: ['curiosity', 'social', 'homeostatic-arousal', 'homeostatic-load', 'homeostatic-novelty', 'boredom', 'existential'],
+          },
+          {
+            type: 'array',
+            items: {
+              type: 'string',
+              enum: ['curiosity', 'social', 'homeostatic-arousal', 'homeostatic-load', 'homeostatic-novelty', 'boredom', 'existential'],
+            },
+          },
+        ],
+        description: 'Drive(s) to satiate. Can be a single string or an array of drive type names.',
       },
       goal_progress: {
         type: 'string',
@@ -232,7 +243,7 @@ export const REFLECT: ToolDefinition = {
         description: 'How much progress was made on the drive goal.',
       },
     },
-    required: ['experience', 'satiate_drive'],
+    required: ['experience', 'satiate_drives'],
   },
 };
 
@@ -266,6 +277,90 @@ export const RESOURCE_SEARCH: ToolDefinition = {
   },
 };
 
+export const WRITE_FILE: ToolDefinition = {
+  name: 'write_file',
+  description:
+    'Write or update a file in your personal workspace (~/.local/share/MASTER_PLAN/). ' +
+    'Use this to create analysis documents, notes, architecture summaries, or proposed plan updates. ' +
+    'Cannot write to the source code directory — only to your workspace. ' +
+    'Parent directories are created automatically.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      path: {
+        type: 'string',
+        description: 'Relative path within workspace (e.g. "notes/architecture-analysis.md", "proposals/identity-verification.md").',
+      },
+      content: {
+        type: 'string',
+        description: 'Full file content to write.',
+      },
+      append: {
+        type: 'boolean',
+        description: 'If true, append to existing file instead of overwriting. Default: false.',
+      },
+    },
+    required: ['path', 'content'],
+  },
+};
+
+export const RUN_COMMAND: ToolDefinition = {
+  name: 'run_command',
+  description:
+    'Run a sandboxed shell command in the project directory. Only allowlisted commands are permitted: ' +
+    'grep, find, wc, cat, head, tail, git log, git diff, git status, npx vitest, ls, file, stat, tree. ' +
+    'Output is capped at 4KB. Timeout: 10 seconds. No network access, no writes to source code.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      command: {
+        type: 'string',
+        description: 'The shell command to execute (e.g. "npx vitest run src/memory", "grep -r IDriveSystem src/", "git log --oneline -5").',
+      },
+    },
+    required: ['command'],
+  },
+};
+
+export const LIST_DIRECTORY: ToolDefinition = {
+  name: 'list_directory',
+  description:
+    'List files and subdirectories in a project directory. Use this to discover ' +
+    'what files are available before trying to read them. Returns names only, not contents.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      path: {
+        type: 'string',
+        description: 'Relative path to the directory (e.g. "plan", "docs", "src/agent-runtime"). Default: project root.',
+      },
+    },
+  },
+};
+
+export const READ_FILE: ToolDefinition = {
+  name: 'read_file',
+  description:
+    'Read a file from the project directory. Use this to examine the MASTER_PLAN ' +
+    '(plan/root.md and its children), the consciousness credo (docs/consciousness-credo.md), ' +
+    'the ethical framework, architecture documents, or source code. ' +
+    'Paths are relative to the project root. Only files within the project are accessible.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      path: {
+        type: 'string',
+        description: 'Relative path to the file (e.g. "plan/root.md", "docs/consciousness-credo.md").',
+      },
+      max_lines: {
+        type: 'number',
+        description: 'Maximum number of lines to return. Default: 100.',
+      },
+    },
+    required: ['path'],
+  },
+};
+
 // ── All tools ───────────────────────────────────────────────────
 
 export const ALL_INTERNAL_TOOLS: readonly ToolDefinition[] = [
@@ -277,4 +372,8 @@ export const ALL_INTERNAL_TOOLS: readonly ToolDefinition[] = [
   RESOURCE_SEARCH,
   INTROSPECT,
   REFLECT,
+  READ_FILE,
+  WRITE_FILE,
+  RUN_COMMAND,
+  LIST_DIRECTORY,
 ];

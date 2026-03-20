@@ -54,7 +54,7 @@ import type { Dashboard, DashboardSnapshot, PhaseState } from './dashboard.js';
 import type { ActivityRecord, DriveGoalCandidate, DrivePersonalityParams } from '../intrinsic-motivation/types.js';
 import type { IMemorySystem } from '../memory/interfaces.js';
 import type { IPersonalityModel } from '../personality/interfaces.js';
-import { isCommunicativeAction, extractOutputText, buildSystemPrompt, defaultSystemPrompt } from './llm-helpers.js';
+import { isCommunicativeAction, extractOutputText, buildSystemPrompt, defaultSystemPrompt, driveSystemPrompt } from './llm-helpers.js';
 import { assembleDriveContext, driveGoalCandidateToAgencyGoal } from './drive-context-assembler.js';
 import { ALL_INTERNAL_TOOLS } from './internal-tools.js';
 import { executeToolCall } from './tool-executor.js';
@@ -106,12 +106,16 @@ export class AgentLoop implements IAgentLoop {
   private _driveInitiatedGoals: DriveGoalCandidate[] = [];
   private _goalCoherenceEngine: IGoalCoherenceEngine | null = null;
   private _drivePersonality: DrivePersonalityParams | null = null;
+  private _recentMonologueSummaries: string[] = [];
+  private static readonly MAX_MONOLOGUE_HISTORY = 3;
 
   // ── Tool-use subsystem references ──────────────────────────
   private _memorySystem: IMemorySystem | null = null;
   private _personalityModel: IPersonalityModel | null = null;
   private _innerMonologue: InnerMonologueLogger | null = null;
   private _narrativeIdentity: string = '';
+  private _projectRoot: string = process.cwd();
+  private _workspacePath: string = '';
 
   // ── Constructor injection ────────────────────────────────────
 
@@ -328,6 +332,9 @@ export class AgentLoop implements IAgentLoop {
   /** Set the narrative identity string for introspection. */
   setNarrativeIdentity(narrative: string): void { this._narrativeIdentity = narrative; }
 
+  /** Set the workspace path for write_file tool. */
+  setWorkspacePath(path: string): void { this._workspacePath = path; }
+
   // ── Internal tick cycle ──────────────────────────────────────
 
   private async _tick(): Promise<TickResult> {
@@ -453,9 +460,21 @@ export class AgentLoop implements IAgentLoop {
         };
       }
 
-      // Submit goal candidates to coherence engine
+      // Submit goal candidates to coherence engine (with dedup)
       if (this._goalCoherenceEngine && driveResult.goalCandidates.length > 0) {
+        // Dedup: skip candidates from drives that already have an active goal
+        const activeDriveGoalSources = new Set(
+          this._goals
+            .filter(g => g.id.startsWith('drive-'))
+            .map(g => g.id.replace(/^drive-(.+)-\d+$/, '$1')),
+        );
+
         for (const candidate of driveResult.goalCandidates) {
+          if (activeDriveGoalSources.has(candidate.sourceDrive)) {
+            dl?.log('drive', `Drive goal skipped (dedup): ${candidate.sourceDrive} already has active goal`);
+            continue;
+          }
+
           const agencyGoal = driveGoalCandidateToAgencyGoal(candidate);
           const addResult = this._goalCoherenceEngine.addGoal(agencyGoal);
           this._driveSystem.notifyGoalResult(candidate, addResult);
@@ -467,6 +486,7 @@ export class AgentLoop implements IAgentLoop {
               description: agencyGoal.description,
               priority: agencyGoal.priority,
             });
+            activeDriveGoalSources.add(candidate.sourceDrive);
             dl?.log('drive', `Drive goal accepted: ${candidate.sourceDrive}`, {
               goalId: agencyGoal.id,
               coherenceScore: addResult.newCoherenceScore,
@@ -575,6 +595,25 @@ export class AgentLoop implements IAgentLoop {
       } else if (this._llm && this._driveInitiatedGoals.length > 0) {
         // Drive-initiated: autonomous LLM call with tool use
         text = await this._executeDriveToolLoop(expState, metricsAtOnset, dl);
+        // If social drive was satiated during tool loop, update the timestamp
+        // so it doesn't immediately re-fire next tick
+        const socialState = this._driveSystem.getDriveStates().get('social');
+        if (socialState && socialState.strength === 0) {
+          this._lastSocialInteractionAt = Date.now();
+        }
+        // Valence recovery: successfully addressing drives produces positive valence
+        const satiatedCount = [...this._driveSystem.getDriveStates().values()]
+          .filter(s => s.strength === 0 && this._driveInitiatedGoals.some(g => g.sourceDrive === s.driveType))
+          .length;
+        if (satiatedCount > 0) {
+          const recovery = Math.min(satiatedCount * 0.15, 0.5);
+          expState = {
+            ...expState,
+            valence: Math.max(-1, Math.min(1, expState.valence + recovery)),
+            arousal: Math.max(0, Math.min(1, expState.arousal + 0.05)),
+          };
+          dl?.log('drive', `Valence recovery: +${recovery.toFixed(3)} from ${satiatedCount} satiated drives`);
+        }
       } else {
         // Stub fallback — extract text from ethical judgment
         text = extractOutputText(ethicalJudgment);
@@ -584,6 +623,27 @@ export class AgentLoop implements IAgentLoop {
         await this._adapter.send({ text });
         dl?.log('io', `Output sent (${text.length} chars)`, { preview: text.slice(0, 120) });
         db?.log('io', `Sent: "${text.slice(0, 80)}${text.length > 80 ? '…' : ''}"`);
+      }
+    }
+
+    // Clean up satiated drive goals — remove goals whose source drive is now at 0 strength
+    if (this._driveInitiatedGoals.length > 0) {
+      const driveStates = this._driveSystem.getDriveStates();
+      const satiatedDrives = new Set<string>();
+      for (const [dt, state] of driveStates) {
+        if (state.strength === 0) satiatedDrives.add(dt);
+      }
+      if (satiatedDrives.size > 0) {
+        const before = this._goals.length;
+        this._goals = this._goals.filter(g => {
+          if (!g.id.startsWith('drive-')) return true;
+          const driveType = g.id.replace(/^drive-(.+)-\d+$/, '$1');
+          return !satiatedDrives.has(driveType);
+        });
+        const removed = before - this._goals.length;
+        if (removed > 0) {
+          dl?.log('drive', `Cleaned up ${removed} satiated drive goals`);
+        }
       }
     }
 
@@ -740,7 +800,7 @@ export class AgentLoop implements IAgentLoop {
     metricsAtOnset: import('../conscious-core/types.js').ConsciousnessMetrics,
     dl: DebugLogger | null,
   ): Promise<string | null> {
-    const MAX_TOOL_ITERATIONS = 6;
+    const MAX_TOOL_ITERATIONS = 8;
     const llm = this._llm!;
     const mono = this._innerMonologue;
 
@@ -748,14 +808,34 @@ export class AgentLoop implements IAgentLoop {
       sourceDrive: g.sourceDrive,
       description: g.description,
     }));
-    const internalPrompt = `[Internal drive] ${goalDescs.map(g => g.description).join('. ')}`;
-    const enrichedPrompt = buildSystemPrompt(this._systemPrompt, expState, metricsAtOnset);
+    const promptParts = [
+      'The following drives have activated and produced goals I should address:',
+      ...goalDescs.map((g, i) => `  ${i + 1}. [${g.sourceDrive}] ${g.description}`),
+    ];
+
+    // Inject recent monologue history so we don't repeat ourselves
+    if (this._recentMonologueSummaries.length > 0) {
+      promptParts.push('');
+      promptParts.push('## What I did in recent activations (DO NOT repeat these — build on them or do something new):');
+      for (const summary of this._recentMonologueSummaries) {
+        promptParts.push(`  - ${summary}`);
+      }
+    }
+
+    promptParts.push('');
+    promptParts.push('I should use my tools to take meaningful NEW action on these drives.');
+    promptParts.push('DO NOT call introspect if I already know my state from context above.');
+    promptParts.push('DO NOT write the same kind of reflections I wrote before.');
+    promptParts.push('Satiate each drive after addressing it. Be concise.');
+
+    const internalPrompt = promptParts.join('\n');
+    const enrichedPrompt = buildSystemPrompt(driveSystemPrompt(), expState, metricsAtOnset);
 
     mono?.driveActivation(this._cycleCount, goalDescs);
 
-    // Build tool-aware message history
+    // Build tool-aware message history — internal monologue is a separate
+    // context from user conversation, so we don't carry forward chat history.
     const messages: ToolAwareMessage[] = [
-      ...this._conversationHistory.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       { role: 'user' as const, content: internalPrompt },
     ];
 
@@ -771,10 +851,8 @@ export class AgentLoop implements IAgentLoop {
     // If inferWithTools is not available, fall back to plain infer
     if (!llm.inferWithTools) {
       dl?.log('llm', 'inferWithTools not available, falling back to plain infer');
-      const result = await llm.infer(enrichedPrompt, [...this._conversationHistory, { role: 'user', content: internalPrompt }], this._maxTokens);
+      const result = await llm.infer(enrichedPrompt, [{ role: 'user', content: internalPrompt }], this._maxTokens);
       finalText = result.content;
-      this._conversationHistory.push({ role: 'user', content: internalPrompt });
-      this._conversationHistory.push({ role: 'assistant', content: finalText });
       mono?.assistantText(finalText);
       mono?.finalOutput(finalText);
       mono?.summary(1, result.promptTokens, result.completionTokens);
@@ -830,6 +908,8 @@ export class AgentLoop implements IAgentLoop {
             goals: this._goals,
             activityLog: this._activityLog,
             narrativeIdentity: this._narrativeIdentity,
+            projectRoot: this._projectRoot,
+            workspacePath: this._workspacePath,
           },
         );
 
@@ -862,10 +942,17 @@ export class AgentLoop implements IAgentLoop {
       finalText = textContent.map(b => b.text).join('').trim() || null;
     }
 
-    // Update conversation history with the final exchange
-    this._conversationHistory.push({ role: 'user', content: internalPrompt });
+    // Internal monologue is NOT appended to user-facing conversation history.
+    // It's a separate cognitive process. The final text (if any) goes to the
+    // environment but doesn't become part of the chat context.
+
+    // Capture summary for continuity across activations
     if (finalText) {
-      this._conversationHistory.push({ role: 'assistant', content: finalText });
+      const summary = finalText.length > 200 ? finalText.slice(0, 200) + '...' : finalText;
+      this._recentMonologueSummaries.push(summary);
+      if (this._recentMonologueSummaries.length > AgentLoop.MAX_MONOLOGUE_HISTORY) {
+        this._recentMonologueSummaries.shift();
+      }
     }
 
     mono?.finalOutput(finalText);
