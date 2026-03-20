@@ -25,7 +25,7 @@ import type { PipelineResult } from './message-pipeline.js';
 // ── Types ────────────────────────────────────────────────────
 
 export interface WebChatServerConfig {
-  /** TCP port. Use 0 for OS-assigned. Default: 3000. */
+  /** TCP port. Use 0 for OS-assigned. Default: 1338. */
   port?: number;
 }
 
@@ -47,7 +47,7 @@ export class WebChatServer {
     private readonly _pipeline: IMessageProcessor,
     config: WebChatServerConfig = {},
   ) {
-    this._port = config.port ?? 3000;
+    this._port = config.port ?? 1338;
   }
 
   get port(): number {
@@ -60,7 +60,7 @@ export class WebChatServer {
     this._server = http.createServer((req, res) => this._handleRequest(req, res));
 
     await new Promise<void>((resolve, reject) => {
-      this._server!.listen(this._port, () => {
+      this._server!.listen(this._port, '0.0.0.0', () => {
         const addr = this._server!.address();
         if (addr && typeof addr === 'object') {
           this._actualPort = addr.port;

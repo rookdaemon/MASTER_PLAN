@@ -12,7 +12,7 @@
  *   Web chat mode (--web):
  *     npx tsx src/agent-runtime/main.ts --web
  *     Runs the full 8-phase conscious pipeline with a browser chat UI.
- *     Opens http://127.0.0.1:3000 (or --web <port>).
+ *     Opens http://127.0.0.1:1338 (or --web <port>).
  *
  *   Agent loop mode (default):
  *     npx tsx src/agent-runtime/main.ts
@@ -20,7 +20,7 @@
  *
  * Flags:
  *   -p / --prompt <text>     One-shot prompt (send, receive, exit)
- *   --web [port]             Web chat UI (default port: 3000)
+ *   --web [port]             Web chat UI (default port: 1338)
  *   --model <id>             LLM model (default: claude-sonnet-4-20250514)
  *   --provider <provider>    LLM provider (default: anthropic)
  *   --state-dir <path>       State persistence directory
@@ -237,7 +237,7 @@ async function handleWebChat(stateDir: string, webPort: number, model: string, p
   const server = new WebChatServer(pipeline, { port: webPort });
   await server.start();
 
-  console.error(`[main] Web chat listening on http://localhost:${server.port}`);
+  console.error(`[main] Web chat listening on http://0.0.0.0:${server.port}`);
   console.error('[main] Ctrl+C to quit.');
   console.error('');
 
@@ -370,7 +370,7 @@ async function main(): Promise<void> {
   if (cliOpts.mode === 'one-shot') {
     await handleOneShot(cliOpts.prompt!, cliOpts.model, cliOpts.provider);
   } else if (cliOpts.mode === 'web') {
-    await handleWebChat(stateDir, cliOpts.webPort ?? 3000, cliOpts.model, cliOpts.provider);
+    await handleWebChat(stateDir, cliOpts.webPort ?? 1338, cliOpts.model, cliOpts.provider);
   } else {
     await handleAgentLoop(stateDir, cliOpts.model, cliOpts.provider);
   }

@@ -22,7 +22,7 @@ import { CHAT_HTML } from './web-chat-html.js';
 // ── Config ────────────────────────────────────────────────────
 
 export interface WebChatAdapterConfig {
-  /** TCP port to listen on. Use 0 for an OS-assigned free port. Default: 3000. */
+  /** TCP port to listen on. Use 0 for an OS-assigned free port. Default: 1338. */
   port?: number;
   /** Adapter identifier surfaced in RawInput.adapterId. Default: 'web-chat'. */
   adapterId?: string;
@@ -45,7 +45,7 @@ export class WebChatAdapter implements IEnvironmentAdapter {
 
   constructor(config: WebChatAdapterConfig = {}) {
     this.id = config.adapterId ?? 'web-chat';
-    this._requestedPort = config.port ?? 3000;
+    this._requestedPort = config.port ?? 1338;
     this._maxBatchSize = config.maxBatchSize ?? 32;
   }
 
