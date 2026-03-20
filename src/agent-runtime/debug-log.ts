@@ -54,6 +54,7 @@ export type DebugEventCategory =
   | 'sentinel'        // stability checks, alerts
   | 'identity'        // checkpoint, drift, narrative
   | 'io'              // adapter connect/disconnect, send/receive
+  | 'llm'             // LLM inference calls, responses, token usage
   | 'error'           // any error
   | 'state';          // experiential state snapshots
 

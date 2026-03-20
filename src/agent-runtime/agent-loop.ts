@@ -57,7 +57,7 @@ import type { IPersonalityModel } from '../personality/interfaces.js';
 import { isCommunicativeAction, extractOutputText, buildSystemPrompt, defaultSystemPrompt, driveSystemPrompt } from './llm-helpers.js';
 import { assembleDriveContext, driveGoalCandidateToAgencyGoal } from './drive-context-assembler.js';
 import { ALL_INTERNAL_TOOLS } from './internal-tools.js';
-import { executeToolCall } from './tool-executor.js';
+import { executeToolCall, pendingOutboundMessages } from './tool-executor.js';
 import type { InnerMonologueLogger } from './inner-monologue.js';
 
 // ── Callback for tick events (used by main to drive dashboard) ─
@@ -586,6 +586,9 @@ export class AgentLoop implements IAgentLoop {
 
     if (actionResult.success && isCommunicativeAction(ethicalJudgment.decision.action.type)) {
       let text: string | null = null;
+      let isDriveInternal = false;
+      // Route replies back to the adapter that originated the input
+      const replyAdapterId = rawInputs.length > 0 ? rawInputs[0].adapterId : undefined;
 
       if (this._llm && rawInputs.length > 0) {
         // User-initiated: real LLM inference — enrich system prompt with experiential state
@@ -607,6 +610,7 @@ export class AgentLoop implements IAgentLoop {
         });
       } else if (this._llm && this._driveInitiatedGoals.length > 0) {
         // Drive-initiated: autonomous LLM call with tool use
+        isDriveInternal = true;
         text = await this._executeDriveToolLoop(expState, metricsAtOnset, dl);
         // If social drive was satiated during tool loop, update the timestamp
         // so it doesn't immediately re-fire next tick
@@ -633,12 +637,19 @@ export class AgentLoop implements IAgentLoop {
       }
 
       if (text !== null && this._adapter.isConnected()) {
-        await this._adapter.send({ text });
-        dl?.log('io', `Output sent (${text.length} chars)`, { preview: text.slice(0, 120) });
-        db?.log('io', `Sent: "${text.slice(0, 80)}${text.length > 80 ? '…' : ''}"`);
+        if (isDriveInternal) {
+          // Drive-initiated: internal only — logged by inner monologue, not sent.
+          // Agora communication happens explicitly via the send_message tool.
+          dl?.log('drive', `Drive output (${text.length} chars, internal only)`, { preview: text.slice(0, 120) });
+        } else {
+          // Input-initiated or stub fallback: send to originating adapter (or all)
+          await this._adapter.send({ text, targetAdapterId: replyAdapterId });
+          dl?.log('io', `Reply sent (${text.length} chars) → ${replyAdapterId ?? 'all'}`, { preview: text.slice(0, 120) });
+          db?.log('io', `Sent: "${text.slice(0, 80)}${text.length > 80 ? '…' : ''}"`);
+        }
 
-        // Drive-initiated communicative output counts as social activity —
-        // the agent reached out, even if nobody has replied yet.
+        // Drive-initiated tool loop may have sent messages via send_message —
+        // those count as social activity.
         if (this._driveInitiatedGoals.length > 0) {
           this._lastSocialInteractionAt = Date.now();
         }
@@ -930,8 +941,18 @@ export class AgentLoop implements IAgentLoop {
             narrativeIdentity: this._narrativeIdentity,
             projectRoot: this._projectRoot,
             workspacePath: this._workspacePath,
+            adapter: this._adapter,
           },
         );
+
+        // Drain any messages queued by send_message tool
+        while (pendingOutboundMessages.length > 0) {
+          const outMsg = pendingOutboundMessages.shift()!;
+          if (this._adapter.isConnected()) {
+            await this._adapter.send({ text: outMsg.text, targetAdapterId: outMsg.targetAdapterId });
+            dl?.log('io', `Agora message sent (${outMsg.text.length} chars)`, { preview: outMsg.text.slice(0, 120) });
+          }
+        }
 
         mono?.toolResult(toolBlock.name, execResult.content, execResult.is_error);
         dl?.log('drive', `Tool result: ${toolBlock.name} (error=${execResult.is_error})`, {

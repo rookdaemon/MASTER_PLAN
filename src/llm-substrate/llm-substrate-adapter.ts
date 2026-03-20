@@ -734,7 +734,7 @@ export class LlmSubstrateAdapter implements ISubstrateAdapter {
         this.params.provider,
         this.params.modelId,
         authProvider,
-        this.params.endpoint
+        this.params.endpoint ?? ''
       );
     } else {
       // If migrating, the injected test client carries over. For a real backend switch,

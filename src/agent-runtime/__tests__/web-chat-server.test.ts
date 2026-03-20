@@ -36,7 +36,7 @@ function makeResult(text: string | null = 'Hello!'): PipelineResult {
 /** Minimal mock pipeline — just processMessage. */
 function makeMockPipeline() {
   return {
-    processMessage: vi.fn<[string, number], Promise<PipelineResult>>()
+    processMessage: vi.fn<(text: string, timestamp: number) => Promise<PipelineResult>>()
       .mockResolvedValue(makeResult('Mock response')),
   };
 }

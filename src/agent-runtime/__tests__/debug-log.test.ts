@@ -125,8 +125,8 @@ describe('DebugLogger', () => {
 describe('NoopDebugLogger', () => {
   it('does not throw on any operation', () => {
     const logger = new NoopDebugLogger();
-    logger.banner('a', true);
-    logger.log('tick', 'whatever');
+    logger.banner();
+    logger.log();
     logger.phaseStart('act', 0);
     logger.phaseEnd('act', 0, 1);
     logger.tickStart(0);

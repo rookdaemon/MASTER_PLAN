@@ -382,14 +382,36 @@ export class EthicalEvolutionManager implements IEthicalEvolutionManager {
    * Build a stability report for the proposal based on its classification.
    */
   private buildStabilityReport(classification: EvolutionClassification): StabilityReport {
+    const now = Date.now();
+    const isUnstable = classification === 'corruption' || classification === 'drift';
     return {
-      overallStatus: classification === 'corruption' || classification === 'drift'
-        ? 'unstable'
-        : 'stable',
-      valueIntegrity: classification === 'corruption' ? 'compromised' : 'intact',
-      identityContinuity: 'intact',
-      goalCoherence: 'coherent',
-      timestamp: Date.now(),
+      stable: !isUnstable,
+      checkedAt: now,
+      valueIntegrity: {
+        intact: classification !== 'corruption',
+        checkedAt: now,
+        coreValuesVerified: classification !== 'corruption' ? 6 : 0,
+        coreValuesFailed: classification === 'corruption' ? 1 : 0,
+        failedValueIds: [],
+      },
+      identityVerification: {
+        verified: true,
+        checkedAt: now,
+        chainLength: 1,
+        functionalDrift: 0,
+        experientialDrift: 0,
+        anomalies: [],
+      },
+      goalCoherence: {
+        coherent: !isUnstable,
+        coherenceScore: isUnstable ? 0.3 : 0.95,
+        orphanGoals: [],
+        circularDependencies: [],
+        conflicts: [],
+        checkedAt: now,
+      },
+      overallScore: isUnstable ? 0.3 : 0.95,
+      alerts: [],
     };
   }
 
@@ -404,10 +426,13 @@ export class EthicalEvolutionManager implements IEthicalEvolutionManager {
   ): EthicalEvolutionRecord {
     const verification: VerificationResult = {
       verified: outcome === 'adopted',
-      timestamp: Date.now(),
+      peersConsulted: 0,
+      peersAgreed: 0,
+      peersDisagreed: 0,
+      consensus: outcome === 'adopted',
       details: outcome === 'adopted'
-        ? 'Post-adoption verification passed — axiom alignment maintained.'
-        : `Proposal ${outcome}: ${classification} classification prevents adoption.`,
+        ? ['Post-adoption verification passed — axiom alignment maintained.']
+        : [`Proposal ${outcome}: ${classification} classification prevents adoption.`],
     };
 
     return {
@@ -416,10 +441,12 @@ export class EthicalEvolutionManager implements IEthicalEvolutionManager {
       outcome,
       postAdoptionVerification: verification,
       driftCheckResult: {
-        period: { start: Date.now() - 1000, end: Date.now() },
-        overallDrift: classification === 'drift' || classification === 'corruption' ? 0.8 : 0.1,
-        classification,
-        details: `Change classified as ${classification} by drift detection.`,
+        period: { from: Date.now() - 1000, to: Date.now() },
+        preferencesChanged: classification === 'drift' || classification === 'corruption' ? 1 : 0,
+        preferencesAdded: 0,
+        preferencesRemoved: 0,
+        averageConfidenceShift: classification === 'drift' || classification === 'corruption' ? 0.8 : 0.05,
+        anomalousChanges: [],
       },
     };
   }

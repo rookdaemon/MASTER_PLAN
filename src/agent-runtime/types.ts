@@ -66,6 +66,8 @@ export interface AgentOutput {
   text: string;
   /** Optional structured payload. */
   payload?: Record<string, unknown>;
+  /** When set, only the adapter with this id receives the output. */
+  targetAdapterId?: string;
 }
 
 /** Configuration for AgentLoop startup. */

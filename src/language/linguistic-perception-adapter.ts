@@ -91,7 +91,7 @@ export class LinguisticPerceptionAdapter implements ILanguageComprehension {
     if (
       state.pendingQuestions.length > 0 &&
       features.intent !== 'clarify' &&
-      features.intent !== 'answer' &&
+      features.intent !== 'inform' &&
       features.questions.length === 0
     ) {
       // Still grounded enough — the user may be changing topic

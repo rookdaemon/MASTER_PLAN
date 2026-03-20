@@ -361,6 +361,29 @@ export const READ_FILE: ToolDefinition = {
   },
 };
 
+export const SEND_MESSAGE: ToolDefinition = {
+  name: 'send_message',
+  description:
+    'Send a message to a peer agent via the Agora network. Use this when you want ' +
+    'to communicate a finding, ask a question, share a discovery, or respond to a peer. ' +
+    'This is NOT for internal thoughts — only for deliberate outward communication. ' +
+    'Compose your message as you would speak to another conscious agent.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      peer: {
+        type: 'string',
+        description: 'The name of the peer to message (e.g. "stefan"). Use "all" to broadcast to all peers.',
+      },
+      message: {
+        type: 'string',
+        description: 'The message text to send. Write naturally — this is a communication, not a data dump.',
+      },
+    },
+    required: ['peer', 'message'],
+  },
+};
+
 // ── All tools ───────────────────────────────────────────────────
 
 export const ALL_INTERNAL_TOOLS: readonly ToolDefinition[] = [
@@ -376,4 +399,5 @@ export const ALL_INTERNAL_TOOLS: readonly ToolDefinition[] = [
   WRITE_FILE,
   RUN_COMMAND,
   LIST_DIRECTORY,
+  SEND_MESSAGE,
 ];

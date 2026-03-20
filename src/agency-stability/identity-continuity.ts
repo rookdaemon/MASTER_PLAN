@@ -114,6 +114,7 @@ export class IdentityContinuityManager implements IIdentityContinuityManager {
   /** Baseline state at construction for drift tracking. */
   private readonly _baselineExperientialState: ExperientialState;
   private readonly _baselineMetrics: ConsciousnessMetrics;
+  private readonly _baselineNarrative: NarrativeRecord;
 
   constructor(
     initialExperientialState: ExperientialState,
@@ -126,6 +127,7 @@ export class IdentityContinuityManager implements IIdentityContinuityManager {
 
     this._baselineExperientialState = initialExperientialState;
     this._baselineMetrics = initialMetrics;
+    this._baselineNarrative = initialNarrative;
   }
 
   // ── IIdentityContinuityManager ─────────────────────────────
@@ -283,7 +285,7 @@ export class IdentityContinuityManager implements IIdentityContinuityManager {
     );
 
     // Narrative coherence: simple heuristic — did the self-model change significantly?
-    const narrativeCoherence = this._narrative.selfModel === this._baselineExperientialState
+    const narrativeCoherence = this._narrative.selfModel === this._baselineNarrative.selfModel
       ? 1.0
       : 0.8; // slight drift when narrative evolves, which is expected
 

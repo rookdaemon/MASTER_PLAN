@@ -167,10 +167,9 @@ export class DialogueManager implements IDialogueManager {
 
     // Add turn to working memory
     this.memory.working.add({
-      kind: 'dialogue-turn',
+      kind: 'percept',
       content: `[user] ${rawText}`,
       relevanceScore: 0.8,
-      expiresAt: undefined,
     });
 
     return turn;
@@ -197,10 +196,9 @@ export class DialogueManager implements IDialogueManager {
 
     // Add agent turn to working memory
     this.memory.working.add({
-      kind: 'dialogue-turn',
+      kind: 'percept',
       content: `[agent] ${rawText}`,
       relevanceScore: 0.75,
-      expiresAt: undefined,
     });
 
     return turn;
@@ -350,13 +348,16 @@ export class DialogueManager implements IDialogueManager {
     );
 
     return results
-      .filter(r => r.score >= DialogueManager.MEMORY_RELEVANCE_THRESHOLD)
-      .map(r => ({
-        episodeId: r.entry.id,
-        summary: r.entry.content.slice(0, 100),
-        relevanceScore: r.score,
-        timestamp: r.entry.recordedAt,
-      }));
+      .filter(r => r.compositeScore >= DialogueManager.MEMORY_RELEVANCE_THRESHOLD)
+      .map(r => {
+        const ep = r.entry as import('../memory/types.js').EpisodicEntry;
+        return {
+          episodeId: ep.id,
+          summary: (ep.outcomeObserved ?? '').slice(0, 100),
+          relevanceScore: r.compositeScore,
+          timestamp: ep.recordedAt,
+        };
+      });
   }
 }
 

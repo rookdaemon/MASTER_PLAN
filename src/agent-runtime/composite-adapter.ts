@@ -35,10 +35,11 @@ export class CompositeAdapter implements IEnvironmentAdapter {
   }
 
   async send(output: AgentOutput): Promise<void> {
-    await Promise.all(
-      this._adapters
-        .filter(a => a.isConnected())
-        .map(a => a.send(output)),
-    );
+    const targets = this._adapters.filter(a => {
+      if (!a.isConnected()) return false;
+      if (output.targetAdapterId) return a.id === output.targetAdapterId;
+      return true;
+    });
+    await Promise.all(targets.map(a => a.send(output)));
   }
 }

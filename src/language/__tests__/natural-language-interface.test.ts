@@ -558,7 +558,7 @@ describe('7. Inner speech — observable in introspection reports', () => {
     expect(record.turnIndex).toBe(0);
     expect(record.isExternalised).toBe(false);
     expect(record.text).toContain('energised');
-    expect(record.text).toContain('bright and engaged');
+    expect(record.text).toContain('unity=0.70');
   });
 
   it('externalise() returns a new record with isExternalised true', () => {

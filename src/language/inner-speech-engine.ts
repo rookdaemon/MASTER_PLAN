@@ -107,8 +107,8 @@ function composeInnerSpeech(
   state: ExperientialState,
 ): string {
   const affectClause = deriveAffectClause(state.valence, state.arousal);
-  const qualiaClause = state.qualiaDescription
-    ? ` My current experience: ${state.qualiaDescription}.`
+  const qualiaClause = state.phenomenalContent
+    ? ` My current experience: unity=${state.unityIndex.toFixed(2)}.`
     : '';
   const deliberationClause = `Considering: ${prompt}`;
 

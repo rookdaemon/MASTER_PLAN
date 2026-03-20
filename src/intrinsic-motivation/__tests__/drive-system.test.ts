@@ -12,7 +12,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { DriveSystem } from '../drive-system.js';
-import type { DriveContext, DrivePersonalityParams, ActivityRecord } from '../types.js';
+import type { DriveContext, DrivePersonalityParams, ActivityRecord, DriveGoalCandidate } from '../types.js';
 import type { ExperientialState, ContinuityToken } from '../../conscious-core/types.js';
 import type { GoalAddResult } from '../../agency-stability/types.js';
 

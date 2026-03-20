@@ -105,7 +105,7 @@ export class LinguisticActionExecutor implements ILanguageGeneration {
     }
     const { communicationStyle } = context;
     // Only elaborate if the agent is sufficiently deliberate
-    if (communicationStyle.deliberateness < 0.5) {
+    if (communicationStyle.formality < 0.5) {
       return `I chose this because: ${context.ethicalJustification}`;
     }
     return (
@@ -204,7 +204,7 @@ export class LinguisticActionExecutor implements ILanguageGeneration {
 
   private maybeRenderJustification(context: GenerationContext): string | null {
     if (!context.ethicalJustification) return null;
-    if (context.communicationStyle.deliberateness < 0.5) return null;
+    if (context.communicationStyle.formality < 0.5) return null;
     return this.renderJustification(context);
   }
 }

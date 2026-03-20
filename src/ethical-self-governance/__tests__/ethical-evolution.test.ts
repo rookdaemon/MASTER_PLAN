@@ -56,12 +56,13 @@ function makeConsciousnessMetrics(overrides: Partial<ConsciousnessMetrics> = {})
 
 function makePercept(overrides: Partial<Percept> = {}): Percept {
   return {
-    source: 'environment',
     modality: 'cognitive',
-    content: 'novel ethical situation encountered',
-    intensity: 0.8,
     timestamp: Date.now(),
-    features: {},
+    features: {
+      source: 'environment',
+      content: 'novel ethical situation encountered',
+      intensity: 0.8,
+    },
     ...overrides,
   };
 }

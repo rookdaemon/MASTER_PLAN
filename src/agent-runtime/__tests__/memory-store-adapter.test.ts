@@ -36,10 +36,10 @@ function makeExperientialState(overrides: Partial<ExperientialState> = {}): Expe
 function makeMockMemorySystem(): IMemorySystem {
   const mockResults: RetrievalResult[] = [
     {
+      type: "episodic",
       entry: { id: "ep-1", topic: "test" },
-      source: "episodic",
       compositeScore: 0.9,
-      similarityScore: 0.8,
+      similarity: 0.8,
       recencyWeight: 0.7,
       salienceBoost: 0.6,
     } as RetrievalResult,

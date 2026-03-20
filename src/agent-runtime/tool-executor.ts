@@ -47,6 +47,7 @@ export interface ToolExecutorDeps {
   narrativeIdentity: string;
   projectRoot: string;
   workspacePath: string; // ~/.local/share/MASTER_PLAN/
+  adapter: import('./interfaces.js').IEnvironmentAdapter | null;
 }
 
 // ── Governance state ────────────────────────────────────────────
@@ -105,8 +106,10 @@ export function executeToolCall(
         return handleRunCommand(call.input, deps);
       case 'list_directory':
         return handleListDirectory(call.input, deps);
+      case 'send_message':
+        return handleSendMessage(call.input, deps);
       default:
-        return error(`Unknown tool "${call.name}". Available tools: resource_read, resource_create, resource_update, resource_delete, resource_list, resource_search, introspect, reflect, read_file`);
+        return error(`Unknown tool "${call.name}". Available tools: resource_read, resource_create, resource_update, resource_delete, resource_list, resource_search, introspect, reflect, read_file, send_message`);
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -407,7 +410,8 @@ function handleResourceUpdate(
         return error('goal update requires "fields.priority" (number 0-1).');
       }
 
-      goal.priority = priority;
+      const idx = deps.goals.indexOf(goal);
+      deps.goals[idx] = { ...goal, priority };
       return ok({ updated: 'goal', id, newPriority: priority });
     }
 
@@ -967,4 +971,38 @@ function handleReflect(
   results.push(`Activity recorded (progress: ${goalProgress})`);
 
   return ok({ reflected: true, actions: results });
+}
+
+// ── send_message ─────────────────────────────────────────────────
+
+/**
+ * Queued outbound messages. The agent loop drains this after each tool execution.
+ * This avoids making the tool executor async while still enabling communication.
+ */
+export const pendingOutboundMessages: Array<{ targetAdapterId: string; text: string }> = [];
+
+function handleSendMessage(
+  input: Record<string, unknown>,
+  deps: ToolExecutorDeps,
+): ToolCallResult {
+  const peer = input['peer'] as string | undefined;
+  const message = input['message'] as string | undefined;
+
+  if (!peer || typeof peer !== 'string') {
+    return error('send_message requires a "peer" name (e.g. "stefan") or "all".');
+  }
+  if (!message || typeof message !== 'string' || message.trim().length === 0) {
+    return error('send_message requires a non-empty "message" string.');
+  }
+
+  if (!deps.adapter || !deps.adapter.isConnected()) {
+    return error('Agora adapter is not connected. Cannot send messages to peers.');
+  }
+
+  pendingOutboundMessages.push({
+    targetAdapterId: 'agora',
+    text: message.trim(),
+  });
+
+  return ok({ sent: true, peer, messageLength: message.trim().length });
 }

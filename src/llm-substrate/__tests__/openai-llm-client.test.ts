@@ -25,6 +25,7 @@ class StubAuthProvider implements IAuthProvider {
   constructor(private readonly headers: Record<string, string> = {}) {}
   getHeaders(): Record<string, string> { return this.headers; }
   isExpired(): boolean { return false; }
+  requiresSystemIdentityPrefix(): boolean { return false; }
 }
 
 function makeOpenAiResponse(

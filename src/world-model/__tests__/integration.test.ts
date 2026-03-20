@@ -239,8 +239,8 @@ describe('IEntityModelStore — integration with ethical governance layer', () =
     // ConsciousnessStatus verdict was set at registration and not overridden.
     expect(profile!.consciousnessStatus.verdict).toBe('uncertain');
     // World-model-specific fields are stripped.
-    expect((profile as Record<string, unknown>)['trustLevel']).toBeUndefined();
-    expect((profile as Record<string, unknown>)['observationHistory']).toBeUndefined();
+    expect((profile as unknown as Record<string, unknown>)['trustLevel']).toBeUndefined();
+    expect((profile as unknown as Record<string, unknown>)['observationHistory']).toBeUndefined();
   });
 
   it('governance adapter still includes entity (treatAsConscious=true after trust decrease)', () => {

@@ -92,7 +92,7 @@ export interface GenerationContext {
   readonly decision: import('../conscious-core/types.js').Decision;
 
   // Communication style derived from personality (0.3.1.5.2)
-  readonly communicationStyle: import('../personality/interfaces.js').CommunicationStyle;
+  readonly communicationStyle: import('../personality/types.js').CommunicationStyle;
 
   // Current mood influence vector (0.3.1.5.4)
   readonly moodInfluence: MoodInfluence;

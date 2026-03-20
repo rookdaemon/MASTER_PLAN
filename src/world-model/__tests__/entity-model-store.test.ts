@@ -100,8 +100,8 @@ describe('EntityModelStore', () => {
     expect(profile).not.toBeNull();
     expect(profile!.entityId).toBe('agent-a');
     expect(profile!.consciousnessStatus.verdict).toBe('uncertain');
-    expect((profile as Record<string, unknown>)['trustLevel']).toBeUndefined();
-    expect((profile as Record<string, unknown>)['observationHistory']).toBeUndefined();
+    expect((profile as unknown as Record<string, unknown>)['trustLevel']).toBeUndefined();
+    expect((profile as unknown as Record<string, unknown>)['observationHistory']).toBeUndefined();
   });
 
   it('toEntityProfile returns null for unknown entity', () => {

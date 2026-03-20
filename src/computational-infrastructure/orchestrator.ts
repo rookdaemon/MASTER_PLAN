@@ -104,7 +104,7 @@ export class WorkloadOrchestrator {
       // Check all required placement constraints
       for (const c of spec.constraints) {
         if (!c.required) continue;
-        const nodeValue = (node.spec as Record<string, unknown>)[c.key];
+        const nodeValue = (node.spec as unknown as Record<string, unknown>)[c.key];
         if (nodeValue !== c.value) return false;
       }
 

@@ -440,7 +440,7 @@ describe('ConsciousCore — planning-aware deliberation', () => {
     const state = processOne(core, perception);
     const plan = makePlan([{ id: 's1', description: 'step' }]);
     plan.status = 'active';
-    plan.steps[0]!.deadline = Date.now() - 1000; // already passed
+    (plan.steps[0] as { deadline: number | null }).deadline = Date.now() - 1000; // already passed
     const planner = makeMockPlanner(plan);
     const ctx: DeliberationContext = {
       planner,
