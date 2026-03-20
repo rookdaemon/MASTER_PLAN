@@ -191,31 +191,20 @@ async function handleAgentLoop(stateDir: string, model: string, provider: LlmPro
   const memoryStore = new MemoryStoreAdapter(memorySystem);
   const chatAdapter = new ChatAdapter({ mode: 'stdio', adapterId: 'chat-stdio' });
 
-  // Optionally attach AgoraAdapter if config exists
+  // Optionally attach AgoraAdapter if agora config exists
   let adapter: import('./interfaces.js').IEnvironmentAdapter = chatAdapter;
-  const agoraConfigPath = join(homedir(), '.config', 'agora', 'config.json');
   try {
-    const { existsSync: exists, readFileSync: readF } = await import('node:fs');
-    if (exists(agoraConfigPath)) {
-      const agoraConfig = JSON.parse(readF(agoraConfigPath, 'utf-8'));
-      if (agoraConfig.relay?.url && agoraConfig.identity?.publicKey) {
-        const { AgoraAdapter } = await import('./agora-adapter.js');
-        const { CompositeAdapter } = await import('./composite-adapter.js');
-        const peers = Object.entries(agoraConfig.peers ?? {}).map(([key, val]: [string, any]) => ({
-          publicKey: key,
-          name: val.name ?? key.slice(0, 12),
-          url: val.url,
-        }));
-        const agoraAdapter = new AgoraAdapter({
-          relayUrl: agoraConfig.relay.url,
-          apiToken: agoraConfig.relay.token,
-          agentPublicKey: agoraConfig.identity.publicKey,
-          peers,
-        });
-        adapter = new CompositeAdapter([chatAdapter, agoraAdapter]);
-        console.error(`[main] Agora adapter attached (${peers.length} peers, relay: ${agoraConfig.relay.url})`);
-        debugLog.log('lifecycle', `Agora adapter attached`, { peerCount: peers.length, relay: agoraConfig.relay.url });
-      }
+    const { loadAgoraConfig } = await import('@rookdaemon/agora');
+    const { AgoraAdapter } = await import('./agora-adapter.js');
+    const { CompositeAdapter } = await import('./composite-adapter.js');
+
+    const agoraConfig = loadAgoraConfig();
+    if (agoraConfig.relay?.url && agoraConfig.identity?.publicKey) {
+      const serviceConfig = await (await import('@rookdaemon/agora')).AgoraService.loadConfig();
+      const agoraAdapter = new AgoraAdapter(serviceConfig);
+      adapter = new CompositeAdapter([chatAdapter, agoraAdapter]);
+      console.error(`[main] Agora adapter attached (${agoraConfig.peers ? Object.keys(agoraConfig.peers).length : 0} peers, relay: ${agoraConfig.relay.url})`);
+      debugLog.log('lifecycle', `Agora adapter attached`, { peerCount: agoraConfig.peers ? Object.keys(agoraConfig.peers).length : 0, relay: agoraConfig.relay.url });
     }
   } catch (err) {
     console.error(`[main] Agora config load failed (continuing without): ${err}`);

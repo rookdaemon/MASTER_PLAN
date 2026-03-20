@@ -17,6 +17,7 @@
     "vitest": "^2.0.0"
   },
   "dependencies": {
+    "@rookdaemon/agora": "^0.8.3",
     "ws": "^8.19.0"
   }
 }
