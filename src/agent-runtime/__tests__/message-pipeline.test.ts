@@ -113,7 +113,15 @@ function makeDeps(overrides: Partial<MessagePipelineDeps> = {}): MessagePipeline
       appraise: vi.fn().mockResolvedValue({ valence: 0.1 }),
     },
     driveSystem: {
-      update: vi.fn().mockResolvedValue(undefined),
+      tick: vi.fn().mockReturnValue({
+        goalCandidates: [],
+        experientialDelta: { valenceDelta: null, arousalDelta: null },
+        updatedDriveStates: new Map(),
+        diagnostics: [],
+      }),
+      notifyGoalResult: vi.fn(),
+      getDriveStates: vi.fn().mockReturnValue(new Map()),
+      resetDrive: vi.fn(),
     },
     ...overrides,
   };
@@ -302,9 +310,9 @@ describe('MessagePipeline', () => {
     expect(deps.memory.consolidate).toHaveBeenCalled();
   });
 
-  it('calls driveSystem.update with state and metrics', async () => {
+  it('calls driveSystem.tick with state and context', async () => {
     await pipeline.processMessage('test', 1000);
-    expect(deps.driveSystem.update).toHaveBeenCalled();
+    expect(deps.driveSystem.tick).toHaveBeenCalled();
   });
 
   // ── Communicative action type matching ────────────────────
@@ -381,8 +389,14 @@ describe('MessagePipeline', () => {
     (deps.memory.consolidate as ReturnType<typeof vi.fn>).mockImplementation(async () => {
       callOrder.push('consolidate');
     });
-    (deps.driveSystem.update as ReturnType<typeof vi.fn>).mockImplementation(async () => {
-      callOrder.push('driveUpdate');
+    (deps.driveSystem.tick as ReturnType<typeof vi.fn>).mockImplementation((..._args: unknown[]) => {
+      callOrder.push('driveTick');
+      return {
+        goalCandidates: [],
+        experientialDelta: { valenceDelta: null, arousalDelta: null },
+        updatedDriveStates: new Map(),
+        diagnostics: [],
+      };
     });
 
     await pipeline.processMessage('test', 1000);
@@ -397,7 +411,7 @@ describe('MessagePipeline', () => {
       'act',
       'monitor',
       'consolidate',
-      'driveUpdate',
+      'driveTick',
     ]);
   });
 
@@ -474,7 +488,7 @@ describe('MessagePipeline (with LLM)', () => {
     expect(systemPrompt).toContain('valence');
     expect(systemPrompt).toContain('arousal');
     expect(systemPrompt).toContain('unity');
-    expect(systemPrompt).toContain('phi');
+    expect(systemPrompt).toContain('Φ');
   });
 
   it('maintains conversation history across multiple calls', async () => {
@@ -549,6 +563,6 @@ describe('MessagePipeline (with LLM)', () => {
     expect(deps.actionPipeline.execute).toHaveBeenCalled();
     expect(deps.monitor.isExperienceIntact).toHaveBeenCalled();
     expect(deps.memory.consolidate).toHaveBeenCalled();
-    expect(deps.driveSystem.update).toHaveBeenCalled();
+    expect(deps.driveSystem.tick).toHaveBeenCalled();
   });
 });

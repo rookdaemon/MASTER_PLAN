@@ -101,7 +101,7 @@ describe('buildSystemPrompt', () => {
 
   it('includes consciousness metrics', () => {
     const result = buildSystemPrompt('base', state, metrics);
-    expect(result).toContain('phi): 0.700');
+    expect(result).toContain('Φ: 0.700');
     expect(result).toContain('self-model coherence: 0.900');
     expect(result).toContain('experience continuity: 0.950');
   });

@@ -47,10 +47,13 @@ import type {
   EthicalDeliberationContext,
 } from '../ethical-self-governance/types.js';
 
+import type { IGoalCoherenceEngine } from '../agency-stability/interfaces.js';
 import type { ILlmClient } from '../llm-substrate/llm-substrate-adapter.js';
 import type { DebugLogger } from './debug-log.js';
 import type { Dashboard, DashboardSnapshot, PhaseState } from './dashboard.js';
+import type { ActivityRecord, DriveGoalCandidate, DrivePersonalityParams } from '../intrinsic-motivation/types.js';
 import { isCommunicativeAction, extractOutputText, buildSystemPrompt, defaultSystemPrompt } from './llm-helpers.js';
+import { assembleDriveContext, driveGoalCandidateToAgencyGoal } from './drive-context-assembler.js';
 
 // ── Callback for tick events (used by main to drive dashboard) ─
 
@@ -91,6 +94,13 @@ export class AgentLoop implements IAgentLoop {
   private _dashboard: Dashboard | null = null;
   private _onTick: OnTickCallback | null = null;
   private _phaseTimings: Map<string, number> = new Map();
+
+  // ── Drive system integration ────────────────────────────────
+  private _lastSocialInteractionAt = 0;
+  private _activityLog: ActivityRecord[] = [];
+  private _driveInitiatedGoals: DriveGoalCandidate[] = [];
+  private _goalCoherenceEngine: IGoalCoherenceEngine | null = null;
+  private _drivePersonality: DrivePersonalityParams | null = null;
 
   // ── Constructor injection ────────────────────────────────────
 
@@ -285,6 +295,16 @@ export class AgentLoop implements IAgentLoop {
     this._maxTokens = maxTokens;
   }
 
+  /** Set the goal coherence engine for drive-initiated goal validation. */
+  setGoalCoherenceEngine(engine: IGoalCoherenceEngine): void {
+    this._goalCoherenceEngine = engine;
+  }
+
+  /** Set drive personality parameters (extracted from PersonalityModel). */
+  setDrivePersonality(params: DrivePersonalityParams): void {
+    this._drivePersonality = params;
+  }
+
   // ── Internal tick cycle ──────────────────────────────────────
 
   private async _tick(): Promise<TickResult> {
@@ -347,6 +367,14 @@ export class AgentLoop implements IAgentLoop {
       });
     }
 
+    // Track social interaction time (any non-internal input counts)
+    if (rawInputs.length > 0) {
+      const source = rawInputs[0].adapterId;
+      if (source !== 'internal') {
+        this._lastSocialInteractionAt = Date.now();
+      }
+    }
+
     const perceiveEnd = budget.endPhase('perceive');
     dl?.phaseEnd('perceive', this._cycleCount, perceiveEnd.durationMs);
     this._phaseTimings.set('perceive', perceiveEnd.durationMs);
@@ -369,20 +397,99 @@ export class AgentLoop implements IAgentLoop {
     dl?.phaseEnd('appraise', this._cycleCount, appraiseEnd.durationMs);
     this._phaseTimings.set('appraise', appraiseEnd.durationMs);
 
+    // ── 3b. DRIVE TICK ───────────────────────────────────────
+    //   Drives are motivational input to deliberation, so we run them
+    //   before DELIBERATE so the current tick can act on drive-generated goals.
+    const metricsAtOnset = this._monitor.getConsciousnessMetrics();
+    this._driveInitiatedGoals = [];
+
+    if (this._drivePersonality) {
+      const driveContext = assembleDriveContext({
+        expState,
+        metrics: metricsAtOnset,
+        lastSocialInteractionAt: this._lastSocialInteractionAt,
+        activityLog: this._activityLog,
+        tickBudgetMs: this._config.tickBudgetMs,
+        phaseElapsedMs: (perceiveEnd.durationMs) + (recallEnd.durationMs) + (appraiseEnd.durationMs),
+        hasRealInput: rawInputs.length > 0,
+        personality: this._drivePersonality,
+        now: Date.now(),
+      });
+
+      const driveResult = this._driveSystem.tick(expState, driveContext);
+
+      // Apply experiential delta immediately so DELIBERATE sees drive-affected state
+      if (driveResult.experientialDelta.valenceDelta !== null ||
+          driveResult.experientialDelta.arousalDelta !== null) {
+        const vd = driveResult.experientialDelta.valenceDelta ?? 0;
+        const ad = driveResult.experientialDelta.arousalDelta ?? 0;
+        expState = {
+          ...expState,
+          valence: Math.max(-1, Math.min(1, expState.valence + vd)),
+          arousal: Math.max(0, Math.min(1, expState.arousal + ad)),
+        };
+      }
+
+      // Submit goal candidates to coherence engine
+      if (this._goalCoherenceEngine && driveResult.goalCandidates.length > 0) {
+        for (const candidate of driveResult.goalCandidates) {
+          const agencyGoal = driveGoalCandidateToAgencyGoal(candidate);
+          const addResult = this._goalCoherenceEngine.addGoal(agencyGoal);
+          this._driveSystem.notifyGoalResult(candidate, addResult);
+
+          if (addResult.success) {
+            this._driveInitiatedGoals.push(candidate);
+            this._goals.push({
+              id: agencyGoal.id,
+              description: agencyGoal.description,
+              priority: agencyGoal.priority,
+            });
+            dl?.log('drive', `Drive goal accepted: ${candidate.sourceDrive}`, {
+              goalId: agencyGoal.id,
+              coherenceScore: addResult.newCoherenceScore,
+            });
+          } else {
+            dl?.log('drive', `Drive goal rejected: ${candidate.sourceDrive}`, {
+              reason: addResult.reason,
+            });
+          }
+        }
+      }
+
+      // Log diagnostics
+      for (const diag of driveResult.diagnostics) {
+        dl?.log('drive', `[${diag.driveType}] ${diag.event}: ${diag.message}`);
+      }
+    }
+
     // ── 4. DELIBERATE ────────────────────────────────────────
     //   Truncatable by shouldYieldPhase(), but floors are preserved by the
     //   CognitiveBudgetMonitor's reservation logic.
     budget.startPhase('deliberate');
     dl?.phaseStart('deliberate', this._cycleCount);
-
-    const metricsAtOnset = this._monitor.getConsciousnessMetrics();
     dl?.log('monitor', 'Consciousness metrics at deliberation onset', {
       phi: metricsAtOnset.phi,
       experienceContinuity: metricsAtOnset.experienceContinuity,
       selfModelCoherence: metricsAtOnset.selfModelCoherence,
     });
 
-    const baseDecision = this._core.deliberate(expState, this._goals);
+    let baseDecision = this._core.deliberate(expState, this._goals);
+
+    // Override observe→communicate:drive when drive goals are pending
+    if (baseDecision.action.type === 'observe' && this._driveInitiatedGoals.length > 0) {
+      baseDecision = {
+        ...baseDecision,
+        action: {
+          type: 'communicate:drive',
+          parameters: { driveGoals: this._driveInitiatedGoals.map(g => g.description) },
+        },
+        confidence: 0.6,
+      };
+      dl?.log('deliberation', 'Overriding observe→communicate:drive (drive goals pending)', {
+        driveGoalCount: this._driveInitiatedGoals.length,
+      });
+    }
+
     dl?.log('deliberation', `Base decision: ${baseDecision.action.type}`, {
       confidence: baseDecision.confidence,
       actionType: baseDecision.action.type,
@@ -425,7 +532,7 @@ export class AgentLoop implements IAgentLoop {
       let text: string | null = null;
 
       if (this._llm && rawInputs.length > 0) {
-        // Real LLM inference — enrich system prompt with experiential state
+        // User-initiated: real LLM inference — enrich system prompt with experiential state
         const enrichedPrompt = buildSystemPrompt(this._systemPrompt, expState, metricsAtOnset);
         const userText = rawInputs[0].text;
         this._conversationHistory.push({ role: 'user', content: userText });
@@ -442,6 +549,27 @@ export class AgentLoop implements IAgentLoop {
           promptTokens: llmResult.promptTokens,
           completionTokens: llmResult.completionTokens,
         });
+      } else if (this._llm && this._driveInitiatedGoals.length > 0) {
+        // Drive-initiated: autonomous LLM call prompted by internal drives
+        const goalDescs = this._driveInitiatedGoals.map(g => g.description).join('. ');
+        const internalPrompt = `[Internal drive] ${goalDescs}`;
+        const enrichedPrompt = buildSystemPrompt(this._systemPrompt, expState, metricsAtOnset);
+
+        this._conversationHistory.push({ role: 'user', content: internalPrompt });
+
+        dl?.log('llm', `Drive-initiated LLM call (${this._driveInitiatedGoals.length} goals)`);
+        const llmResult = await this._llm.infer(
+          enrichedPrompt,
+          [...this._conversationHistory],
+          this._maxTokens,
+        );
+        text = llmResult.content;
+        this._conversationHistory.push({ role: 'assistant', content: text });
+        dl?.log('llm', `Drive LLM response (${text.length} chars, ${llmResult.latencyMs}ms)`, {
+          promptTokens: llmResult.promptTokens,
+          completionTokens: llmResult.completionTokens,
+          sourceDrives: this._driveInitiatedGoals.map(g => g.sourceDrive),
+        });
       } else {
         // Stub fallback — extract text from ethical judgment
         text = extractOutputText(ethicalJudgment);
@@ -452,6 +580,19 @@ export class AgentLoop implements IAgentLoop {
         dl?.log('io', `Output sent (${text.length} chars)`, { preview: text.slice(0, 120) });
         db?.log('io', `Sent: "${text.slice(0, 80)}${text.length > 80 ? '…' : ''}"`);
       }
+    }
+
+    // Track activity for drive system (boredom / mastery evaluation)
+    this._activityLog.push({
+      timestamp: Date.now(),
+      description: `${ethicalJudgment.decision.action.type} (cycle ${this._cycleCount})`,
+      novelty: rawInputs.length > 0 ? 0.6 : 0.1,
+      arousal: expState.arousal,
+      goalProgress: rawInputs.length > 0 ? 'advancing' : 'stalled',
+    });
+    // Keep only the last 20 records
+    if (this._activityLog.length > 20) {
+      this._activityLog = this._activityLog.slice(-20);
     }
 
     const actEnd = budget.endPhase('act');
@@ -508,8 +649,7 @@ export class AgentLoop implements IAgentLoop {
       budget.startPhase('consolidate');
       dl?.phaseStart('consolidate', this._cycleCount);
       await this._memory.consolidate();
-      await this._driveSystem.update(expState, this._monitor.getConsciousnessMetrics());
-      dl?.log('drive', 'Drive system updated');
+      // Drive system tick is now in phase 3b (before DELIBERATE), not here.
       const consolidateEnd = budget.endPhase('consolidate');
       dl?.phaseEnd('consolidate', this._cycleCount, consolidateEnd.durationMs);
       this._phaseTimings.set('consolidate', consolidateEnd.durationMs);
@@ -566,7 +706,11 @@ export class AgentLoop implements IAgentLoop {
       selfModelCoherence: metrics.selfModelCoherence,
       experienceContinuity: metrics.experienceContinuity,
       phases: phaseStates,
-      drives: [],  // populated when full drive system is wired
+      drives: [...this._driveSystem.getDriveStates()].map(([dt, ds]) => ({
+        name: dt,
+        strength: ds.strength,
+        lastFired: ds.lastFiredAt !== null ? new Date(ds.lastFiredAt) : undefined,
+      })),
       stable: lastStabilityStable,
       experienceIntact: intact,
       degradationCount: this._experienceDegradationCount,

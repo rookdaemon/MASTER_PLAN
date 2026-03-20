@@ -148,7 +148,24 @@ export class MessagePipeline {
 
     // 7. CONSOLIDATE
     await memory.consolidate();
-    await driveSystem.update(expState, monitor.getConsciousnessMetrics());
+    // Drive system tick — in reactive-only mode (one-shot / web-chat) this
+    // uses the DefaultDriveSystem stub which returns inert defaults.
+    const metrics = monitor.getConsciousnessMetrics();
+    driveSystem.tick(expState, {
+      currentState: expState,
+      worldModelUncertainty: 1 - metrics.selfModelCoherence,
+      timeSinceLastSocialInteraction: 0,
+      recentActivity: [],
+      currentCognitiveLoad: 0.3,
+      currentNovelty: 0.6,
+      selfModelCoherence: metrics.selfModelCoherence,
+      personality: {
+        curiosityTrait: 0.5, warmthTrait: 0.5, volatilityTrait: 0.4,
+        preferredArousal: 0.4, preferredLoad: 0.4, preferredNovelty: 0.5,
+        opennessTrait: 0.5, deliberatenessTrait: 0.5,
+      },
+      now: Date.now(),
+    });
 
     // 8. YIELD
     return { text: responseText, experientialState: expState, intact };

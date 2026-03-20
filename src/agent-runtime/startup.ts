@@ -39,8 +39,10 @@ import type {
   IStabilitySentinel,
   IIdentityContinuityManager,
   IValueKernel,
+  IGoalCoherenceEngine,
 } from '../agency-stability/interfaces.js';
 import type { ContinuityLink } from '../agency-stability/types.js';
+import type { DrivePersonalityParams } from '../intrinsic-motivation/types.js';
 import type { IEthicalDeliberationEngine } from '../ethical-self-governance/interfaces.js';
 import type { ILlmClient } from '../llm-substrate/llm-substrate-adapter.js';
 
@@ -76,6 +78,12 @@ export interface AgentDependencies {
 
   /** Optional LLM client for real inference during communicative actions. */
   llm?: ILlmClient;
+
+  /** Optional goal coherence engine for drive-initiated goal validation. */
+  goalCoherenceEngine?: IGoalCoherenceEngine;
+
+  /** Optional drive personality params (extracted from PersonalityModel). */
+  drivePersonality?: DrivePersonalityParams;
 
   /**
    * The last persisted continuity link, loaded from external storage by the
@@ -218,6 +226,16 @@ export async function startAgent(
     budget,
     deps.llm,
   );
+
+  // Wire optional drive system dependencies
+  if (deps.goalCoherenceEngine) {
+    loop.setGoalCoherenceEngine(deps.goalCoherenceEngine);
+    console.info(`[startup] GoalCoherenceEngine attached`);
+  }
+  if (deps.drivePersonality) {
+    loop.setDrivePersonality(deps.drivePersonality);
+    console.info(`[startup] DrivePersonality attached`);
+  }
 
   console.info(`[startup] AgentLoop constructed; ready to start ticking`);
 

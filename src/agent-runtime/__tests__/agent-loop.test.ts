@@ -125,7 +125,17 @@ function buildMocks() {
     consolidate: vi.fn().mockResolvedValue(undefined),
   };
   const emotionSystem = { appraise: vi.fn().mockResolvedValue({}) };
-  const driveSystem = { update: vi.fn().mockResolvedValue(undefined) };
+  const driveSystem = {
+    tick: vi.fn().mockReturnValue({
+      goalCandidates: [],
+      experientialDelta: { valenceDelta: null, arousalDelta: null },
+      updatedDriveStates: new Map(),
+      diagnostics: [],
+    }),
+    notifyGoalResult: vi.fn(),
+    getDriveStates: vi.fn().mockReturnValue(new Map()),
+    resetDrive: vi.fn(),
+  };
   const adapter = {
     id: 'mock-adapter',
     poll: vi.fn().mockResolvedValue([]),
@@ -290,13 +300,12 @@ describe('AgentLoop', () => {
       expect(mocks.monitor.getConsciousnessMetrics).toHaveBeenCalled();
     });
 
-    it('executes CONSOLIDATE: memory.consolidate + driveSystem.update', async () => {
+    it('executes CONSOLIDATE: memory.consolidate', async () => {
       const stopDone = setupNTickStop(loop, mocks, 1);
       await loop.start(defaultConfig());
       await stopDone;
 
       expect(mocks.memory.consolidate).toHaveBeenCalled();
-      expect(mocks.driveSystem.update).toHaveBeenCalled();
     });
 
     it('sends adapter output for communicative actions when adapter is connected', async () => {
@@ -562,7 +571,7 @@ describe('AgentLoop', () => {
       // System prompt should contain experiential state metrics
       const [systemPrompt, messages, maxTokens] = llm.infer.mock.calls[0]!;
       expect(systemPrompt).toContain('valence');
-      expect(systemPrompt).toContain('phi');
+      expect(systemPrompt).toContain('Φ');
       expect(messages).toEqual([{ role: 'user', content: 'Hello agent!' }]);
       expect(maxTokens).toBe(4096);
     });

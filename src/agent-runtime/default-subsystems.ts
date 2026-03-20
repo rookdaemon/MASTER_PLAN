@@ -428,5 +428,29 @@ export class DefaultEmotionSystem implements IEmotionSystem {
 // ── Drive System ─────────────────────────────────────────────
 
 export class DefaultDriveSystem implements IDriveSystem {
-  async update(_state: ExperientialState, _metrics: ConsciousnessMetrics): Promise<void> {}
+  tick(
+    _currentState: ExperientialState,
+    _context: import('../intrinsic-motivation/types.js').DriveContext,
+  ): import('../intrinsic-motivation/types.js').DriveTickResult {
+    return {
+      goalCandidates: [],
+      experientialDelta: { valenceDelta: null, arousalDelta: null },
+      updatedDriveStates: new Map(),
+      diagnostics: [],
+    };
+  }
+
+  notifyGoalResult(
+    _candidate: import('../intrinsic-motivation/types.js').DriveGoalCandidate,
+    _result: import('../agency-stability/types.js').GoalAddResult,
+  ): void {}
+
+  getDriveStates(): Map<
+    import('../intrinsic-motivation/types.js').DriveType,
+    import('../intrinsic-motivation/types.js').DriveState
+  > {
+    return new Map();
+  }
+
+  resetDrive(_driveType: import('../intrinsic-motivation/types.js').DriveType): void {}
 }

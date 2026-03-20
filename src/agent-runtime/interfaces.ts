@@ -25,7 +25,6 @@ import type {
 } from './types.js';
 import type { ExperientialState } from '../conscious-core/types.js';
 import type { GracefulTermination } from '../conscious-core/types.js';
-import type { ConsciousnessMetrics } from '../conscious-core/types.js';
 import type { Percept } from '../conscious-core/types.js';
 import type { Goal } from '../conscious-core/types.js';
 
@@ -99,9 +98,8 @@ export interface IEmotionSystem {
 }
 
 /**
- * Drive system / intrinsic motivation (0.3.1.5.8) — minimal surface.
+ * Drive system / intrinsic motivation (0.3.1.5.8) — re-exported from the
+ * real interface so agent loop, startup, and all consumers see the full
+ * surface: tick(), notifyGoalResult(), getDriveStates(), resetDrive().
  */
-export interface IDriveSystem {
-  /** Update drive state based on current experiential state and metrics. */
-  update(state: ExperientialState, metrics: ConsciousnessMetrics): Promise<void>;
-}
+export type { IDriveSystem } from '../intrinsic-motivation/interfaces.js';

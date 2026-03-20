@@ -58,6 +58,9 @@ import { PersonalityModel } from '../personality/personality-model.js';
 import { PersistenceManager } from './persistence-manager.js';
 import { NodeFileSystem } from './filesystem.js';
 import { DebugLogger } from './debug-log.js';
+import { DriveSystem } from '../intrinsic-motivation/drive-system.js';
+import { GoalCoherenceEngine } from '../agency-stability/goal-coherence.js';
+import { buildTerminalGoals, extractDrivePersonality } from './drive-context-assembler.js';
 
 // ── Configuration ────────────────────────────────────────────
 
@@ -270,6 +273,12 @@ async function _runAgentLoop(
   persistence: PersistenceManager,
   llmClient?: import('../llm-substrate/llm-substrate-adapter.js').ILlmClient,
 ): Promise<void> {
+  // Real drive system + goal coherence engine for autonomous behavior
+  const realDriveSystem = new DriveSystem();
+  const terminalGoals = buildTerminalGoals();
+  const goalCoherenceEngine = new GoalCoherenceEngine(terminalGoals);
+  const drivePersonality = extractDrivePersonality(personality.getTraitProfile());
+
   const deps = {
     core: new DefaultConsciousCore(),
     perception: new DefaultPerceptionPipeline(),
@@ -281,9 +290,11 @@ async function _runAgentLoop(
     ethicalEngine: new DefaultEthicalDeliberationEngine(),
     memory: memoryStore,
     emotionSystem: new DefaultEmotionSystem(),
-    driveSystem: new DefaultDriveSystem(),
+    driveSystem: realDriveSystem,
     adapter,
     llm: llmClient,
+    goalCoherenceEngine,
+    drivePersonality,
   };
 
   const { loop, bootMode } = await startAgent(deps, config);
