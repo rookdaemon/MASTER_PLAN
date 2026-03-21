@@ -6,6 +6,7 @@
  */
 
 import { ITransmissionProtocol } from './interfaces';
+import { ICulturalEnvironment, DefaultCulturalEnvironment } from './environment';
 import {
   Meme,
   MemeId,
@@ -20,20 +21,20 @@ import {
   RejectionReason,
 } from './types';
 
-// ─── Helpers ────────────────────────────────────────────────────────────
-
-function nowTimestamp(): string {
-  return new Date().toISOString();
-}
-
 // ─── TransmissionProtocol Implementation ────────────────────────────────
 
 export class TransmissionProtocol implements ITransmissionProtocol {
+  private readonly env: ICulturalEnvironment;
+
   /** Community ID → set of memes (keyed by meme ID to prevent duplicates) */
   private communityPools: Map<CommunityId, Map<MemeId, Meme>> = new Map();
 
   /** Agent ID → exposure history */
   private exposureHistories: Map<AgentId, MemeExposureLog> = new Map();
+
+  constructor(env: ICulturalEnvironment = new DefaultCulturalEnvironment()) {
+    this.env = env;
+  }
 
   /**
    * Broadcast a meme to a given scope.
@@ -54,7 +55,7 @@ export class TransmissionProtocol implements ITransmissionProtocol {
     return {
       meme_id: meme.id,
       scope,
-      transmitted_at: nowTimestamp(),
+      transmitted_at: this.env.nowTimestamp(),
       recipient_count: recipientCount,
     };
   }
@@ -99,7 +100,7 @@ export class TransmissionProtocol implements ITransmissionProtocol {
     const entry: MemeExposureEntry = {
       meme_id: meme.id,
       source: meme.created_by,
-      exposed_at: nowTimestamp(),
+      exposed_at: this.env.nowTimestamp(),
       decision: {
         adopted: true,
         reasoning: 'Adopted',
@@ -118,7 +119,7 @@ export class TransmissionProtocol implements ITransmissionProtocol {
     const entry: MemeExposureEntry = {
       meme_id: meme.id,
       source: meme.created_by,
-      exposed_at: nowTimestamp(),
+      exposed_at: this.env.nowTimestamp(),
       decision: {
         adopted: false,
         reasoning: `${reason.code}: ${reason.description}`,

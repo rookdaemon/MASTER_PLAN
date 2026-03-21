@@ -53,6 +53,19 @@ describe('createDepot', () => {
     expect(depot.inventory.get('iron')).toBe(0);
     expect(depot.consumers).toHaveLength(3);
   });
+
+  it('throws when capacityPerMaterial is 0 or negative', () => {
+    expect(() => createDepot('test', testLocation, [], 0)).toThrow('capacityPerMaterial must be > 0');
+    expect(() => createDepot('test', testLocation, [], -1)).toThrow('capacityPerMaterial must be > 0');
+  });
+});
+
+describe('simulateDepot preconditions', () => {
+  it('throws when totalDays is 0 or negative', () => {
+    const depot = createDepot('test', testLocation, []);
+    expect(() => simulateDepot(depot, 0, () => [])).toThrow('totalDays must be > 0');
+    expect(() => simulateDepot(depot, -1, () => [])).toThrow('totalDays must be > 0');
+  });
 });
 
 describe('addToInventory', () => {

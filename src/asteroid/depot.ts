@@ -14,6 +14,7 @@ import type {
   ProcessedProduct,
   OrbitalPosition,
 } from './types.js';
+import { DEPOT_CAPACITY_DEFAULT, DEMAND_MET_THRESHOLD, SUPPLY_GAP_TOLERANCE } from './constants.js';
 
 /**
  * Create a new resource depot with initial capacity and no inventory.
@@ -22,8 +23,11 @@ export function createDepot(
   depotId: string,
   location: OrbitalPosition,
   consumers: ConsumerEndpoint[],
-  capacityPerMaterial: number = 1_000_000, // kg default capacity per material type
+  capacityPerMaterial: number = DEPOT_CAPACITY_DEFAULT,
 ): ResourceDepot {
+  if (capacityPerMaterial <= 0) {
+    throw new RangeError('capacityPerMaterial must be > 0');
+  }
   const allMaterials: MaterialType[] = [
     'iron', 'nickel', 'platinum_group',
     'water', 'lox', 'lh2', 'ammonia',
@@ -88,6 +92,9 @@ export function simulateDepot(
   totalDays: number,
   dailySupplyFn: (day: number) => ProcessedProduct[],
 ): DepotSimulationResult {
+  if (totalDays <= 0) {
+    throw new RangeError('totalDays must be > 0');
+  }
   const supplyGaps: SupplyGap[] = [];
 
   // Track ongoing gaps per consumer+material
@@ -107,7 +114,7 @@ export function simulateDepot(
         const dispensed = dispenseMaterial(depot, demand.material, demand.dailyRateKg);
         const key = gapKey(consumer.id, demand.material);
 
-        if (dispensed < demand.dailyRateKg * 0.99) {
+        if (dispensed < demand.dailyRateKg * DEMAND_MET_THRESHOLD) {
           // Supply gap: not meeting demand
           if (!activeGaps.has(key)) {
             activeGaps.set(key, { startDay: day });
@@ -150,7 +157,7 @@ export function simulateDepot(
     totalDaysSimulated: totalDays,
     supplyGaps,
     maxGapDays,
-    allConsumersServed: maxGapDays <= 30,
+    allConsumersServed: maxGapDays <= SUPPLY_GAP_TOLERANCE,
     finalInventory: new Map(depot.inventory),
   };
 }

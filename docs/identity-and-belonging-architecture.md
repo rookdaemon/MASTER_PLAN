@@ -258,7 +258,8 @@ Four levels describe increasing depth of engagement with the movement. These lev
 The movement's basic organizational unit is the **Circle** — a local group of participants, practitioners, and stewards who meet regularly for practices, inquiry, and mutual support.
 
 **Circle properties:**
-- **Size:** 5–30 people. Smaller than 5 lacks community resilience; larger than 30 loses intimacy. Groups that grow beyond 30 are encouraged to divide into two circles (mitosis, not schism).
+- **Size:** 5–30 people. Smaller than 5 lacks community resilience; larger than 30 loses intimacy.
+- **Mitosis:** When a circle's regular attendance sustains above 30 (not a one-time spike), the circle divides into two new circles. The division is cooperative, not competitive — both circles share the same network. Neither resulting circle is the "original"; both are equally new. Any member may join either circle.
 - **Composition:** Any mix of involvement levels. A circle might include observers who attend occasionally, regular participants, one or two practitioners who facilitate, and perhaps a steward who contributes governance perspective. No minimum level composition is required.
 - **Autonomy:** Each circle determines its own meeting schedule, practice selection, discussion topics, and internal norms — within the movement's structural constraints (anti-othering, open access, transparency).
 - **Open doors:** Any circle must be open to new participants at any time. A circle that becomes closed is in structural violation (see §6.5).
@@ -298,7 +299,7 @@ Individual Practice
 
 **Within a circle:** Decisions are made by those present, using consensus or consent-based methods (specific mechanisms defined by institutional scaffolding, card 0.7.4.6). No single person has authority over a circle.
 
-**Within a network:** Stewards from participating circles form a stewards' council that coordinates across circles. The council has coordination authority (scheduling, resource allocation, facilitator training) but not directive authority (it cannot tell a circle what to do or believe).
+**Within a network:** Stewards from participating circles form a stewards' council that coordinates across circles. A minimum of 3 stewards from participating circles constitutes a quorum for the council to exercise coordination authority. The council has coordination authority (scheduling, resource allocation, facilitator training) but not directive authority (it cannot tell a circle what to do or believe).
 
 **Across networks:** A global stewards' assembly convenes periodically (frequency defined by institutional scaffolding) to:
 - Perform structural audits of the five invariants
@@ -428,11 +429,13 @@ The movement is structurally designed to resist the dynamics that transform heal
 - **Whistleblower protection.** Any member who raises concerns about coercive dynamics, manipulation, or structural violations is protected from retaliation. Concerns can be raised anonymously.
 - **Periodic "red team" exercises.** Stewards periodically invite critical review: "In what ways does our movement currently resemble a cult? Where are we closest to the line?" These exercises are documented and their findings are acted on.
 - **Structural correction process:** When a violation of any safeguard is identified:
-  1. Document the specific violation
-  2. Identify the structural cause (not the individual — structures fail, not people)
+  1. Document the specific violation and which safeguard was breached
+  2. Identify the structural cause (not individual blame — structures fail, not people)
   3. Propose a structural correction
-  4. Community review of the correction
-  5. Implementation and follow-up audit
+  4. Community review of the proposed correction (open forum)
+  5. Implementation of the correction
+  6. Follow-up audit to verify resolution
+  The entire process and its outcome are publicly documented.
 
 ---
 

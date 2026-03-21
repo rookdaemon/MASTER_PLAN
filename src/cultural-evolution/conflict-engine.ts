@@ -10,11 +10,11 @@
  */
 
 import { ICulturalConflictEngine } from './interfaces';
+import { ICulturalEnvironment, DefaultCulturalEnvironment } from './environment';
 import { MemeCodec } from './meme-codec';
 import { TransmissionProtocol } from './transmission-protocol';
 import {
   Meme,
-  MemeId,
   MemeType,
   MemePool,
   CommunityId,
@@ -23,36 +23,7 @@ import {
   ResolutionOptions,
   ResolutionMode,
   CulturalAgreement,
-  FitnessRecord,
-  VariationType,
 } from './types';
-
-// ─── Helpers ────────────────────────────────────────────────────────────
-
-function nowTimestamp(): string {
-  return new Date().toISOString();
-}
-
-function emptyFitness(): FitnessRecord {
-  return {
-    adoption_count: 0,
-    current_prevalence: 0,
-    longevity: 0,
-    community_spread: 0,
-    transmission_fidelity: 1.0,
-    co_occurrence_score: 0,
-    survival_events: 0,
-  };
-}
-
-function contentHash(content: string): MemeId {
-  let hash = 0;
-  for (let i = 0; i < content.length; i++) {
-    const char = content.charCodeAt(i);
-    hash = ((hash << 5) - hash + char) | 0;
-  }
-  return `meme-${Math.abs(hash).toString(36)}`;
-}
 
 /** Map MemeType to the corresponding ConflictType */
 function memeTypeToConflictType(type: MemeType): ConflictType {
@@ -74,11 +45,15 @@ function memeTypeToConflictType(type: MemeType): ConflictType {
 
 export class CulturalConflictEngine implements ICulturalConflictEngine {
   private agreements: CulturalAgreement[] = [];
+  private readonly env: ICulturalEnvironment;
 
   constructor(
     private codec: MemeCodec,
     private transmission: TransmissionProtocol,
-  ) {}
+    env: ICulturalEnvironment = new DefaultCulturalEnvironment(),
+  ) {
+    this.env = env;
+  }
 
   // ─── detectConflict ──────────────────────────────────────────────────
 
@@ -128,7 +103,7 @@ export class CulturalConflictEngine implements ICulturalConflictEngine {
               conflict_type: memeTypeToConflictType(type),
               severity: Math.min(1, distance),
               affected_communities: affectedCommunities,
-              detected_at: nowTimestamp(),
+              detected_at: this.env.nowTimestamp(),
             });
           }
         }
@@ -179,7 +154,7 @@ export class CulturalConflictEngine implements ICulturalConflictEngine {
             communities: conflict.affected_communities,
             mode: ResolutionMode.NEGOTIATED_NORMS,
             terms: `Meta-norm: respect local norms in each community's territory`,
-            created_at: nowTimestamp(),
+            created_at: this.env.nowTimestamp(),
             memes_involved: [conflict.meme_a.id, conflict.meme_b.id],
           }
         : null;

@@ -187,4 +187,34 @@ describe("Consciousness Continuity Verifier", () => {
       expect(typeof log[0].timestamp_ms).toBe("number");
     });
   });
+
+  describe("precondition guards", () => {
+    it("throws if before state has empty memoryState", () => {
+      const verifier = createContinuityVerifier();
+      const before = mockState({ memoryState: new Uint8Array(0) });
+      const after = mockState({ id: "state-2" });
+      expect(() => verifier.measureContinuity(before, after)).toThrow();
+    });
+
+    it("throws if after state has empty registerState", () => {
+      const verifier = createContinuityVerifier();
+      const before = mockState();
+      const after = mockState({ id: "state-2", registerState: new Uint8Array(0) });
+      expect(() => verifier.measureContinuity(before, after)).toThrow();
+    });
+
+    it("throws if before state has empty dynamicalVariables", () => {
+      const verifier = createContinuityVerifier();
+      const before = mockState({ dynamicalVariables: new Uint8Array(0) });
+      const after = mockState({ id: "state-2" });
+      expect(() => verifier.measureContinuity(before, after)).toThrow();
+    });
+
+    it("throws if after state has empty temporalContextBuffer", () => {
+      const verifier = createContinuityVerifier();
+      const before = mockState();
+      const after = mockState({ id: "state-2", temporalContextBuffer: new Uint8Array(0) });
+      expect(() => verifier.measureContinuity(before, after)).toThrow();
+    });
+  });
 });

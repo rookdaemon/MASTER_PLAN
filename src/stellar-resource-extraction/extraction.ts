@@ -34,6 +34,12 @@ import {
   TARGET_FULL_SCALE_POWER_WATTS,
   MAX_SEED_FRACTION,
   MAX_REPLICATION_TIMELINE_YEARS,
+  TARGET_REPLICATION_TIMELINE_YEARS,
+  MINING_ALLOCATION_FRACTION,
+  REFINING_ALLOCATION_FRACTION,
+  FABRICATION_ALLOCATION_FRACTION,
+  COMPUTATION_ALLOCATION_FRACTION,
+  BODY_SCORE_ABUNDANCE_THRESHOLD,
 } from "./types.js";
 
 // ── Validation Result ───────────────────────────────────────────────────────
@@ -145,7 +151,7 @@ export function computeTotalCollectorOutput(collectors: CollectorUnit[]): number
 
 /**
  * Compute energy budget from total power, allocating by priority.
- * Mining gets 30%, refining 35%, fabrication 15%, computation 5%, reserve ≥ 20%.
+ * Allocations use named constants from Threshold Registry; reserve ≥ MIN_RESERVE_MARGIN.
  * If reserve would drop below MIN_RESERVE_MARGIN, all allocations are scaled down.
  */
 export function computeEnergyBudget(totalOutput_watts: number): EnergyBudget {
@@ -154,10 +160,10 @@ export function computeEnergyBudget(totalOutput_watts: number): EnergyBudget {
 
   return {
     totalOutput_watts: totalOutput_watts,
-    miningAllocation_watts: usable * 0.35,
-    refiningAllocation_watts: usable * 0.40,
-    fabricationAllocation_watts: usable * 0.175,
-    computationAllocation_watts: usable * 0.075,
+    miningAllocation_watts: usable * MINING_ALLOCATION_FRACTION,
+    refiningAllocation_watts: usable * REFINING_ALLOCATION_FRACTION,
+    fabricationAllocation_watts: usable * FABRICATION_ALLOCATION_FRACTION,
+    computationAllocation_watts: usable * COMPUTATION_ALLOCATION_FRACTION,
     reserveMarginFraction: reserveTarget,
   };
 }
@@ -230,7 +236,7 @@ function computeBodyScore(
 
   for (const cls of requiredClasses) {
     const fraction = assay.composition.get(cls) ?? 0;
-    if (fraction > 0.001) {
+    if (fraction > BODY_SCORE_ABUNDANCE_THRESHOLD) {
       classesPresent++;
       abundanceSum += fraction;
     }
@@ -253,7 +259,7 @@ export function evaluateSurvey(
   const coveredClasses = new Set<MaterialClass>();
   for (const [, assay] of assays) {
     for (const cls of requiredClasses) {
-      if ((assay.composition.get(cls) ?? 0) > 0.001) {
+      if ((assay.composition.get(cls) ?? 0) > BODY_SCORE_ABUNDANCE_THRESHOLD) {
         coveredClasses.add(cls);
       }
     }
@@ -546,6 +552,22 @@ export function adaptRefiningForComposition(
   return { recipe: adaptedRecipe, adaptation };
 }
 
+/**
+ * Mark an adaptation as validated after successful small-batch test.
+ * Returns a new entry with validated=true and the provided timestamp.
+ * Per contract: validated starts false; set true only after small-batch validation succeeds.
+ */
+export function validateAdaptation(
+  entry: AdaptationLogEntry,
+  validationTimestamp_years: number
+): AdaptationLogEntry {
+  return {
+    ...entry,
+    validated: true,
+    timestamp_years: validationTimestamp_years,
+  };
+}
+
 // ── Energy Sufficiency Check ────────────────────────────────────────────────
 
 /**
@@ -564,8 +586,8 @@ export function isEnergySufficient(
     const recipe = recipes.get(req.materialClass);
     if (!recipe) return false;
 
-    // Assume 20-year production window → daily production rate
-    const daily_kg = req.mass_kg / (20 * 365);
+    // Production window from target replication timeline → daily production rate
+    const daily_kg = req.mass_kg / (TARGET_REPLICATION_TIMELINE_YEARS * 365);
     // Account for yield loss: need to refine more input
     const inputDaily_kg = daily_kg / recipe.yieldFraction;
     totalEnergyNeeded_Wh_per_day += inputDaily_kg * recipe.energyPerKg_Wh;

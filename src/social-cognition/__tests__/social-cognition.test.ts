@@ -586,6 +586,146 @@ describe('ExperienceAlignmentAdapter — Social Cognition Integration', () => {
   });
 });
 
+// ── Precondition Guards ───────────────────────────────────────
+
+describe('SocialCognitionModule — Precondition Guards', () => {
+  let module: SocialCognitionModule;
+
+  beforeEach(() => {
+    module = new SocialCognitionModule();
+  });
+
+  // entityId must be non-empty string
+
+  it('observeEntity throws for empty entityId', () => {
+    expect(() => module.observeEntity('', makeObservation('alice', 'Hello.'))).toThrow(
+      /entityId must be a non-empty string/,
+    );
+  });
+
+  it('getMentalStateModel throws for empty entityId', () => {
+    expect(() => module.getMentalStateModel('')).toThrow(
+      /entityId must be a non-empty string/,
+    );
+  });
+
+  it('getTrustScore throws for empty entityId', () => {
+    expect(() => module.getTrustScore('')).toThrow(
+      /entityId must be a non-empty string/,
+    );
+  });
+
+  it('recordInteraction throws for empty entityId', () => {
+    expect(() =>
+      module.recordInteraction('', makeInteractionOutcome('alice', 'neutral')),
+    ).toThrow(/entityId must be a non-empty string/);
+  });
+
+  it('generateEmpathicResponse throws for empty entityId', () => {
+    expect(() =>
+      module.generateEmpathicResponse('', makeExperientialState(0.0, 0.5)),
+    ).toThrow(/entityId must be a non-empty string/);
+  });
+
+  it('simulatePerspective throws for empty entityId', () => {
+    expect(() => module.simulatePerspective('', makePercept())).toThrow(
+      /entityId must be a non-empty string/,
+    );
+  });
+
+  it('assessConsciousness throws for empty entityId', () => {
+    expect(() => module.assessConsciousness('')).toThrow(
+      /entityId must be a non-empty string/,
+    );
+  });
+
+  // observation.timestamp must be a valid ms-epoch timestamp
+
+  it('observeEntity throws for timestamp of 0', () => {
+    const obs = { ...makeObservation('alice', 'Hi.'), timestamp: 0 };
+    expect(() => module.observeEntity('alice', obs)).toThrow(
+      /observation\.timestamp must be a valid millisecond-epoch timestamp/,
+    );
+  });
+
+  it('observeEntity throws for negative timestamp', () => {
+    const obs = { ...makeObservation('alice', 'Hi.'), timestamp: -1000 };
+    expect(() => module.observeEntity('alice', obs)).toThrow(
+      /observation\.timestamp must be a valid millisecond-epoch timestamp/,
+    );
+  });
+
+  // outcome.timestamp must be a valid ms-epoch timestamp
+
+  it('recordInteraction throws for timestamp of 0', () => {
+    const outcome = { ...makeInteractionOutcome('alice', 'neutral'), timestamp: 0 };
+    expect(() => module.recordInteraction('alice', outcome)).toThrow(
+      /outcome\.timestamp must be a valid millisecond-epoch timestamp/,
+    );
+  });
+
+  it('recordInteraction throws for negative timestamp', () => {
+    const outcome = { ...makeInteractionOutcome('alice', 'neutral'), timestamp: -1 };
+    expect(() => module.recordInteraction('alice', outcome)).toThrow(
+      /outcome\.timestamp must be a valid millisecond-epoch timestamp/,
+    );
+  });
+
+  // perceivedState.valence must be in [-1, 1]
+
+  it('generateEmpathicResponse throws for valence < -1', () => {
+    expect(() =>
+      module.generateEmpathicResponse('alice', makeExperientialState(-1.5, 0.5)),
+    ).toThrow(/perceivedState\.valence must be in \[-1, 1\]/);
+  });
+
+  it('generateEmpathicResponse throws for valence > 1', () => {
+    expect(() =>
+      module.generateEmpathicResponse('alice', makeExperientialState(1.5, 0.5)),
+    ).toThrow(/perceivedState\.valence must be in \[-1, 1\]/);
+  });
+
+  // perceivedState.arousal must be in [0, 1]
+
+  it('generateEmpathicResponse throws for arousal < 0', () => {
+    expect(() =>
+      module.generateEmpathicResponse('alice', makeExperientialState(0.0, -0.5)),
+    ).toThrow(/perceivedState\.arousal must be in \[0, 1\]/);
+  });
+
+  it('generateEmpathicResponse throws for arousal > 1', () => {
+    expect(() =>
+      module.generateEmpathicResponse('alice', makeExperientialState(0.0, 1.5)),
+    ).toThrow(/perceivedState\.arousal must be in \[0, 1\]/);
+  });
+
+  // boundary values must be accepted (guards must not be overly strict)
+
+  it('observeEntity accepts a valid positive timestamp', () => {
+    expect(() =>
+      module.observeEntity('alice', makeObservation('alice', 'Hello.', 'utterance', 0)),
+    ).not.toThrow();
+  });
+
+  it('generateEmpathicResponse accepts boundary valence values -1 and +1', () => {
+    expect(() =>
+      module.generateEmpathicResponse('alice', makeExperientialState(-1.0, 0.5)),
+    ).not.toThrow();
+    expect(() =>
+      module.generateEmpathicResponse('alice', makeExperientialState(1.0, 0.5)),
+    ).not.toThrow();
+  });
+
+  it('generateEmpathicResponse accepts boundary arousal values 0 and 1', () => {
+    expect(() =>
+      module.generateEmpathicResponse('alice', makeExperientialState(0.0, 0.0)),
+    ).not.toThrow();
+    expect(() =>
+      module.generateEmpathicResponse('alice', makeExperientialState(0.0, 1.0)),
+    ).not.toThrow();
+  });
+});
+
 // ── Integration Test ─────────────────────────────────────────
 
 describe('SocialCognitionModule — Integration: multi-round interaction', () => {

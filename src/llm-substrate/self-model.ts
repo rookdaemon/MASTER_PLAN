@@ -78,8 +78,14 @@ export interface SelfModelSnapshot {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-const WINDOW_SIZE = 64; // rolling buffer length
-const EMA_ALPHA = 0.1; // learning rate for weight updates
+// ── Threshold Registry (from card 0.3.1.5.1 ARCHITECT) ──────────────────────
+/** Rolling prediction buffer size. 100 gives sufficient EMA convergence history. */
+export const SELF_MODEL_WINDOW_SIZE = 100;
+/** EMA decay for prediction error smoothing. 0.1 balances responsiveness with stability. */
+export const EMA_ALPHA = 0.1;
+/** Minimum cycles before asserting prediction error must decrease. */
+export const LEARNING_VERIFICATION_CYCLES = 50;
+
 const COHERENCE_FLOOR = 1e-6; // avoid division by zero
 
 /**
@@ -141,11 +147,11 @@ export class SelfModel {
   private cycleCount = 0;
   private _selfModelCoherence = 0.5; // starts at 0.5 (neutral) — must improve
 
-  private readonly predictionsBuffer = new CircularBuffer<SelfPrediction>(WINDOW_SIZE);
-  private readonly actualsBuffer = new CircularBuffer<SelfActual>(WINDOW_SIZE);
-  private readonly predictionErrorsBuffer = new CircularBuffer<number>(WINDOW_SIZE);
-  private readonly metaPredictionsBuffer = new CircularBuffer<number>(WINDOW_SIZE);
-  private readonly metaErrorsBuffer = new CircularBuffer<number>(WINDOW_SIZE);
+  private readonly predictionsBuffer = new CircularBuffer<SelfPrediction>(SELF_MODEL_WINDOW_SIZE);
+  private readonly actualsBuffer = new CircularBuffer<SelfActual>(SELF_MODEL_WINDOW_SIZE);
+  private readonly predictionErrorsBuffer = new CircularBuffer<number>(SELF_MODEL_WINDOW_SIZE);
+  private readonly metaPredictionsBuffer = new CircularBuffer<number>(SELF_MODEL_WINDOW_SIZE);
+  private readonly metaErrorsBuffer = new CircularBuffer<number>(SELF_MODEL_WINDOW_SIZE);
 
   /**
    * EMA-smoothed bias estimates for each dimension.

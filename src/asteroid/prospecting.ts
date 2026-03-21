@@ -6,6 +6,7 @@
  */
 
 import type { AsteroidCandidate, ProspectingResult, ResourceMap } from './types.js';
+import { TOP_N_CANDIDATES } from './constants.js';
 
 /**
  * Compute total extractable resource mass from a ResourceMap (kg).
@@ -48,8 +49,12 @@ export function resourcePerDeltaV(candidate: AsteroidCandidate): number {
  */
 export function selectTopCandidates(
   catalog: AsteroidCandidate[],
-  topN: number = 10,
+  topN: number = TOP_N_CANDIDATES,
 ): ProspectingResult {
+  if (topN <= 0) {
+    throw new RangeError('topN must be > 0');
+  }
+
   const scored = catalog.map((c) => ({
     candidate: c,
     score: resourcePerDeltaV(c),

@@ -26,6 +26,63 @@ import {
   type EnergyHealthStatus,
 } from "./types.js";
 
+// ── Threshold Registry Constants ─────────────────────────────────────────
+// Every constant from the card's Threshold Registry, named and centralized.
+
+/** Core consciousness loop power requirement (W) */
+export const TIER0_POWER_W = 500;
+
+/** Micro-fission reactor electrical output (W) */
+export const FISSION_BASELINE_W = 10_000;
+
+/** Am-241 radioactive decay half-life (years) — physical constant */
+export const AM241_HALF_LIFE = 432.2;
+
+/** Fast-spectrum breeder conversion ratio (dimensionless) */
+export const BREEDING_RATIO = 1.05;
+
+/** Solar constant at 1 AU (W/m²) — physical constant */
+export const SOLAR_FLUX_1AU = 1361;
+
+/** Multi-junction III-V cell conversion efficiency (fraction) */
+export const PV_EFFICIENCY = 0.35;
+
+/** Photovoltaic array area (m²) */
+export const COLLECTOR_AREA_M2 = 50;
+
+/** Mechanical degradation rate of reactor components (fraction/year) */
+export const ANNUAL_NUCLEAR_DEGRADATION = 0.001;
+
+/** Radiation damage rate to PV cells (fraction/year) */
+export const ANNUAL_SOLAR_DEGRADATION = 0.005;
+
+/** Cell efficiency recovery rate via thermal annealing (fraction/year) */
+export const ANNEALING_RECOVERY = 0.003;
+
+/** Steady-state mechanical efficiency maintained by self-repair (fraction) */
+export const MECH_REPAIR_FLOOR = 0.9;
+
+/** Energy storage buffer minimum capacity (Wh) */
+export const BUFFER_CAPACITY_WH = 100_000;
+
+/** Capacity fraction below which Tier 1 loads are shed */
+export const SHED_THRESHOLD_CORE = 0.4;
+
+/** Capacity fraction below which Tier 2 loads are shed */
+export const SHED_THRESHOLD_SUPPORT = 0.6;
+
+/** Capacity fraction below which Tier 3 loads are shed */
+export const SHED_THRESHOLD_OPTIONAL = 0.8;
+
+/** Recommended quorum size at full power (nodes) */
+export const QUORUM_FULL = 5;
+
+/** Minimum quorum at consciousness-preservation power (nodes) */
+export const QUORUM_DEGRADED = 3;
+
+/** Typical thermal-to-electrical conversion efficiency for fission (fraction) */
+export const THERMAL_EFFICIENCY = 0.33;
+
 // ── Configuration Types ────────────────────────────────────────────────────
 
 export interface NuclearSourceConfig {
@@ -71,11 +128,20 @@ export interface FuelCycleProjectionConfig {
 // ── Nuclear Source ──────────────────────────────────────────────────────────
 
 export function createNuclearSource(config: NuclearSourceConfig): NuclearEnergyModule {
-  const thermalEfficiency = 0.33; // Typical thermal-to-electrical conversion
+  // C1 precondition guards
+  if (config.halfLife_years <= 0) {
+    throw new Error(`halfLife_years must be > 0, got ${config.halfLife_years}`);
+  }
+  if (config.baseOutput_W <= 0) {
+    throw new Error(`baseOutput_W must be > 0, got ${config.baseOutput_W}`);
+  }
+  if (config.breedingRatio < 0) {
+    throw new Error(`breedingRatio must be >= 0, got ${config.breedingRatio}`);
+  }
 
   return {
     thermalOutput_W(): number {
-      return config.baseOutput_W / thermalEfficiency;
+      return config.baseOutput_W / THERMAL_EFFICIENCY;
     },
 
     electricalOutput_W(): number {
@@ -125,6 +191,17 @@ export function createNuclearSource(config: NuclearSourceConfig): NuclearEnergyM
 // ── Stellar Source ──────────────────────────────────────────────────────────
 
 export function createStellarSource(config: StellarSourceConfig): StellarHarvestingModule {
+  // C2 precondition guards
+  if (config.collectorArea_m2 <= 0) {
+    throw new Error(`collectorArea_m2 must be > 0, got ${config.collectorArea_m2}`);
+  }
+  if (config.conversionEfficiency <= 0 || config.conversionEfficiency >= 1) {
+    throw new Error(`conversionEfficiency must be in (0, 1), got ${config.conversionEfficiency}`);
+  }
+  if (config.solarFlux_W_m2 < 0) {
+    throw new Error(`solarFlux_W_m2 must be >= 0, got ${config.solarFlux_W_m2}`);
+  }
+
   let area = config.collectorArea_m2;
 
   return {
@@ -163,6 +240,22 @@ export function createStellarSource(config: StellarSourceConfig): StellarHarvest
 export function createPowerDistributionController(
   config: PowerDistributionConfig,
 ): PowerDistributionController & { solarStormMode?: () => boolean } {
+  // C3 precondition guards
+  if (!config.nuclear && !config.stellar) {
+    throw new Error("At least one of nuclear or stellar config must be non-null");
+  }
+  if (config.bufferCapacity_Wh <= 0) {
+    throw new Error(`bufferCapacity_Wh must be > 0, got ${config.bufferCapacity_Wh}`);
+  }
+  if (
+    config.loadProfile.tier0_W < 0 ||
+    config.loadProfile.tier1_W < 0 ||
+    config.loadProfile.tier2_W < 0 ||
+    config.loadProfile.tier3_W < 0
+  ) {
+    throw new Error("All loadProfile tier values must be >= 0");
+  }
+
   const nuclear = config.nuclear ? createNuclearSource(config.nuclear) : null;
   const stellar = config.stellar ? createStellarSource(config.stellar) : null;
 
@@ -249,9 +342,9 @@ export function createPowerDistributionController(
   function energyHealthStatus(): EnergyHealthStatus {
     const fraction = capacityFraction();
     // Recommend quorum based on available power
-    let recommendedQuorum = 5; // Full redundancy
-    if (fraction < 0.6) recommendedQuorum = 4;
-    if (fraction < 0.4) recommendedQuorum = 3;
+    let recommendedQuorum = QUORUM_FULL;
+    if (fraction < SHED_THRESHOLD_SUPPORT) recommendedQuorum = QUORUM_FULL - 1;
+    if (fraction < SHED_THRESHOLD_CORE) recommendedQuorum = QUORUM_DEGRADED;
 
     return {
       primarySource: nuclear ? nuclear.safetyStatus() : SourceStatus.Offline,
@@ -298,7 +391,7 @@ function computeNuclearFraction(year: number, config: NuclearSourceConfig | null
   // Self-repairing nanofabrication (0.2.1.2) continuously maintains mechanical
   // components, establishing a steady-state maintenance floor. Components degrade
   // but are replaced, so efficiency asymptotes rather than reaching zero.
-  const mechFloor = 0.9; // Self-repair maintains ≥90% mechanical efficiency
+  const mechFloor = MECH_REPAIR_FLOOR;
   const mechTransient = (1.0 - mechFloor) * Math.exp(-config.annualDegradation_fraction * year);
   const mechFraction = mechFloor + mechTransient;
 
@@ -346,7 +439,7 @@ export function projectPowerOutput(
       nuclearOutputFraction: nuclearFraction,
       stellarOutputFraction: stellarFraction,
       totalOutput_W,
-      tier0Viable: totalOutput_W >= 500, // Tier 0 = 500W
+      tier0Viable: totalOutput_W >= TIER0_POWER_W,
     });
   }
 

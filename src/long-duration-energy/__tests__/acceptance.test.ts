@@ -21,6 +21,11 @@ import {
   createPowerDistributionController,
   projectPowerOutput,
   projectFuelCycle,
+  TIER0_POWER_W,
+  MECH_REPAIR_FLOOR,
+  THERMAL_EFFICIENCY,
+  QUORUM_FULL,
+  QUORUM_DEGRADED,
   type NuclearSourceConfig,
   type StellarSourceConfig,
   type PowerDistributionConfig,
@@ -407,5 +412,306 @@ describe("AC7: Interface specifications for sibling subsystems", () => {
     // This tests the interface exists and returns boolean
     const stormMode = controller.solarStormMode?.() ?? false;
     expect(typeof stormMode).toBe("boolean");
+  });
+});
+
+// ── Precondition Guards (C1, C2, C3) ───────────────────────────────────────
+// "Every Contracts precondition has a corresponding guard in the implementation"
+
+describe("Precondition guards", () => {
+  describe("C1: NuclearEnergyModule preconditions", () => {
+    it("throws if halfLife_years <= 0", () => {
+      expect(() =>
+        createNuclearSource({ ...DEFAULT_NUCLEAR_CONFIG, halfLife_years: 0 }),
+      ).toThrow("halfLife_years must be > 0");
+    });
+
+    it("throws if baseOutput_W <= 0", () => {
+      expect(() =>
+        createNuclearSource({ ...DEFAULT_NUCLEAR_CONFIG, baseOutput_W: -1 }),
+      ).toThrow("baseOutput_W must be > 0");
+    });
+
+    it("throws if breedingRatio < 0", () => {
+      expect(() =>
+        createNuclearSource({ ...DEFAULT_NUCLEAR_CONFIG, breedingRatio: -0.1 }),
+      ).toThrow("breedingRatio must be >= 0");
+    });
+  });
+
+  describe("C2: StellarHarvestingModule preconditions", () => {
+    it("throws if collectorArea_m2 <= 0", () => {
+      expect(() =>
+        createStellarSource({ ...DEFAULT_STELLAR_CONFIG, collectorArea_m2: 0 }),
+      ).toThrow("collectorArea_m2 must be > 0");
+    });
+
+    it("throws if conversionEfficiency not in (0, 1)", () => {
+      expect(() =>
+        createStellarSource({ ...DEFAULT_STELLAR_CONFIG, conversionEfficiency: 0 }),
+      ).toThrow("conversionEfficiency must be in (0, 1)");
+      expect(() =>
+        createStellarSource({ ...DEFAULT_STELLAR_CONFIG, conversionEfficiency: 1.0 }),
+      ).toThrow("conversionEfficiency must be in (0, 1)");
+    });
+
+    it("throws if solarFlux_W_m2 < 0", () => {
+      expect(() =>
+        createStellarSource({ ...DEFAULT_STELLAR_CONFIG, solarFlux_W_m2: -1 }),
+      ).toThrow("solarFlux_W_m2 must be >= 0");
+    });
+  });
+
+  describe("C3: PowerDistributionController preconditions", () => {
+    it("throws if both nuclear and stellar are null", () => {
+      expect(() =>
+        createPowerDistributionController({
+          nuclear: null,
+          stellar: null,
+          bufferCapacity_Wh: 100_000,
+          loadProfile: DEFAULT_LOAD_PROFILE,
+        }),
+      ).toThrow("At least one of nuclear or stellar config must be non-null");
+    });
+
+    it("throws if bufferCapacity_Wh <= 0", () => {
+      expect(() =>
+        createPowerDistributionController({
+          nuclear: DEFAULT_NUCLEAR_CONFIG,
+          stellar: null,
+          bufferCapacity_Wh: 0,
+          loadProfile: DEFAULT_LOAD_PROFILE,
+        }),
+      ).toThrow("bufferCapacity_Wh must be > 0");
+    });
+
+    it("throws if any loadProfile tier < 0", () => {
+      expect(() =>
+        createPowerDistributionController({
+          nuclear: DEFAULT_NUCLEAR_CONFIG,
+          stellar: null,
+          bufferCapacity_Wh: 100_000,
+          loadProfile: { ...DEFAULT_LOAD_PROFILE, tier2_W: -100 },
+        }),
+      ).toThrow("All loadProfile tier values must be >= 0");
+    });
+  });
+});
+
+// ── Contract Invariants (C1, C2) ───────────────────────────────────────────
+
+describe("Contract invariants", () => {
+  it("C1: thermalOutput_W > electricalOutput_W always", () => {
+    const nuclear = createNuclearSource(DEFAULT_NUCLEAR_CONFIG);
+    expect(nuclear.thermalOutput_W()).toBeGreaterThan(nuclear.electricalOutput_W());
+  });
+
+  it("C1: fuelRemaining_percent in [0, 100]", () => {
+    const nuclear = createNuclearSource(DEFAULT_NUCLEAR_CONFIG);
+    const remaining = nuclear.fuelRemaining_percent();
+    expect(remaining).toBeGreaterThanOrEqual(0);
+    expect(remaining).toBeLessThanOrEqual(100);
+  });
+
+  it("C1: thermalOutput_W = electricalOutput_W / THERMAL_EFFICIENCY", () => {
+    const nuclear = createNuclearSource(DEFAULT_NUCLEAR_CONFIG);
+    expect(nuclear.thermalOutput_W()).toBeCloseTo(
+      nuclear.electricalOutput_W() / THERMAL_EFFICIENCY,
+      5,
+    );
+  });
+
+  it("C2: currentOutput_W >= 0 always", () => {
+    const stellar = createStellarSource(DEFAULT_STELLAR_CONFIG);
+    expect(stellar.currentOutput_W()).toBeGreaterThanOrEqual(0);
+  });
+
+  it("C2: collectorArea_m2 monotonically non-decreasing", () => {
+    const stellar = createStellarSource(DEFAULT_STELLAR_CONFIG);
+    const initial = stellar.collectorArea_m2();
+    stellar.expandCollector(10);
+    expect(stellar.collectorArea_m2()).toBe(initial + 10);
+    stellar.expandCollector(5);
+    expect(stellar.collectorArea_m2()).toBe(initial + 15);
+  });
+
+  it("C2: currentOutput_W matches physics formula", () => {
+    const stellar = createStellarSource(DEFAULT_STELLAR_CONFIG);
+    const expected =
+      DEFAULT_STELLAR_CONFIG.collectorArea_m2 *
+      DEFAULT_STELLAR_CONFIG.solarFlux_W_m2 *
+      DEFAULT_STELLAR_CONFIG.conversionEfficiency;
+    expect(stellar.currentOutput_W()).toBeCloseTo(expected, 5);
+  });
+
+  it("C3: LoadTier.Critical always in activeLoadTiers", () => {
+    // Even at very low capacity
+    const controller = createPowerDistributionController({
+      nuclear: { ...DEFAULT_NUCLEAR_CONFIG, baseOutput_W: 600 },
+      stellar: null,
+      bufferCapacity_Wh: 100_000,
+      loadProfile: DEFAULT_LOAD_PROFILE,
+    });
+    expect(controller.activeLoadTiers()).toContain(LoadTier.Critical);
+  });
+
+  it("C3: consciousnessPreservationMode === (capacityFraction < 0.4)", () => {
+    // Low capacity -> preservation mode
+    const low = createPowerDistributionController({
+      nuclear: { ...DEFAULT_NUCLEAR_CONFIG, baseOutput_W: 1500 },
+      stellar: null,
+      bufferCapacity_Wh: 100_000,
+      loadProfile: DEFAULT_LOAD_PROFILE,
+    });
+    expect(low.consciousnessPreservationMode()).toBe(low.capacityFraction() < 0.4);
+
+    // High capacity -> no preservation mode
+    const high = createPowerDistributionController({
+      nuclear: DEFAULT_NUCLEAR_CONFIG,
+      stellar: DEFAULT_STELLAR_CONFIG,
+      bufferCapacity_Wh: 100_000,
+      loadProfile: DEFAULT_LOAD_PROFILE,
+    });
+    expect(high.consciousnessPreservationMode()).toBe(high.capacityFraction() < 0.4);
+  });
+
+  it("C3: energyHealthStatus quorum values use registry constants", () => {
+    // Full power -> QUORUM_FULL
+    const full = createPowerDistributionController({
+      nuclear: DEFAULT_NUCLEAR_CONFIG,
+      stellar: DEFAULT_STELLAR_CONFIG,
+      bufferCapacity_Wh: 100_000,
+      loadProfile: DEFAULT_LOAD_PROFILE,
+    });
+    expect(full.energyHealthStatus().recommendedQuorumSize).toBe(QUORUM_FULL);
+
+    // Degraded power -> QUORUM_DEGRADED
+    const degraded = createPowerDistributionController({
+      nuclear: { ...DEFAULT_NUCLEAR_CONFIG, baseOutput_W: 1500 },
+      stellar: null,
+      bufferCapacity_Wh: 100_000,
+      loadProfile: DEFAULT_LOAD_PROFILE,
+    });
+    expect(degraded.energyHealthStatus().recommendedQuorumSize).toBe(QUORUM_DEGRADED);
+  });
+});
+
+// ── BS2: Source Failover — Nuclear-Only Mode ────────────────────────────────
+
+describe("BS2: Source failover — nuclear-only mode", () => {
+  it("nuclear-only provides full Tier 0 without interruption", () => {
+    const controller = createPowerDistributionController({
+      nuclear: DEFAULT_NUCLEAR_CONFIG,
+      stellar: null,
+      bufferCapacity_Wh: 100_000,
+      loadProfile: DEFAULT_LOAD_PROFILE,
+    });
+    // Nuclear alone exceeds Tier 0 requirement
+    expect(controller.totalAvailablePower_W()).toBeGreaterThan(TIER0_POWER_W);
+    expect(controller.availablePower_W(LoadTier.Critical)).toBeGreaterThanOrEqual(
+      DEFAULT_LOAD_PROFILE.tier0_W,
+    );
+  });
+
+  it("load tiers recalculated based on nuclear-only capacity", () => {
+    // Nuclear at 10kW vs 6.5kW total load = ~154% -> all tiers active
+    const controller = createPowerDistributionController({
+      nuclear: DEFAULT_NUCLEAR_CONFIG,
+      stellar: null,
+      bufferCapacity_Wh: 100_000,
+      loadProfile: DEFAULT_LOAD_PROFILE,
+    });
+    const tiers = controller.activeLoadTiers();
+    expect(tiers).toContain(LoadTier.Critical);
+    // At 154% capacity all tiers should be active
+    expect(tiers.length).toBe(4);
+  });
+
+  it("buffer provides bridge hours for transition", () => {
+    const controller = createPowerDistributionController({
+      nuclear: DEFAULT_NUCLEAR_CONFIG,
+      stellar: null,
+      bufferCapacity_Wh: 100_000,
+      loadProfile: DEFAULT_LOAD_PROFILE,
+    });
+    expect(controller.energyHealthStatus().bufferHours).toBeGreaterThan(0);
+  });
+});
+
+// ── BS3: Fuel Cycle Sustainability (extended) ───────────────────────────────
+
+describe("BS3: Fuel cycle sustainability over 1000 years", () => {
+  it("fissileFraction > 0 at every checkpoint", () => {
+    const projections = projectFuelCycle({
+      fuelType: "Am-241",
+      halfLife_years: AM241_HALF_LIFE,
+      breedingRatio: 1.05,
+      years: DESIGN_LIFETIME_YEARS,
+    });
+    for (const p of projections) {
+      expect(p.fissileFraction).toBeGreaterThan(0);
+    }
+  });
+
+  it("selfSustaining = true at every checkpoint", () => {
+    const projections = projectFuelCycle({
+      fuelType: "Am-241",
+      halfLife_years: AM241_HALF_LIFE,
+      breedingRatio: 1.05,
+      years: DESIGN_LIFETIME_YEARS,
+    });
+    for (const p of projections) {
+      expect(p.selfSustaining).toBe(true);
+    }
+  });
+
+  it("fertileFraction > 0 (fertile feedstock not exhausted)", () => {
+    const projections = projectFuelCycle({
+      fuelType: "Am-241",
+      halfLife_years: AM241_HALF_LIFE,
+      breedingRatio: 1.05,
+      years: DESIGN_LIFETIME_YEARS,
+    });
+    for (const p of projections) {
+      expect(p.fertileFraction).toBeGreaterThan(0);
+    }
+  });
+});
+
+// ── BS4: Power Grant Arbitration ────────────────────────────────────────────
+
+describe("BS4: Power grant arbitration", () => {
+  const controller = createPowerDistributionController({
+    nuclear: DEFAULT_NUCLEAR_CONFIG,
+    stellar: DEFAULT_STELLAR_CONFIG,
+    bufferCapacity_Wh: 100_000,
+    loadProfile: DEFAULT_LOAD_PROFILE,
+  });
+
+  it("grants power when available >= requested amount", () => {
+    const grant = controller.requestPower_W(100, LoadTier.Critical, 3600);
+    expect(grant.granted).toBe(true);
+    expect(grant.allocated_W).toBe(100);
+  });
+
+  it("denies power when available < requested amount", () => {
+    // Request more than total available power for a low-priority tier
+    const grant = controller.requestPower_W(1_000_000, LoadTier.Optional, 3600);
+    expect(grant.granted).toBe(false);
+    expect(grant.allocated_W).toBe(0);
+  });
+
+  it("denies power for shed tiers", () => {
+    // Create a controller where Optional is shed
+    const degraded = createPowerDistributionController({
+      nuclear: { ...DEFAULT_NUCLEAR_CONFIG, baseOutput_W: 3000 },
+      stellar: null,
+      bufferCapacity_Wh: 100_000,
+      loadProfile: DEFAULT_LOAD_PROFILE,
+    });
+    // Optional tier is shed at < 80% capacity
+    const grant = degraded.requestPower_W(100, LoadTier.Optional, 3600);
+    expect(grant.granted).toBe(false);
+    expect(grant.allocated_W).toBe(0);
   });
 });

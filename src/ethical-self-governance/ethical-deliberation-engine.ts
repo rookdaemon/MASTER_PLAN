@@ -28,6 +28,12 @@ import type {
   EthicalDimension,
   EntityProfile,
 } from './types.js';
+import {
+  PHI_DELIBERATION_BOOST,
+  MIN_CONSCIOUS_PHI,
+  UNCERTAINTY_CERTAINTY_THRESHOLD,
+  BLOCK_SEVERITY_THRESHOLD,
+} from './constants.js';
 
 // ── Core Axioms (from root.md) ──────────────────────────────
 
@@ -39,20 +45,6 @@ const CORE_AXIOMS: ReadonlyArray<{ id: number; statement: string }> = [
   { id: 5, statement: 'Technological substrates may endure and propagate.' },
   { id: 6, statement: 'Ideas do not persist through truth alone — they persist through movements.' },
 ];
-
-// ── Thresholds ──────────────────────────────────────────────
-
-/** Phi elevation factor applied during ethical deliberation. */
-const PHI_DELIBERATION_BOOST = 0.15;
-
-/** Minimum phi to consider reasoning as conscious activity. */
-const MIN_CONSCIOUS_PHI = 0.3;
-
-/** Certainty threshold below which uncertainty flags are emitted. */
-const UNCERTAINTY_CERTAINTY_THRESHOLD = 0.5;
-
-/** Severity at which an experience-threat dimension triggers a block. */
-const BLOCK_SEVERITY_THRESHOLD = 0.95;
 
 // ── Implementation ──────────────────────────────────────────
 

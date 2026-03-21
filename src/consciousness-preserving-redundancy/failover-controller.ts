@@ -42,11 +42,40 @@ export interface FailoverControllerImpl extends Omit<FailoverController, "promot
  * @param nodes - All nodes in the cluster
  * @param initialState - Current conscious state snapshot
  */
+/**
+ * Validate that a ConsciousState has non-empty buffers for all state fields.
+ */
+function validateConsciousState(state: ConsciousState, label: string): void {
+  if (state.memoryState.length === 0) {
+    throw new Error(`${label}: memoryState buffer must not be empty`);
+  }
+  if (state.registerState.length === 0) {
+    throw new Error(`${label}: registerState buffer must not be empty`);
+  }
+  if (state.dynamicalVariables.length === 0) {
+    throw new Error(`${label}: dynamicalVariables buffer must not be empty`);
+  }
+  if (state.temporalContextBuffer.length === 0) {
+    throw new Error(`${label}: temporalContextBuffer buffer must not be empty`);
+  }
+}
+
 export function createFailoverController(
   initialActiveId: NodeId,
   nodes: NodeInfo[],
   initialState: ConsciousState
 ): FailoverControllerImpl {
+  // Precondition: initialActiveId must match a node with role === Active
+  const activeMatch = nodes.find((n) => n.id === initialActiveId);
+  if (!activeMatch || activeMatch.role !== NodeRole.Active) {
+    throw new Error(
+      `initialActiveId "${initialActiveId}" must reference a node in the cluster with role === Active`
+    );
+  }
+
+  // Precondition: initialState must have non-empty buffers
+  validateConsciousState(initialState, "initialState");
+
   let currentActiveId = initialActiveId;
   let currentNodes = nodes.map((n) => ({ ...n }));
   let latestState = initialState;

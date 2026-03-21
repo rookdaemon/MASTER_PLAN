@@ -468,6 +468,10 @@ export class DriveSystem implements IDriveSystem {
           diagnostics.push(
             diagnostic(driveType, 'mastery-reward', `Mastery reward signal: ${strength.toFixed(3)}`, now),
           );
+        } else {
+          diagnostics.push(
+            diagnostic(driveType, 'satiated', `Drive below threshold (strength=${strength.toFixed(3)})`, now),
+          );
         }
         continue;
       }
@@ -538,7 +542,7 @@ export class DriveSystem implements IDriveSystem {
     };
   }
 
-  notifyGoalResult(candidate: DriveGoalCandidate, result: GoalAddResult): void {
+  notifyGoalResult(candidate: DriveGoalCandidate, result: GoalAddResult, now: number): void {
     const prev = this.states.get(candidate.sourceDrive);
     if (prev === undefined) return;
 
@@ -546,7 +550,7 @@ export class DriveSystem implements IDriveSystem {
       // Rejection: apply extended cooldown
       this.states.set(candidate.sourceDrive, {
         ...prev,
-        extendedCooldownUntil: Date.now() + EXTENDED_COOLDOWN_MS,
+        extendedCooldownUntil: now + EXTENDED_COOLDOWN_MS,
       });
     } else {
       // Acceptance: partially reduce drive strength (satisfaction signal)

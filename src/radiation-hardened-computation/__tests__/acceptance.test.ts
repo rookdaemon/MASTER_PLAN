@@ -205,6 +205,57 @@ describe("AC6: Shielding spec — validated architecture within mass budget", ()
   });
 });
 
+// ── Contracts Precondition Guards ───────────────────────────────────────────
+
+describe("Contracts precondition guards", () => {
+  const sic = SUBSTRATE_DATABASE["SiC"];
+
+  it("calculateSEU_BER rejects negative flux", () => {
+    expect(() => calculateSEU_BER(sic, -1)).toThrow();
+  });
+
+  it("calculateSEU_BER rejects substrate with seuCrossSection_cm2 ≤ 0", () => {
+    const badSubstrate = { ...sic, seuCrossSection_cm2: 0 };
+    expect(() => calculateSEU_BER(badSubstrate, 4)).toThrow();
+    const negSubstrate = { ...sic, seuCrossSection_cm2: -1e-14 };
+    expect(() => calculateSEU_BER(negSubstrate, 4)).toThrow();
+  });
+
+  it("simulateDegradation rejects years ≤ 0", () => {
+    const params: DegradationModelParams = {
+      substrate: sic,
+      annualDose_rad: 100,
+      particleFlux_per_cm2_per_s: 4,
+      operatingTemp_K: 300,
+    };
+    expect(() => simulateDegradation(params, 0)).toThrow();
+    expect(() => simulateDegradation(params, -10)).toThrow();
+  });
+
+  it("simulateDegradation rejects stepSize_years ≤ 0", () => {
+    const params: DegradationModelParams = {
+      substrate: sic,
+      annualDose_rad: 100,
+      particleFlux_per_cm2_per_s: 4,
+      operatingTemp_K: 300,
+    };
+    expect(() => simulateDegradation(params, 1000, 0)).toThrow();
+    expect(() => simulateDegradation(params, 1000, -5)).toThrow();
+  });
+
+  it("simulateDegradation rejects operatingTemp_K ≤ 0", () => {
+    const params: DegradationModelParams = {
+      substrate: sic,
+      annualDose_rad: 100,
+      particleFlux_per_cm2_per_s: 4,
+      operatingTemp_K: 0,
+    };
+    expect(() => simulateDegradation(params, 1000)).toThrow();
+    const negParams = { ...params, operatingTemp_K: -50 };
+    expect(() => simulateDegradation(negParams, 1000)).toThrow();
+  });
+});
+
 // ── Acceptance Criterion 7: Long-Term Viability Model ───────────────────────
 // Physics-based degradation model projecting 1000+ year viability
 

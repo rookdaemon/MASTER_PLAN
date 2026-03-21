@@ -11,6 +11,15 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   createManufacturingOrchestrator,
   type OrchestratorConfig,
+  MIN_NODES_PER_LAYER,
+  REPLICATION_UTILISATION_THRESHOLD,
+  REPLICATION_SUSTAINED_DAYS,
+  TARGET_RECOVERY_RATE,
+  MAX_SINGLE_NODE_THROUGHPUT_LOSS,
+  MAX_RECOVERY_HOURS,
+  INVENTORY_BUFFER_DAYS,
+  DEMAND_SPIKE_SCALING_DAYS,
+  FAILOVER_DETECTION_SECONDS,
 } from "./manufacturing-orchestrator.js";
 import type {
   DemandForecast,
@@ -21,7 +30,36 @@ import type {
   Fabricator,
   Assembler,
   Recycler,
+  Clock,
+  Timer,
 } from "./types.js";
+
+// ── Clock & Timer Stubs ──────────────────────────────────────────────────────
+
+function createFakeClock(startMs = 1_000_000): Clock & { advance(ms: number): void; current: number } {
+  let current = startMs;
+  return {
+    get current() { return current; },
+    now() { return current; },
+    advance(ms: number) { current += ms; },
+  };
+}
+
+function createFakeTimer(): Timer & { flush(): void; pending: Array<{ callback: () => void; delayMs: number }> } {
+  const pending: Array<{ callback: () => void; delayMs: number }> = [];
+  return {
+    pending,
+    schedule(callback: () => void, delayMs: number) {
+      pending.push({ callback, delayMs });
+    },
+    flush() {
+      while (pending.length > 0) {
+        const entry = pending.shift()!;
+        entry.callback();
+      }
+    },
+  };
+}
 
 // ── Stub Factories ────────────────────────────────────────────────────────────
 
@@ -69,14 +107,15 @@ function stubRefinery(): Refinery {
   };
 }
 
-function stubFabricator(): Fabricator {
+function stubFabricator(clock?: Clock): Fabricator {
   let replicaCount = 0;
+  const getNow = clock ? () => clock.now() : () => 0;
   return {
     produce: (design, qty) => ({
-      batchId: `batch-${design.designId}-${Date.now()}`,
+      batchId: `batch-${design.designId}-${getNow()}`,
       designId: design.designId,
       quantity: qty,
-      producedAt: Date.now(),
+      producedAt: getNow(),
     }),
     verify: (batch) => ({
       batchId: batch.batchId,
@@ -85,19 +124,20 @@ function stubFabricator(): Fabricator {
       yieldFraction: 1.0,
       defectCategories: [],
     }),
-    selfReplicate: (targetSpec) => {
+    selfReplicate: (_targetSpec) => {
       replicaCount++;
-      return stubFabricator();
+      return stubFabricator(clock);
     },
   };
 }
 
-function stubAssembler(): Assembler {
+function stubAssembler(clock?: Clock): Assembler {
+  const getNow = clock ? () => clock.now() : () => 0;
   return {
     assemble: (bom) => ({
       systemId: `system-${bom.bomId}`,
       components: [],
-      assembledAt: Date.now(),
+      assembledAt: getNow(),
     }),
     test: (system) => ({
       systemId: system.systemId,
@@ -108,7 +148,7 @@ function stubAssembler(): Assembler {
     install: (system, location) => ({
       systemId: system.systemId,
       location,
-      installedAt: Date.now(),
+      installedAt: getNow(),
       success: true,
     }),
   };
@@ -149,32 +189,46 @@ function makeBom(id: string): BillOfMaterials {
   };
 }
 
-function makeConfig(nodeCount = 5): OrchestratorConfig {
+function makeConfig(
+  opts: { nodeCount?: number; clock?: Clock; timer?: Timer } = {}
+): OrchestratorConfig {
+  const { nodeCount = 5 } = opts;
+  const clock = opts.clock ?? createFakeClock();
+  const timer = opts.timer ?? createFakeTimer();
+
   const layers = [1, 2, 3, 4, 5] as const;
   const layerNodes = {} as Record<1 | 2 | 3 | 4 | 5, string[]>;
   for (const l of layers) layerNodes[l] = makeNodes(l, nodeCount);
 
   const extractors = new Map(
-    layerNodes[1].map((id) => [id, stubExtractor()])
+    layerNodes[1].map((id) => [id, stubExtractor()] as const)
   );
   const refineries = new Map(
-    layerNodes[2].map((id) => [id, stubRefinery()])
+    layerNodes[2].map((id) => [id, stubRefinery()] as const)
   );
   const fabricators = new Map(
-    layerNodes[3].map((id) => [id, stubFabricator()])
+    layerNodes[3].map((id) => [id, stubFabricator(clock)] as const)
   );
   const assemblers = new Map(
-    layerNodes[4].map((id) => [id, stubAssembler()])
+    layerNodes[4].map((id) => [id, stubAssembler(clock)] as const)
   );
   const recyclers = new Map(
-    layerNodes[5].map((id) => [id, stubRecycler()])
+    layerNodes[5].map((id) => [id, stubRecycler()] as const)
   );
 
   return {
-    minNodesPerLayer: 3,
-    replicationUtilisationThreshold: 0.8,
-    targetRecoveryRate: 0.95,
+    minNodesPerLayer: MIN_NODES_PER_LAYER,
+    replicationUtilisationThreshold: REPLICATION_UTILISATION_THRESHOLD,
+    replicationSustainedDays: REPLICATION_SUSTAINED_DAYS,
+    targetRecoveryRate: TARGET_RECOVERY_RATE,
+    maxSingleNodeThroughputLoss: MAX_SINGLE_NODE_THROUGHPUT_LOSS,
+    maxRecoveryHours: MAX_RECOVERY_HOURS,
+    inventoryBufferDays: INVENTORY_BUFFER_DAYS,
+    demandSpikeScalingDays: DEMAND_SPIKE_SCALING_DAYS,
+    failoverDetectionSeconds: FAILOVER_DETECTION_SECONDS,
     layerNodes,
+    clock,
+    timer,
     extractors,
     refineries,
     fabricators,
@@ -187,9 +241,13 @@ function makeConfig(nodeCount = 5): OrchestratorConfig {
 
 describe("ManufacturingOrchestrator", () => {
   let config: OrchestratorConfig;
+  let fakeClock: ReturnType<typeof createFakeClock>;
+  let fakeTimer: ReturnType<typeof createFakeTimer>;
 
   beforeEach(() => {
-    config = makeConfig();
+    fakeClock = createFakeClock();
+    fakeTimer = createFakeTimer();
+    config = makeConfig({ clock: fakeClock, timer: fakeTimer });
   });
 
   // ── plan() ─────────────────────────────────────────────────────────────────
@@ -363,6 +421,113 @@ describe("ManufacturingOrchestrator", () => {
 
       // 1 disruption across 5 nodes → 80% health for layer 2
       expect(report.layerHealth[2]).toBeCloseTo(4 / 5, 5);
+    });
+
+    it("recovers throughput when timer fires (within maxRecoveryHours)", () => {
+      const orchestrator = createManufacturingOrchestrator(config);
+      const disruption: DisruptionEvent = {
+        eventId: "evt-recovery",
+        affectedNodeId: "layer1-node1",
+        layer: 1,
+        estimatedRecoveryHours: MAX_RECOVERY_HOURS,
+      };
+
+      orchestrator.rebalance(disruption);
+      expect(orchestrator.monitor().throughputFraction).toBeGreaterThan(0.9);
+
+      // Flush the scheduled recovery
+      fakeTimer.flush();
+
+      const reportAfter = orchestrator.monitor();
+      expect(reportAfter.throughputFraction).toBe(1.0);
+      expect(reportAfter.activeDisruptions).toHaveLength(0);
+    });
+  });
+
+  // ── checkReplication() ──────────────────────────────────────────────────────
+
+  describe("checkReplication()", () => {
+    it("does NOT trigger replication before sustained period elapses", () => {
+      const orchestrator = createManufacturingOrchestrator(config);
+      const startMs = fakeClock.now();
+      const almostSustainedMs = (REPLICATION_SUSTAINED_DAYS - 1) * 24 * 60 * 60 * 1000;
+
+      // First check starts the timer
+      const result1 = orchestrator.checkReplication(0.85, startMs);
+      expect(result1).toBeNull();
+
+      // Check again just before the sustained period
+      const result2 = orchestrator.checkReplication(0.85, startMs + almostSustainedMs);
+      expect(result2).toBeNull();
+
+      // Layer 3 node count should not have changed
+      expect(config.layerNodes[3]).toHaveLength(5);
+    });
+
+    it("triggers replication after sustained utilisation exceeds threshold for replicationSustainedDays", () => {
+      const orchestrator = createManufacturingOrchestrator(config);
+      const startMs = fakeClock.now();
+      const sustainedMs = REPLICATION_SUSTAINED_DAYS * 24 * 60 * 60 * 1000;
+
+      // First check at high utilisation — starts the clock
+      orchestrator.checkReplication(0.85, startMs);
+
+      // Check after sustained period — should trigger replication
+      const newNodeId = orchestrator.checkReplication(0.85, startMs + sustainedMs);
+      expect(newNodeId).not.toBeNull();
+      expect(newNodeId).toContain("layer3-replica");
+
+      // Layer 3 should now have one more fabricator
+      expect(config.layerNodes[3]).toHaveLength(6);
+      expect(config.fabricators.has(newNodeId!)).toBe(true);
+    });
+
+    it("resets the sustained timer when utilisation drops below threshold", () => {
+      const orchestrator = createManufacturingOrchestrator(config);
+      const startMs = fakeClock.now();
+      const halfSustainedMs = (REPLICATION_SUSTAINED_DAYS / 2) * 24 * 60 * 60 * 1000;
+      const fullSustainedMs = REPLICATION_SUSTAINED_DAYS * 24 * 60 * 60 * 1000;
+
+      // Start high utilisation
+      orchestrator.checkReplication(0.85, startMs);
+
+      // Drop below threshold halfway through
+      orchestrator.checkReplication(0.70, startMs + halfSustainedMs);
+
+      // Go high again after the drop
+      orchestrator.checkReplication(0.85, startMs + halfSustainedMs + 1);
+
+      // Check at what would have been the original sustained time — should NOT trigger
+      // because the timer was reset
+      const result = orchestrator.checkReplication(0.85, startMs + fullSustainedMs);
+      expect(result).toBeNull();
+      expect(config.layerNodes[3]).toHaveLength(5);
+    });
+
+    it("does not trigger when utilisation is exactly at threshold (not above)", () => {
+      const orchestrator = createManufacturingOrchestrator(config);
+      const startMs = fakeClock.now();
+      const sustainedMs = REPLICATION_SUSTAINED_DAYS * 24 * 60 * 60 * 1000;
+
+      orchestrator.checkReplication(REPLICATION_UTILISATION_THRESHOLD, startMs);
+      const result = orchestrator.checkReplication(REPLICATION_UTILISATION_THRESHOLD, startMs + sustainedMs);
+      expect(result).toBeNull();
+    });
+  });
+
+  // ── Threshold Constants ─────────────────────────────────────────────────────
+
+  describe("Threshold Constants", () => {
+    it("exports all threshold constants with correct values from Threshold Registry", () => {
+      expect(MIN_NODES_PER_LAYER).toBe(3);
+      expect(REPLICATION_UTILISATION_THRESHOLD).toBe(0.80);
+      expect(REPLICATION_SUSTAINED_DAYS).toBe(30);
+      expect(TARGET_RECOVERY_RATE).toBe(0.95);
+      expect(MAX_SINGLE_NODE_THROUGHPUT_LOSS).toBe(0.09);
+      expect(MAX_RECOVERY_HOURS).toBe(72);
+      expect(INVENTORY_BUFFER_DAYS).toBe(90);
+      expect(DEMAND_SPIKE_SCALING_DAYS).toBe(180);
+      expect(FAILOVER_DETECTION_SECONDS).toBe(60);
     });
   });
 });

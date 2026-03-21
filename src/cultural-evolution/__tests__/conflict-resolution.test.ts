@@ -9,6 +9,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { CulturalConflictEngine } from '../conflict-engine';
 import { MemeCodec } from '../meme-codec';
 import { TransmissionProtocol } from '../transmission-protocol';
+import { ICulturalEnvironment } from '../environment';
 import {
   Meme,
   MemeType,
@@ -19,6 +20,17 @@ import {
   VariationType,
   TransmissionTarget,
 } from '../types';
+
+// ─── Mock Environment ─────────────────────────────────────────────────
+
+function createMockEnvironment(): ICulturalEnvironment {
+  let callCount = 0;
+  return {
+    nowTimestamp: () => `2026-01-01T00:00:0${callCount++}.000Z`,
+    nowMillis: () => 1735689600000 + callCount++,
+    random: () => 0.42,
+  };
+}
 
 // ─── Test Helpers ──────────────────────────────────────────────────────
 
@@ -46,7 +58,7 @@ function makeMeme(overrides: Partial<Meme> & { id: string }): Meme {
       variation_description: 'Test origin',
     },
     created_by: 'agent-1',
-    created_at: new Date().toISOString(),
+    created_at: '2026-01-01T00:00:00.000Z',
     mutation_depth: 0,
     community_tags: [],
     metadata: {
@@ -108,9 +120,10 @@ describe('CulturalConflictEngine', () => {
   let transmission: TransmissionProtocol;
 
   beforeEach(() => {
-    codec = new MemeCodec();
-    transmission = new TransmissionProtocol();
-    engine = new CulturalConflictEngine(codec, transmission);
+    const mockEnv = createMockEnvironment();
+    codec = new MemeCodec(mockEnv);
+    transmission = new TransmissionProtocol(mockEnv);
+    engine = new CulturalConflictEngine(codec, transmission, mockEnv);
   });
 
   // ─── detectConflict ────────────────────────────────────────────────
@@ -339,7 +352,7 @@ describe('CulturalConflictEngine', () => {
         communities: ['comm-a', 'comm-b'],
         mode: ResolutionMode.COEXISTENCE,
         terms: 'Both aesthetic traditions may be practiced without interference',
-        created_at: new Date().toISOString(),
+        created_at: '2026-01-01T00:00:00.000Z',
         memes_involved: ['aes-a1', 'aes-b1'],
       };
 
@@ -351,7 +364,7 @@ describe('CulturalConflictEngine', () => {
         communities: ['comm-x', 'comm-y'],
         mode: ResolutionMode.NEGOTIATED_NORMS,
         terms: 'Meta-norm: respect local norms in each territory',
-        created_at: new Date().toISOString(),
+        created_at: '2026-01-01T00:00:00.000Z',
         memes_involved: ['norm-x1', 'norm-y1'],
       };
 
@@ -366,14 +379,14 @@ describe('CulturalConflictEngine', () => {
         communities: ['comm-1', 'comm-2'],
         mode: ResolutionMode.COEXISTENCE,
         terms: 'Agreement 1',
-        created_at: new Date().toISOString(),
+        created_at: '2026-01-01T00:00:00.000Z',
         memes_involved: [],
       };
       const agreement2: CulturalAgreement = {
         communities: ['comm-3', 'comm-4'],
         mode: ResolutionMode.HYBRIDIZATION,
         terms: 'Agreement 2',
-        created_at: new Date().toISOString(),
+        created_at: '2026-01-01T00:00:00.000Z',
         memes_involved: [],
       };
 

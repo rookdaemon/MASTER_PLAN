@@ -273,3 +273,18 @@ export const SEMICONDUCTOR_PURITY = 0.999999;
 
 /** Seed package max fraction of final infrastructure mass */
 export const MAX_SEED_FRACTION = 0.05;
+
+/** Fraction of usable energy budget allocated to mining operations */
+export const MINING_ALLOCATION_FRACTION = 0.35;
+
+/** Fraction of usable energy budget allocated to refining operations */
+export const REFINING_ALLOCATION_FRACTION = 0.40;
+
+/** Fraction of usable energy budget allocated to fabrication */
+export const FABRICATION_ALLOCATION_FRACTION = 0.175;
+
+/** Fraction of usable energy budget allocated to computation */
+export const COMPUTATION_ALLOCATION_FRACTION = 0.075;
+
+/** Minimum material fraction to count a class as "present" in a body */
+export const BODY_SCORE_ABUNDANCE_THRESHOLD = 0.001;

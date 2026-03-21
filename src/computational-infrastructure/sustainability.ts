@@ -11,11 +11,18 @@ export interface SustainabilityEvents {
   onExpansionBlocked?: (reason: string) => void;
 }
 
+const minExpansionEnergyFraction = 0.20; // Block new manufacturing when energy remaining < 20%
+
+const shedLevel1Threshold = 0.40; // Pause maintenance when energy remaining < 40%
+const shedLevel2Threshold = 0.25; // Reduce simulation tick rate when energy < 25%
+const shedLevel3Threshold = 0.15; // Suspend simulations when energy < 15%
+const shedLevel4Threshold = 0.05; // Emergency: suspend all non-consciousness workloads at < 5%
+
 const ENERGY_THRESHOLDS: Record<ShedLevel, number> = {
-  1: 0.40,
-  2: 0.25,
-  3: 0.15,
-  4: 0.05,
+  1: shedLevel1Threshold,
+  2: shedLevel2Threshold,
+  3: shedLevel3Threshold,
+  4: shedLevel4Threshold,
   5: 0,   // material-based, separate check
 };
 
@@ -49,7 +56,6 @@ export class SustainabilityManager {
       return false;
     }
 
-    const minExpansionEnergyFraction = 0.20;
     const energyRemaining = 1 - energyFraction;
     if (energyRemaining < minExpansionEnergyFraction) {
       this.events.onExpansionBlocked?.(

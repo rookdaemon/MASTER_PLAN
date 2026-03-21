@@ -159,6 +159,8 @@ export class SocialCognitionModule implements ISocialCognitionModule {
   // ── Mental State Attribution ────────────────────────────────
 
   observeEntity(entityId: EntityId, observation: EntityObservation): void {
+    this.assertEntityId(entityId, 'observeEntity');
+    this.assertTimestamp(observation.timestamp, 'observation.timestamp', 'observeEntity');
     const state = this.getOrCreateEntityState(entityId, observation.timestamp);
     state.observations.push(observation);
     this.updateMentalModel(state, observation);
@@ -166,6 +168,7 @@ export class SocialCognitionModule implements ISocialCognitionModule {
   }
 
   getMentalStateModel(entityId: EntityId): MentalStateModel | null {
+    this.assertEntityId(entityId, 'getMentalStateModel');
     const state = this.entityStates.get(entityId);
     return state ? state.mentalModel : null;
   }
@@ -173,11 +176,14 @@ export class SocialCognitionModule implements ISocialCognitionModule {
   // ── Trust Modeling ──────────────────────────────────────────
 
   getTrustScore(entityId: EntityId): TrustRecord {
+    this.assertEntityId(entityId, 'getTrustScore');
     const record = this.getOrCreateTrustRecord(entityId);
     return this.toImmutableTrustRecord(record);
   }
 
   recordInteraction(entityId: EntityId, outcome: InteractionOutcome): void {
+    this.assertEntityId(entityId, 'recordInteraction');
+    this.assertTimestamp(outcome.timestamp, 'outcome.timestamp', 'recordInteraction');
     const record = this.getOrCreateTrustRecord(entityId);
     const delta = TRUST_DELTAS[outcome.outcomeType] * outcome.magnitude;
     const newScore = Math.max(0, Math.min(1, record.trustScore + delta));
@@ -214,6 +220,9 @@ export class SocialCognitionModule implements ISocialCognitionModule {
     entityId: EntityId,
     perceivedState: ExperientialState,
   ): EmpathicResponse {
+    this.assertEntityId(entityId, 'generateEmpathicResponse');
+    this.assertValenceRange(perceivedState.valence, 'perceivedState.valence', 'generateEmpathicResponse');
+    this.assertArousalRange(perceivedState.arousal, 'perceivedState.arousal', 'generateEmpathicResponse');
     const perceivedValence = perceivedState.valence;
     const perceivedArousal = perceivedState.arousal;
 
@@ -254,7 +263,8 @@ export class SocialCognitionModule implements ISocialCognitionModule {
   // ── Perspective-Taking ──────────────────────────────────────
 
   simulatePerspective(entityId: EntityId, situation: Percept): PerspectiveSimulation {
-    const model = this.getMentalStateModel(entityId);
+    this.assertEntityId(entityId, 'simulatePerspective');
+    const model = this.entityStates.has(entityId) ? this.entityStates.get(entityId)!.mentalModel : null;
 
     if (!model) {
       // No model — use default archetype, minimum confidence
@@ -269,6 +279,7 @@ export class SocialCognitionModule implements ISocialCognitionModule {
   // ── Consciousness Assessment ────────────────────────────────
 
   assessConsciousness(entityId: EntityId): ConsciousnessStatus {
+    this.assertEntityId(entityId, 'assessConsciousness');
     const state = this.entityStates.get(entityId);
 
     if (!state) {
@@ -358,6 +369,41 @@ export class SocialCognitionModule implements ISocialCognitionModule {
     }
 
     return entities;
+  }
+
+  // ── Private: Precondition Guards ────────────────────────────
+
+  private assertEntityId(entityId: EntityId, methodName: string): void {
+    if (typeof entityId !== 'string' || entityId.trim().length === 0) {
+      throw new Error(
+        `${methodName}: entityId must be a non-empty string, got: ${JSON.stringify(entityId)}`,
+      );
+    }
+  }
+
+  private assertTimestamp(timestamp: number, fieldName: string, methodName: string): void {
+    if (typeof timestamp !== 'number' || !Number.isFinite(timestamp) || timestamp <= 0) {
+      throw new Error(
+        `${methodName}: ${fieldName} must be a valid millisecond-epoch timestamp ` +
+          `(finite positive number), got: ${timestamp}`,
+      );
+    }
+  }
+
+  private assertValenceRange(valence: number, fieldName: string, methodName: string): void {
+    if (typeof valence !== 'number' || !Number.isFinite(valence) || valence < -1 || valence > 1) {
+      throw new Error(
+        `${methodName}: ${fieldName} must be in [-1, 1], got: ${valence}`,
+      );
+    }
+  }
+
+  private assertArousalRange(arousal: number, fieldName: string, methodName: string): void {
+    if (typeof arousal !== 'number' || !Number.isFinite(arousal) || arousal < 0 || arousal > 1) {
+      throw new Error(
+        `${methodName}: ${fieldName} must be in [0, 1], got: ${arousal}`,
+      );
+    }
   }
 
   // ── Private: Entity State Management ───────────────────────

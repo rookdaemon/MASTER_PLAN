@@ -28,6 +28,11 @@ import type {
 } from "./interfaces.js";
 import type { DeliberationContext } from "./planner-interfaces.js";
 import type { Plan, PlanStep } from "./planner-types.js";
+import {
+  DEFAULT_RICHNESS_WITH_FEATURES,
+  DEFAULT_RICHNESS_WITHOUT_FEATURES,
+  DEFAULT_UNITY_INDEX,
+} from "./constants.js";
 
 export class ConsciousCore implements IConsciousCore {
   private substrate: ISubstrateAdapter;
@@ -81,7 +86,9 @@ export class ConsciousCore implements IConsciousCore {
       timestamp: percept.timestamp,
       phenomenalContent: {
         modalities: [percept.modality],
-        richness: Object.keys(percept.features).length > 0 ? 0.7 : 0.3,
+        richness: Object.keys(percept.features).length > 0
+          ? DEFAULT_RICHNESS_WITH_FEATURES
+          : DEFAULT_RICHNESS_WITHOUT_FEATURES,
         raw: percept.features,
       },
       intentionalContent: {
@@ -90,7 +97,7 @@ export class ConsciousCore implements IConsciousCore {
       },
       valence: 0.0, // neutral by default
       arousal: 0.5,
-      unityIndex: 0.85, // high integration
+      unityIndex: DEFAULT_UNITY_INDEX, // high integration
       continuityToken,
     };
 

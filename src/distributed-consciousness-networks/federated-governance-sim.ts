@@ -36,6 +36,9 @@ interface ValueCore {
   collectiveSolidarity: number;
 }
 
+/** Fraction of total weight required for a proposal to pass (Threshold Registry) */
+const QUORUM_THRESHOLD = 0.5;
+
 type VoteChoice = "AYE" | "NAY" | "ABSTAIN";
 
 interface Proposal {
@@ -149,7 +152,7 @@ class FederatedCouncil {
   submitProposal(
     proposal: Proposal,
     voteInstructions: Record<NodeId, { choice: VoteChoice; rationale: string }>,
-    quorumThreshold = 0.5
+    quorumThreshold = QUORUM_THRESHOLD
   ): ProposalResult {
     const votes: CastVote[] = [];
 

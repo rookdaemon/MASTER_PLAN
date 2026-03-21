@@ -4,6 +4,7 @@
  */
 
 export * from './types.js';
+export * from './constants.js';
 export * from './prospecting.js';
 export * from './mining.js';
 export * from './processing.js';

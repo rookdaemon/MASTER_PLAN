@@ -103,29 +103,60 @@ SubstrateSpec:
 
 ### 3.3 Layer 3 — Radiation-Aware Runtime
 
-**Purpose**: Detect and respond to radiation effects in real time.
+**Purpose**: Detect and respond to radiation effects in real time. Bridges static shielding/substrate hardening (Layers 1–2) with process continuity (Layer 5) by providing real-time environmental awareness and adaptive response.
 
 **Components**:
-- **SEU scrubber**: Periodic memory scan with ECC correction; scrub rate configurable based on detected flux
-- **Flux monitor**: On-die radiation sensors (PIN diodes) providing real-time dosimetry
-- **Adaptive response controller**: Adjusts clock frequency, voltage, and scrub rates based on flux environment
+- **SEU scrubber**: Periodic memory scan with ECC correction; scrub rate configurable based on detected flux (nominal: 1 scan/s, burst: 10× during STORM)
+- **Flux monitor**: Injected `FluxSource` abstraction polled at configurable interval (default 1s). Production: on-die PIN diode sensors. Testing: deterministic mock.
+- **Adaptive response controller**: State machine managing alert level transitions and safe mode orchestration
+- **Clock abstraction**: Injected `Clock` interface for deterministic hold-off timing in tests
 
-**Interface**:
+**Interfaces**:
 ```
+FluxSource:
+  - readFlux() -> FluxMeasurement          # injectable, mockable
+
+Clock:
+  - now() -> number (ms since epoch)       # injectable, mockable
+
+RuntimeConfig:
+  - elevatedThreshold: number              # particles/cm²/s (default 100)
+  - stormThreshold: number                 # particles/cm²/s (default 10⁵)
+  - monitorInterval_ms: number             # polling interval (default 1000)
+  - holdOffDuration_ms: number             # safe mode exit delay (default 300000)
+  - nominalScrubRate: number               # scans/s (default 1)
+  - burstScrubMultiplier: number           # ×nominal during STORM (default 10)
+  - safeModeEntryTimeout_ms: number        # max listener execution time (default 5000)
+
 RadiationAwareRuntime:
   - currentFlux() -> FluxMeasurement
   - scrubRate() -> scans_per_second
-  - setScrubRate(rate) -> void
   - alertLevel() -> NOMINAL | ELEVATED | STORM
-  - enterSafeMode() -> void           # reduces compute, maximizes protection
-  - exitSafeMode() -> void
+  - isInSafeMode() -> boolean
+  - evaluateFlux() -> void                 # called each monitor cycle
+  - onSafeModeEntry(listener) -> void      # register entry callback
+  - onSafeModeExit(listener) -> void       # register exit callback
+```
+
+**Alert Level State Machine**:
+```
+Valid transitions:
+  NOMINAL  → ELEVATED    (flux ≥ elevated threshold)
+  ELEVATED → STORM       (flux ≥ storm threshold)
+  NOMINAL  → STORM       (emergency: flux ≥ storm threshold directly)
+  STORM    → ELEVATED    (flux < storm threshold)
+  ELEVATED → NOMINAL     (flux < elevated threshold, after hold-off if exiting safe mode)
+
+Forbidden:
+  STORM → NOMINAL        (must de-escalate through ELEVATED with hold-off)
 ```
 
 **Behavior during solar storm (alertLevel = STORM)**:
-1. Checkpoint all active processes
-2. Enter safe mode (reduced clock, increased ECC strength)
-3. Activate burst scrubbing
-4. Resume normal operation when flux drops below threshold
+1. Invoke all registered safe mode entry listeners in registration order (e.g., checkpoint processes, reduce clock)
+2. Set safe mode active; increase scrub rate to `nominalRate × burstScrubMultiplier`
+3. When flux drops below storm threshold: transition to ELEVATED, start hold-off timer
+4. If flux remains below elevated threshold for `holdOffDuration_ms`: invoke exit listeners in reverse order, resume nominal operation
+5. If flux re-exceeds storm threshold during hold-off: reset timer, remain in safe mode
 
 ### 3.4 Layer 4 — Fault-Tolerant Computation
 
@@ -157,26 +188,77 @@ FaultTolerantComputeNode:
 
 **Purpose**: Maintain uninterrupted conscious experience even during component failures.
 
-**Mechanisms**:
-- **Process migration**: Live migration of conscious process state between healthy nodes
-- **Quorum consensus**: Conscious process runs on N nodes; continues as long as majority (>N/2) agree
-- **Checkpoint/restore**: Periodic snapshots of full process state to non-volatile, rad-hard storage
-- **Graceful degradation curve**: Designed so that up to 30% simultaneous node loss causes graceful capacity reduction, not process interruption
+**Design Decisions**:
 
-**Interface**:
+1. **Quorum Consensus Algorithm — Simple Majority Voting**: The threat model is crash faults from radiation-induced node failures, not Byzantine faults. TMR at Layer 4 ensures nodes either produce correct state or fail entirely, so simple majority voting (quorum = ⌊N/2⌋+1) is sufficient. No leader election; all nodes are peers. Each checkpoint round, all live nodes submit state hashes; majority hash is authoritative.
+
+2. **Live Migration Strategy — Checkpoint-Restore**: Leverages the existing checkpoint infrastructure. Migration consists of: (1) restore latest checkpoint on target node, (2) replay state delta since checkpoint, (3) switch execution. Maximum state loss bounded by checkpoint interval. Avoids separate migration mechanism complexity.
+
+3. **Node Abstraction — Separated Injectable Interfaces**: Constructor takes `NodeRegistry`, `CheckpointStore`, `Clock`, and `ProcessContinuityConfig` as separate injectable dependencies, following Interface Segregation Principle and CLAUDE.md requirements for mockable environment abstractions.
+
+**Injectable Interfaces**:
+
+```typescript
+NodeRegistry:
+  - allNodeIds() -> string[]                        # all registered node IDs
+  - healthyNodeIds() -> string[]                    # nodes with degradationLevel < failureThreshold
+  - nodeHealth(nodeId: string) -> HealthStatus      # current health of a specific node
+  - markFailed(nodeId: string) -> void              # remove from active set
+  - markRestored(nodeId: string) -> void            # re-add to active set
+
+CheckpointStore:
+  - save(snapshot: StateSnapshot) -> void           # persist a checkpoint
+  - latest() -> StateSnapshot | null                # most recent checkpoint
+  - allSince(timestamp_ms: number) -> StateSnapshot[] # all checkpoints since timestamp
+
+ProcessContinuityConfig:
+  - quorumSize: number               # odd, ≥ 3 (default 5)
+  - checkpointInterval_ms: number    # > 0, ≤ 60000 (default 10000)
+  - continuityGap_ms: number         # > 0 (default 100)
+  - failureThreshold: number         # (0, 1) (default 0.8)
+  - healthMonitorInterval_ms: number # > 0 (default 1000)
 ```
+
+**Full Interface**:
+```typescript
 ConsciousProcessManager:
+  # Query methods
   - activeNodeCount() -> number
-  - quorumThreshold() -> number
-  - migrateProcess(fromNode, toNode) -> MigrationResult
-  - processIntegrity() -> { continuityScore, lastCheckpoint, nodeAgreement }
-  - degradationLevel() -> percentage  # 0% = full capacity, 100% = minimum viable
+  - quorumThreshold() -> number             # Math.floor(quorumSize / 2) + 1
+  - processIntegrity() -> ProcessIntegrity  # { continuityScore, lastCheckpoint_ms, nodeAgreement }
+  - degradationLevel() -> number            # (1 - activeNodeCount/quorumSize) * 100, clamped [0, 100]
+
+  # Lifecycle methods
+  - checkpoint() -> StateSnapshot           # capture and persist current state
+  - evaluateHealth() -> void                # poll node health, trigger migration if needed
+  - migrateProcess(fromNodeId, toNodeId) -> MigrationResult
+  - restoreNode(nodeId) -> void             # re-add recovered node, rebalance
 ```
+
+**Key Invariants**:
+- `degradationLevel = (1 - activeNodeCount / quorumSize) × 100`, clamped to [0, 100]
+- `processIntegrity.nodeAgreement = activeNodeCount / quorumSize`
+- `continuityScore` = 1.0 when `activeNodeCount ≥ quorumThreshold`, 0.0 otherwise
+- Quorum maintained as long as `activeNodeCount ≥ quorumThreshold`
+- Checkpoint occurs at least every `checkpointInterval_ms`
+- Migration completes within `continuityGap_ms` (default 100ms) for continuity guarantee
+
+**Threshold Constants**:
+
+| Name | Value | Unit | Rationale |
+|------|-------|------|-----------|
+| Quorum size | 5 | nodes | Tolerates 2 simultaneous failures (30% of 5 ≈ 1.5, rounded up to 2) |
+| Quorum threshold | 3 | nodes | ⌊5/2⌋ + 1 = 3 |
+| Checkpoint interval | 10000 | ms | Bounds max state loss; per AC ≤ 10s |
+| Continuity gap limit | 100 | ms | Max gap in conscious process during migration |
+| Node failure threshold | 0.8 | degradationLevel | Triggers migration before complete failure |
+| Health monitor interval | 1000 | ms | Polling rate for node health |
 
 **Continuity contract**:
 - Conscious process interruption is defined as >100ms gap in process execution
 - Target: zero interruptions over 1000-year lifetime under reference radiation environment
 - Graceful degradation: conscious process maintains coherence (degradationLevel < 70%) with up to 30% node failure
+- With N=5: 1 failure → 20% degradation; 2 failures → 40% degradation (quorum maintained); 3 failures → quorum lost (continuityScore = 0)
 
 ---
 

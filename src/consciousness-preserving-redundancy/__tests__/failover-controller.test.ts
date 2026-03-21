@@ -227,4 +227,66 @@ describe("Failover Controller", () => {
       expect(result.success).toBe(true);
     });
   });
+
+  describe("precondition guards", () => {
+    it("throws if initialActiveId does not match any node with role Active", () => {
+      expect(() =>
+        createFailoverController(
+          "node-X",
+          [activeNode, standbyB, standbyC],
+          mockState()
+        )
+      ).toThrow();
+    });
+
+    it("throws if initialActiveId matches a node that is not Active role", () => {
+      expect(() =>
+        createFailoverController(
+          "node-B", // standby, not active
+          [activeNode, standbyB, standbyC],
+          mockState()
+        )
+      ).toThrow();
+    });
+
+    it("throws if initialState has empty memoryState buffer", () => {
+      expect(() =>
+        createFailoverController(
+          activeNode.id,
+          [activeNode, standbyB, standbyC],
+          mockState({ memoryState: new Uint8Array(0) })
+        )
+      ).toThrow();
+    });
+
+    it("throws if initialState has empty registerState buffer", () => {
+      expect(() =>
+        createFailoverController(
+          activeNode.id,
+          [activeNode, standbyB, standbyC],
+          mockState({ registerState: new Uint8Array(0) })
+        )
+      ).toThrow();
+    });
+
+    it("throws if initialState has empty dynamicalVariables buffer", () => {
+      expect(() =>
+        createFailoverController(
+          activeNode.id,
+          [activeNode, standbyB, standbyC],
+          mockState({ dynamicalVariables: new Uint8Array(0) })
+        )
+      ).toThrow();
+    });
+
+    it("throws if initialState has empty temporalContextBuffer", () => {
+      expect(() =>
+        createFailoverController(
+          activeNode.id,
+          [activeNode, standbyB, standbyC],
+          mockState({ temporalContextBuffer: new Uint8Array(0) })
+        )
+      ).toThrow();
+    });
+  });
 });

@@ -6,6 +6,7 @@
  */
 
 import { IMemeCodec } from './interfaces';
+import { ICulturalEnvironment, DefaultCulturalEnvironment } from './environment';
 import {
   Meme,
   MemeId,
@@ -33,10 +34,6 @@ function contentHash(content: string): MemeId {
   return `meme-${Math.abs(hash).toString(36)}`;
 }
 
-function nowTimestamp(): string {
-  return new Date().toISOString();
-}
-
 function emptyFitness(): FitnessRecord {
   return {
     adoption_count: 0,
@@ -55,11 +52,23 @@ const ENCODING_VERSION = '1.0.0';
 // ─── MemeCodec Implementation ───────────────────────────────────────────
 
 export class MemeCodec implements IMemeCodec {
+  private readonly env: ICulturalEnvironment;
+
+  constructor(env: ICulturalEnvironment = new DefaultCulturalEnvironment()) {
+    this.env = env;
+  }
+
   /**
    * Encode a cultural trait into a Meme.
    * The encoding is self-describing — the schema version is embedded.
+   *
+   * @throws Error if trait.semantic_content is empty or whitespace-only
    */
   encode(trait: CulturalTrait): Meme {
+    if (!trait.semantic_content || trait.semantic_content.trim().length === 0) {
+      throw new Error('encode() requires a CulturalTrait with non-empty semantic_content');
+    }
+
     const payload = new TextEncoder().encode(trait.semantic_content);
     const content: MemeContent = {
       schema_version: SCHEMA_VERSION,
@@ -91,7 +100,7 @@ export class MemeCodec implements IMemeCodec {
       fitness: emptyFitness(),
       lineage,
       created_by: trait.originator,
-      created_at: nowTimestamp(),
+      created_at: this.env.nowTimestamp(),
       mutation_depth: 0,
       community_tags: [],
       metadata,
@@ -132,7 +141,7 @@ export class MemeCodec implements IMemeCodec {
     const newPayload = new TextEncoder().encode(mutatedContent);
 
     const newId = contentHash(
-      `${meme.type}:${mutatedContent}:${meme.created_by}:${Date.now()}`
+      `${meme.type}:${mutatedContent}:${meme.created_by}:${this.env.nowMillis()}`
     );
 
     const newLineage: MemeLineage = {
@@ -150,7 +159,7 @@ export class MemeCodec implements IMemeCodec {
         natural_language_summary: `[Mutated] ${meme.content.natural_language_summary}`,
       },
       lineage: newLineage,
-      created_at: nowTimestamp(),
+      created_at: this.env.nowTimestamp(),
       mutation_depth: meme.mutation_depth + 1,
       fitness: emptyFitness(), // new variant starts with fresh fitness
     };
@@ -169,7 +178,7 @@ export class MemeCodec implements IMemeCodec {
     const newPayload = new TextEncoder().encode(hybridContent);
 
     const newId = contentHash(
-      `crossover:${a.id}:${b.id}:${Date.now()}`
+      `crossover:${a.id}:${b.id}:${this.env.nowMillis()}`
     );
 
     const newLineage: MemeLineage = {
@@ -199,7 +208,7 @@ export class MemeCodec implements IMemeCodec {
       fitness: emptyFitness(),
       lineage: newLineage,
       created_by: a.created_by, // attribute to first parent's originator
-      created_at: nowTimestamp(),
+      created_at: this.env.nowTimestamp(),
       mutation_depth: Math.max(a.mutation_depth, b.mutation_depth) + 1,
       community_tags: [...new Set([...a.community_tags, ...b.community_tags])],
       metadata: {

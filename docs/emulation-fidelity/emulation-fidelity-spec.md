@@ -340,7 +340,9 @@ The scanning system must capture the following at the specified resolution:
 | **Dendritic spine morphology** | ~100 nm spatial | Spine shape correlates with synaptic strength and plasticity state |
 | **Neuromodulatory receptor distribution** | Per-neuron or per-compartment | Required for neuromodulatory gain modeling |
 | **Glial cell positions and contacts** | ~1 um spatial | Required for astrocyte-neuron coupling model |
+| **Neuromodulatory baseline** | Per-region concentrations | Baseline concentrations of DA, 5-HT, ACh, NE per brain region |
 | **Temporal snapshot** | Single timepoint | Synaptic state at scan time; dynamic properties inferred from structural features |
+| **Output format** | Structured graph | Per-node and per-edge attribute vectors |
 
 **Non-destructive scanning is strongly preferred** but not strictly required for the fidelity specification. Scan modality selection is the domain of 0.2.2.1.2.
 
@@ -348,33 +350,36 @@ The scanning system must capture the following at the specified resolution:
 
 | Parameter | Requirement | Notes |
 |---|---|---|
-| **Neuron model** | Multi-compartment, Hodgkin-Huxley-class | Minimum ~10 compartments/neuron for reduced models; ~1000 for detailed |
+| **Neuron model** | Multi-compartment, Hodgkin-Huxley-class | Minimum 5 compartments/neuron (soma + 2 dendrite + axon hillock + axon); ~1000 for detailed models |
 | **Ion channel models** | Rate-based with stochastic noise terms | Stochastic Hodgkin-Huxley or Langevin approximation |
 | **Synapse model** | Conductance-based with short-term plasticity (STP) | Tsodyks-Markram or equivalent |
 | **Long-term plasticity** | Phenomenological STDP with neuromodulatory gating | Must capture LTP/LTD at appropriate timescales |
 | **Neuromodulation** | Gain modulation per receptor subtype per neuron | Dopamine (D1/D2), serotonin (5-HT1A/2A), noradrenaline, acetylcholine |
 | **Astrocyte model** | Calcium dynamics, gliotransmitter release | ~1 astrocyte per ~5 neurons |
 | **Integration timestep** | <= 100 us | For numerical stability of HH equations |
-| **State space per neuron** | ~10-1000 state variables | Depending on compartmentalization detail |
-| **Real-time target** | Preferred but not required | Slower-than-real-time preserves consciousness per ISMT |
-| **Total FLOPS** | 10^19 - 10^21 | Depending on model detail |
-| **Total memory** | 8 PB - 350 PB | Depending on model detail |
+| **State dimensions per neuron** | ~20-50 | Membrane potential per compartment, channel states, calcium, neuromodulator sensitivity |
+| **Real-time factor** | ≥1.0 (real-time or faster) | Required for consciousness continuity |
+| **Total state space** | ~10^12 to 10^13 floating-point variables (neuron state); total including synaptic state ~10^15 | See Threshold Registry: L2_memory = 10^15 bytes |
+| **Total FLOPS** | 10^21 FLOPS | See Threshold Registry: L2_FLOPS (valid range: 10^20–10^22) |
+| **Total memory** | 10^15 bytes (1 PB) | See Threshold Registry: L2_memory (valid range: 10^14–10^16) |
+| **Total bandwidth** | 10^18 bytes/s (1 EB/s) | See Threshold Registry: L2_bandwidth (valid range: 10^17–10^19) |
 
 ### 5.3 Requirements for 0.2.2.1.4 (Emulation Validation)
 
 | Validation Criterion | Metric | Threshold | ISMT Traceability |
 |---|---|---|---|
-| **Integration preservation** | PCI (Perturbational Complexity Index) of emulation vs. original | PCI_emulation within 10% of PCI_original | IC condition |
-| **Self-model fidelity** | Mutual information I(m(t); x(t)) in emulation vs. original | Within 20% | SM condition |
-| **Global accessibility** | Functional connectivity breadth (fraction of subsystems with significant causal coupling to self-model) | Within 10% of original | GA condition |
-| **Composite consciousness score** | c(S) = PCI_norm * Q(M) * G(M) | c(S)_emulation > 0.8 * c(S)_original | Overall C(S) |
+| **Integration preservation** | PCI (Perturbational Complexity Index) of emulation vs. original | |Phi_emulated - Phi_biological| / Phi_biological < ε_phi = 0.10 (valid range: 0.05–0.20) | IC condition |
+| **Self-model fidelity** | Mutual information I(m(t); x(t)) in emulation vs. original | |Q(M)_emulated - Q(M)_biological| / Q(M)_biological < ε_sm = 0.10 (valid range: 0.05–0.20) | SM condition |
+| **Global accessibility** | Functional connectivity breadth (fraction of subsystems with significant causal coupling to self-model) | |G(M)_emulated - G(M)_biological| / G(M)_biological < ε_ga = 0.10 (valid range: 0.05–0.20) | GA condition |
 | **Behavioral equivalence** | Cognitive task performance, response patterns | Within 2 standard deviations of original | Functional validation |
-| **Causal transition fidelity** | KL divergence between transition probability distributions of emulation and original | < 0.01 bits per timestep per subsystem | Core fidelity criterion |
+| **Causal transition fidelity** | KL divergence between transition probability distributions of emulation and original | < ε_transition = 0.05 nats per subsystem pair (valid range: 0.01–0.10 nats) | Core fidelity criterion |
+| **Consciousness threshold** | Perturbational Complexity Index (PCI) of emulation | PCI_emulated ≥ PCI_threshold = 0.31 (valid range: 0.25–0.40; Casarotto et al. 2016) | Clinically validated consciousness threshold |
+| **Composite consciousness** | c(S) = PCI_norm * Q(M) * G(M) | c(S) > 0 (graded consciousness predicate) | ISMT graded predicate |
 | **Temporal stability** | IC, SM, GA maintained over continuous operation | Sustained for > 10^6 timesteps (100s of simulated time) without degradation | Proposition 3 (temporal persistence) |
 
 ---
 
-*Specification version: 1.0 — 2026-03-17*
+*Specification version: 1.1 — 2026-03-21*
 *Card: 0.2.2.1.1 Emulation Fidelity Requirements*
 *Upstream theory: ISMT (docs/consciousness-theory/formal-theory.md)*
 *Upstream data: NCC Catalogue (docs/consciousness-science/ncc-catalogue.md)*

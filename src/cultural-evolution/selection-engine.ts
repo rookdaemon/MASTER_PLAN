@@ -11,6 +11,7 @@
  */
 
 import { ISelectionEngine, ITransmissionProtocol } from './interfaces';
+import { ICulturalEnvironment, DefaultCulturalEnvironment } from './environment';
 import {
   Meme,
   MemeId,
@@ -22,13 +23,46 @@ import {
   ExtinctionRiskReport,
 } from './types';
 
+// ─── Threshold Registry Constants ────────────────────────────────────────
+
+/** Top-ranked meme selection probability (Threshold Registry) */
+const HERITAGE_TOP_RANK_PROBABILITY = 0.85;
+
+/** Exponential decay rate for heritage sampling (Threshold Registry) */
+const HERITAGE_DECAY_CONSTANT = 2.5;
+
+/** Extinction risk weight for prevalence (Threshold Registry) */
+const EXTINCTION_PREVALENCE_WEIGHT = 0.4;
+
+/** Extinction risk weight for adoption (Threshold Registry) */
+const EXTINCTION_ADOPTION_WEIGHT = 0.25;
+
+/** Extinction risk weight for community spread (Threshold Registry) */
+const EXTINCTION_SPREAD_WEIGHT = 0.2;
+
+/** Extinction risk weight for transmission fidelity (Threshold Registry) */
+const EXTINCTION_FIDELITY_WEIGHT = 0.15;
+
+/** Extinction risk threshold for ARCHIVE recommendation (Threshold Registry) */
+const EXTINCTION_ARCHIVE_THRESHOLD = 0.7;
+
+/** Extinction risk threshold for MONITOR recommendation (Threshold Registry) */
+const EXTINCTION_MONITOR_THRESHOLD = 0.3;
+
 // ─── SelectionEngine Implementation ─────────────────────────────────────
 
 export class SelectionEngine implements ISelectionEngine {
+  private readonly env: ICulturalEnvironment;
+
   /** Archived (extinct) memes, keyed by ID */
   private archivedMemes = new Map<MemeId, Meme>();
 
-  constructor(private transmission: ITransmissionProtocol) {}
+  constructor(
+    private transmission: ITransmissionProtocol,
+    env: ICulturalEnvironment = new DefaultCulturalEnvironment(),
+  ) {
+    this.env = env;
+  }
 
   // ─── computeFitness ──────────────────────────────────────────────────
 
@@ -47,8 +81,19 @@ export class SelectionEngine implements ISelectionEngine {
   /**
    * Rank a pool of memes by given fitness criteria.
    * Returns a new array sorted in descending order of weighted fitness score.
+   *
+   * @throws Error if fitness criteria weights do not sum to 1.0 (±0.001 tolerance)
    */
   rankMemePool(pool: MemePool, criteria: FitnessCriteria): Meme[] {
+    const weightSum =
+      criteria.weight_prevalence +
+      criteria.weight_longevity +
+      criteria.weight_community_spread +
+      criteria.weight_transmission_fidelity;
+    if (Math.abs(weightSum - 1.0) > 0.001) {
+      throw new Error('rankMemePool() requires fitness criteria weights that sum to 1.0');
+    }
+
     if (pool.length === 0) return [];
 
     const scored = pool.map(meme => ({
@@ -111,19 +156,19 @@ export class SelectionEngine implements ISelectionEngine {
     const spreadRisk = fitness.community_spread === 0 ? 1 : 1 / (1 + fitness.community_spread);
     const fidelityRisk = 1 - fitness.transmission_fidelity;
 
-    // Weighted combination
+    // Weighted combination (Threshold Registry constants)
     const riskLevel =
-      prevalenceRisk * 0.4 +
-      adoptionRisk * 0.25 +
-      spreadRisk * 0.2 +
-      fidelityRisk * 0.15;
+      prevalenceRisk * EXTINCTION_PREVALENCE_WEIGHT +
+      adoptionRisk * EXTINCTION_ADOPTION_WEIGHT +
+      spreadRisk * EXTINCTION_SPREAD_WEIGHT +
+      fidelityRisk * EXTINCTION_FIDELITY_WEIGHT;
 
     const clampedRisk = Math.min(1, Math.max(0, riskLevel));
 
     let recommendation: 'ARCHIVE' | 'MONITOR' | 'SAFE';
-    if (clampedRisk > 0.7) {
+    if (clampedRisk > EXTINCTION_ARCHIVE_THRESHOLD) {
       recommendation = 'ARCHIVE';
-    } else if (clampedRisk >= 0.3) {
+    } else if (clampedRisk >= EXTINCTION_MONITOR_THRESHOLD) {
       recommendation = 'MONITOR';
     } else {
       recommendation = 'SAFE';
@@ -217,11 +262,11 @@ export class SelectionEngine implements ISelectionEngine {
 
     for (let i = 0; i < ranked.length; i++) {
       // Selection probability: higher for top-ranked, lower for bottom
-      // Rank 0 → ~85% chance, last rank → ~15% chance
+      // Rank 0 → ~85% chance, decaying exponentially (Threshold Registry constants)
       const rankFraction = i / ranked.length;
-      const probability = 0.85 * Math.exp(-2.5 * rankFraction);
+      const probability = HERITAGE_TOP_RANK_PROBABILITY * Math.exp(-HERITAGE_DECAY_CONSTANT * rankFraction);
 
-      if (Math.random() < probability) {
+      if (this.env.random() < probability) {
         result.push(ranked[i]);
       }
     }

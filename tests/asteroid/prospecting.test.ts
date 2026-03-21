@@ -149,6 +149,12 @@ describe('selectTopCandidates', () => {
     expect(result.rankedCandidates).toHaveLength(2);
   });
 
+  it('throws when topN is 0 or negative', () => {
+    const catalog = [makeCandidate('A', 1000, 0.9)];
+    expect(() => selectTopCandidates(catalog, 0)).toThrow('topN must be > 0');
+    expect(() => selectTopCandidates(catalog, -1)).toThrow('topN must be > 0');
+  });
+
   it('ranks candidates in descending score order', () => {
     const catalog = [
       makeCandidate('LOW', 10000, 0.1),

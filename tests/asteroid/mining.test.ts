@@ -90,6 +90,42 @@ describe('simulateMining', () => {
     expect(events).toContain('MINING_COMPLETE');
   });
 
+  it('logs STATUS_REPORT every 30 days', () => {
+    const candidate = cTypeAsteroid();
+    const op = recommendExtractionMethod(candidate);
+    const result = simulateMining(op, candidate.estimatedComposition, 365);
+
+    const statusReports = result.operationLog.filter((e) => e.event === 'STATUS_REPORT');
+    // 365 days → reports at day 30, 60, 90, ..., 360 = 12 reports
+    expect(statusReports.length).toBe(12);
+
+    // Verify they occur at multiples of 30
+    for (const report of statusReports) {
+      expect(report.timestamp % 30).toBe(0);
+      expect(report.timestamp).toBeGreaterThan(0);
+      expect(report.timestamp).toBeLessThanOrEqual(365);
+    }
+  });
+
+  it('logs FAULT_DETECTED events with autonomous recovery', () => {
+    const candidate = cTypeAsteroid();
+    const op = recommendExtractionMethod(candidate);
+    // Run a long simulation — with 2% daily fault probability over 365 days,
+    // faults are near-certain to occur
+    const result = simulateMining(op, candidate.estimatedComposition, 365);
+
+    const faults = result.operationLog.filter((e) => e.event === 'FAULT_DETECTED');
+    expect(faults.length).toBeGreaterThan(0);
+
+    // Each fault is resolved autonomously (details confirm autonomous recovery)
+    for (const fault of faults) {
+      expect(fault.details).toContain('Autonomous recovery');
+    }
+
+    // Fault days still count as autonomous (no Earth commands)
+    expect(result.daysAutonomous).toBe(365);
+  });
+
   it('produces both ore and volatiles from C-type asteroid', () => {
     const candidate = cTypeAsteroid();
     const op = recommendExtractionMethod(candidate);
@@ -105,6 +141,13 @@ describe('simulateMining', () => {
     const result = simulateMining(op, candidate.estimatedComposition, 90);
 
     expect(result.energyConsumed).toBeGreaterThan(0);
+  });
+
+  it('throws when durationDays is 0 or negative', () => {
+    const candidate = cTypeAsteroid();
+    const op = recommendExtractionMethod(candidate);
+    expect(() => simulateMining(op, candidate.estimatedComposition, 0)).toThrow('durationDays must be > 0');
+    expect(() => simulateMining(op, candidate.estimatedComposition, -5)).toThrow('durationDays must be > 0');
   });
 
   it('is deterministic with same seed', () => {

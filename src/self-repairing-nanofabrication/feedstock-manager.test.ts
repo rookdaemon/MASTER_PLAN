@@ -155,15 +155,39 @@ describe("FeedstockManager", () => {
       const mgr = createFeedstockManager({
         materials: [{ materialType: "silicon", initialQuantity: 100 }],
         reservoirId: "reservoir-main",
-        emergencyReserveFraction: 0.2, // reserves 20
+        emergencyReserveFraction: 0.2, // initial reserve: floor(100*0.2) = 20, allocatable = 80
       });
 
-      // Drain non-reserved: 80 units
+      // Drain non-reserved: 80 units → stock=20, reserve=floor(20*0.2)=4, allocatable=16
       mgr.request({ materialType: "silicon", quantity: 80 });
 
-      // Trying to get 1 more should fail (only emergency reserve left)
-      const result = mgr.request({ materialType: "silicon", quantity: 1 });
-      expect(result.granted).toBe(false);
+      // Can still allocate up to 16
+      const ok = mgr.request({ materialType: "silicon", quantity: 16 });
+      expect(ok.granted).toBe(true);
+
+      // stock=4, reserve=floor(4*0.2)=0, allocatable=4
+      // Drain remaining allocatable
+      mgr.request({ materialType: "silicon", quantity: 4 });
+
+      // stock=0, nothing left
+      const denied = mgr.request({ materialType: "silicon", quantity: 1 });
+      expect(denied.granted).toBe(false);
+    });
+
+    it("recalculates emergency reserve after request() deducts stock", () => {
+      const mgr = createFeedstockManager({
+        materials: [{ materialType: "silicon", initialQuantity: 100 }],
+        reservoirId: "reservoir-main",
+        emergencyReserveFraction: 0.1, // initial reserve: floor(100 * 0.1) = 10, allocatable = 90
+      });
+
+      // Deduct 40 → stock = 60, reserve should become floor(60 * 0.1) = 6, allocatable = 54
+      mgr.request({ materialType: "silicon", quantity: 40 });
+
+      // If reserve was NOT recalculated, reserve stays 10, allocatable = 60 - 10 = 50
+      // If reserve WAS recalculated, reserve = 6, allocatable = 60 - 6 = 54
+      const result = mgr.request({ materialType: "silicon", quantity: 54 });
+      expect(result.granted).toBe(true);
     });
 
     it("recalculates emergency reserve when inventory grows from recycling", () => {

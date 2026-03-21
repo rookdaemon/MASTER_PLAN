@@ -7,6 +7,18 @@
  * Card: 0.3.2.1
  */
 
+// ── Environment Abstractions ────────────────────────────────────────────────
+
+/** Injectable clock abstraction — wraps Date.now() for testability (CLAUDE.md) */
+export interface Clock {
+  now(): number;
+}
+
+/** Injectable timer abstraction — wraps setTimeout for testability (CLAUDE.md) */
+export interface Timer {
+  schedule(callback: () => void, delayMs: number): void;
+}
+
 // ── Shared Primitives ───────────────────────────────────────────────────────
 
 export interface MaterialSpec {

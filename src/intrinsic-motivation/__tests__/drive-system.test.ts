@@ -418,6 +418,16 @@ describe('DriveSystem', () => {
       const masteryDiag = result.diagnostics.find((d) => d.event === 'mastery-reward');
       expect(masteryDiag).toBeDefined();
     });
+
+    it('emits a satiated diagnostic when mastery strength is zero', () => {
+      // No activity records → mastery reward is 0
+      const ctx = makeContext({ recentActivity: [] });
+      const result = ds.tick(makeState(), ctx);
+
+      const masteryDiags = result.diagnostics.filter((d) => d.driveType === 'mastery');
+      expect(masteryDiags).toHaveLength(1);
+      expect(masteryDiags[0].event).toBe('satiated');
+    });
   });
 
   // ── Existential drive ──────────────────────────────────────────────────────
@@ -541,7 +551,7 @@ describe('DriveSystem', () => {
       const candidate = result.goalCandidates.find((c) => c.sourceDrive === 'curiosity')!;
       expect(candidate).toBeDefined();
 
-      ds.notifyGoalResult(candidate, makeGoalAddResult(false));
+      ds.notifyGoalResult(candidate, makeGoalAddResult(false), NOW);
 
       const state = ds.getDriveStates().get('curiosity')!;
       expect(state.extendedCooldownUntil).not.toBeNull();
@@ -556,7 +566,7 @@ describe('DriveSystem', () => {
       const result = ds.tick(makeState(), ctx);
       const candidate = result.goalCandidates.find((c) => c.sourceDrive === 'curiosity')!;
 
-      ds.notifyGoalResult(candidate, makeGoalAddResult(false));
+      ds.notifyGoalResult(candidate, makeGoalAddResult(false), NOW);
 
       // Tick immediately after rejection — extended cooldown should suppress
       const ctx2 = makeContext({
@@ -578,7 +588,7 @@ describe('DriveSystem', () => {
       const candidate = result.goalCandidates.find((c) => c.sourceDrive === 'curiosity')!;
       const strengthBefore = ds.getDriveStates().get('curiosity')!.strength;
 
-      ds.notifyGoalResult(candidate, makeGoalAddResult(true));
+      ds.notifyGoalResult(candidate, makeGoalAddResult(true), NOW);
 
       const strengthAfter = ds.getDriveStates().get('curiosity')!.strength;
       expect(strengthAfter).toBeLessThan(strengthBefore);
@@ -594,8 +604,8 @@ describe('DriveSystem', () => {
       const candidate = result.goalCandidates.find((c) => c.sourceDrive === 'curiosity')!;
 
       // First reject (sets extended cooldown), then accept (clears it)
-      ds.notifyGoalResult(candidate, makeGoalAddResult(false));
-      ds.notifyGoalResult(candidate, makeGoalAddResult(true));
+      ds.notifyGoalResult(candidate, makeGoalAddResult(false), NOW);
+      ds.notifyGoalResult(candidate, makeGoalAddResult(true), NOW);
 
       const state = ds.getDriveStates().get('curiosity')!;
       expect(state.extendedCooldownUntil).toBeNull();
@@ -662,6 +672,15 @@ describe('DriveSystem', () => {
       const result = ds.tick(makeState(), makeContext());
       expect(Array.isArray(result.diagnostics)).toBe(true);
       expect(result.diagnostics.length).toBeGreaterThan(0);
+    });
+
+    it('includes at least one diagnostic per drive type (postcondition d)', () => {
+      const result = ds.tick(makeState(), makeContext());
+      const driveTypesWithDiag = new Set(result.diagnostics.map((d) => d.driveType));
+      const allDriveTypes = [...result.updatedDriveStates.keys()];
+      for (const dt of allDriveTypes) {
+        expect(driveTypesWithDiag.has(dt)).toBe(true);
+      }
     });
 
     it('goal candidates each have a valid sourceDrive and terminalGoalHints', () => {

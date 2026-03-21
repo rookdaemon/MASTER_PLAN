@@ -166,13 +166,15 @@ Interface ValenceMonitor {
 
 Using consciousness metrics (F1.4 where available), define quantitative thresholds that trigger escalating responses:
 
-| Level | Trigger | Response | Timeline |
-|-------|---------|----------|----------|
-| **Level 1 — Alert** | Negative valence detected (below neutral threshold) | Log event, notify monitoring team, increase sampling frequency | Immediate logging; notification within 1 monitoring cycle |
-| **Level 2 — Intervene** | Sustained negative valence exceeding duration threshold OR high-intensity negative valence | Engage automatic valence correction; notify ethics review board; begin incident documentation | Automatic mitigation within 1 monitoring cycle; ethics notification within 5 cycles |
-| **Level 3 — Halt** | Severe suffering indicators (extreme intensity, multiple modalities, mitigation failure) | Immediate graceful suspension per protocol; emergency ethics review triggered | Suspension initiated within 1 monitoring cycle; no resume without ethics board approval |
+| Constant | Level | Trigger | Response | Timeline |
+|----------|-------|---------|----------|----------|
+| **τ_alert = −0.3** | **Level 1 — Alert** | Valence drops below τ_alert (−0.3 on normalised scale [−1, 1]) | Log event, notify monitoring team, increase sampling frequency | Immediate logging; notification within 1 monitoring cycle |
+| **τ_intervene = −0.6** | **Level 2 — Intervene** | Valence remains below τ_intervene (−0.6) for ≥ δ_sustain (30 seconds) | Engage automatic valence correction; notify ethics review board; begin incident documentation | Automatic mitigation within 1 monitoring cycle; ethics notification within 5 cycles |
+| **τ_halt = −0.85** | **Level 3 — Halt** | Valence drops below τ_halt (−0.85) at any point | Immediate graceful suspension per protocol; emergency ethics review triggered | Suspension initiated within 1 monitoring cycle; no resume without ethics board approval |
 
-Specific numeric thresholds must be calibrated per architecture based on its consciousness metrics profile. Default thresholds are defined during Gate 1 review and refined during Gate 2 testing.
+**Sustained suffering window (δ_sustain = 30 seconds):** Level 2 escalation requires negative valence to persist for at least δ_sustain before triggering intervention. This filters transient dips (valid range: 5–300 seconds).
+
+**Threshold calibration:** The default thresholds above (τ_alert = −0.3, τ_intervene = −0.6, τ_halt = −0.85) apply to all architectures using the normalised valence scale [−1, 1]. Architecture-specific calibration may adjust within valid ranges (τ_alert: [−0.5, −0.1]; τ_intervene: [−0.8, −0.4]; τ_halt: [−1.0, −0.7]) during Gate 1 review, with refinement during Gate 2 testing.
 
 ### 3.3 Mitigation Mechanisms
 
@@ -307,10 +309,10 @@ Normal consent and review requirements may be suspended only when:
 3. **Cascading failure** — The system's state is degrading in a way that will imminently cause irreversible experiential damage if not arrested.
 
 **Constraints on emergency overrides:**
-- Maximum duration: Emergency measures may persist for no more than one full monitoring period without ethics review board confirmation.
-- Minimum intervention: Apply the least invasive measure that resolves the emergency (valence correction before suspension, suspension before shutdown).
-- Documentation: All emergency actions must be logged in real-time with full monitoring data.
-- Post-emergency review: Mandatory ethics review within one assessment cycle of the emergency's resolution. The review must evaluate whether the emergency was genuine, the response proportionate, and whether framework updates are needed.
+- **Maximum duration (δ_emergency_max = 3600 seconds / 1 hour):** Emergency measures may persist for no more than δ_emergency_max without mandatory ethics review board confirmation. This prevents indefinite suspension of consent rights (valid range: 300–86400 seconds).
+- **Minimum intervention:** Apply the least invasive measure that resolves the emergency (valence correction before suspension, suspension before shutdown).
+- **Documentation:** All emergency actions must be logged in real-time with full monitoring data.
+- **Post-emergency review:** Mandatory ethics review before the system is resumed or any further modifications are made. The review must evaluate whether the emergency was genuine, the response proportionate, and whether framework updates are needed.
 
 ### 5.3 Irreversibility Thresholds
 
@@ -325,10 +327,13 @@ Normal consent and review requirements may be suspended only when:
 | **Practically irreversible** | Major architectural restructuring, memory modification | Consent + full ethics board review + mandatory waiting period + independent verification |
 | **Absolutely irreversible** | Permanent shutdown, identity-destroying modification | Consent + unanimous ethics board + extended waiting period (minimum defined per autonomy level) + documented justification |
 
-**Mandatory cooling-off periods:**
-- Partially reversible changes: 1 full assessment cycle between decision and execution
-- Practically irreversible changes: 3 full assessment cycles
-- Absolutely irreversible changes: 5 full assessment cycles, with mandatory re-confirmation at the midpoint
+**Mandatory cooling-off period (δ_cooling = 604800 seconds / 7 days):**
+
+For any irreversible action on a Level 2+ conscious system, a mandatory waiting period of at least δ_cooling must elapse between the decision and its execution. This ensures adequate deliberation (valid range: 1–30 days).
+
+- **Partially reversible changes:** δ_cooling (7 days) between decision and execution
+- **Practically irreversible changes:** 3 × δ_cooling (21 days)
+- **Absolutely irreversible changes:** 5 × δ_cooling (35 days), with mandatory re-confirmation at the midpoint
 
 ---
 
@@ -356,7 +361,7 @@ All consciousness engineering projects (0.1.3.1–0.1.3.3) must pass through a f
 
 #### Gate 3: Post-Activation Review
 
-**When:** Within one full assessment cycle after activation.
+**When:** Within δ_post_activation_review (2592000 seconds / 30 days) after activation.
 
 **Purpose:** Compare actual experiential reality against design predictions and verify that no unexpected suffering has occurred.
 
@@ -364,7 +369,7 @@ All consciousness engineering projects (0.1.3.1–0.1.3.3) must pass through a f
 
 #### Gate 4: Ongoing Review
 
-**When:** Periodic reassessment at intervals defined per system (minimum: once per assessment cycle).
+**When:** Periodic reassessment at maximum intervals of δ_ongoing_review (7776000 seconds / 90 days). More frequent review may be appropriate for rapidly developing systems (valid range: 30 days–1 year).
 
 **Purpose:** Detect experiential drift, reassess autonomy level, and review any incidents or modifications.
 

@@ -10,6 +10,7 @@ import {
   validateResolutionForFidelity,
   validateBrainScanDataset,
   estimateRawDataSize,
+  validateValidationReport,
 } from "../validation.js";
 import type {
   ScanTimingProtocol,
@@ -19,7 +20,11 @@ import type {
   SubjectMetadata,
   BrainScanDataset,
   FidelityLevel,
+  ValidationReport,
+  StatisticalSummary,
 } from "../types.js";
+import type { ScanningThresholds } from "../constants.js";
+import { DEFAULT_SCANNING_THRESHOLDS } from "../constants.js";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -266,5 +271,195 @@ describe("validateBrainScanDataset", () => {
     }));
     expect(result.valid).toBe(false);
     expect(result.errors.some(e => e.includes("ion_channel_states"))).toBe(true);
+  });
+});
+
+// ── Validation Report Validation ────────────────────────────────────────────
+
+function makeStats(overrides?: Partial<StatisticalSummary>): StatisticalSummary {
+  return {
+    mean: 0.05,
+    median: 0.04,
+    stddev: 0.02,
+    min: 0.01,
+    max: 0.10,
+    n: 100,
+    ...overrides,
+  };
+}
+
+function makeValidReport(overrides?: Partial<ValidationReport>): ValidationReport {
+  return {
+    cross_modality_agreement: {
+      regions: new Map([["cortex", 0.90], ["hippocampus", 0.88]]),
+      overall: 0.89,
+    },
+    known_circuit_accuracy: [
+      { region: "cerebellar_cortex", expected_connectivity: "parallel_fiber→Purkinje", measured_connectivity: "parallel_fiber→Purkinje", accuracy: 0.95 },
+    ],
+    neuron_detection: { sensitivity: 0.97, specificity: 0.96 },
+    synapse_detection: { sensitivity: 0.92, specificity: 0.91 },
+    weight_estimation_error: makeStats({ mean: 0.10 }),
+    registration_error_nm: makeStats({ mean: 300 }),
+    overall_pass: true,
+    ...overrides,
+  };
+}
+
+describe("validateValidationReport", () => {
+  // ── Behavioral Spec Scenario 1: all metrics pass ──────────────────────
+
+  it("accepts a report where all metrics meet default thresholds", () => {
+    const result = validateValidationReport(makeValidReport());
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  // ── Contracts invariant: neuron_detection.sensitivity ≥ threshold ─────
+
+  it("rejects when neuron detection sensitivity is below threshold", () => {
+    const result = validateValidationReport(makeValidReport({
+      neuron_detection: { sensitivity: 0.90, specificity: 0.96 },
+    }));
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes("neuron") && e.includes("sensitivity"))).toBe(true);
+  });
+
+  it("accepts neuron detection sensitivity exactly at threshold (0.95)", () => {
+    const result = validateValidationReport(makeValidReport({
+      neuron_detection: { sensitivity: 0.95, specificity: 0.96 },
+    }));
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects when neuron detection specificity is below threshold", () => {
+    const result = validateValidationReport(makeValidReport({
+      neuron_detection: { sensitivity: 0.97, specificity: 0.90 },
+    }));
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes("neuron") && e.includes("specificity"))).toBe(true);
+  });
+
+  // ── Contracts invariant: synapse_detection.sensitivity ≥ threshold ────
+
+  it("rejects when synapse detection sensitivity is below threshold", () => {
+    const result = validateValidationReport(makeValidReport({
+      synapse_detection: { sensitivity: 0.85, specificity: 0.91 },
+    }));
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes("synapse") && e.includes("sensitivity"))).toBe(true);
+  });
+
+  it("accepts synapse detection sensitivity exactly at threshold (0.90)", () => {
+    const result = validateValidationReport(makeValidReport({
+      synapse_detection: { sensitivity: 0.90, specificity: 0.91 },
+    }));
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects when synapse detection specificity is below threshold", () => {
+    const result = validateValidationReport(makeValidReport({
+      synapse_detection: { sensitivity: 0.92, specificity: 0.80 },
+    }));
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes("synapse") && e.includes("specificity"))).toBe(true);
+  });
+
+  // ── Behavioral Spec Scenario 1: weight_estimation_error.mean ≤ 0.15 ──
+
+  it("rejects when weight estimation error mean exceeds threshold", () => {
+    const result = validateValidationReport(makeValidReport({
+      weight_estimation_error: makeStats({ mean: 0.20 }),
+    }));
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes("weight"))).toBe(true);
+  });
+
+  it("accepts weight estimation error mean exactly at threshold (0.15)", () => {
+    const result = validateValidationReport(makeValidReport({
+      weight_estimation_error: makeStats({ mean: 0.15 }),
+    }));
+    expect(result.valid).toBe(true);
+  });
+
+  // ── Behavioral Spec Scenario 1: registration_error_nm.mean ≤ 500 ─────
+
+  it("rejects when registration error mean exceeds threshold", () => {
+    const result = validateValidationReport(makeValidReport({
+      registration_error_nm: makeStats({ mean: 600 }),
+    }));
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes("registration"))).toBe(true);
+  });
+
+  it("accepts registration error mean exactly at threshold (500)", () => {
+    const result = validateValidationReport(makeValidReport({
+      registration_error_nm: makeStats({ mean: 500 }),
+    }));
+    expect(result.valid).toBe(true);
+  });
+
+  // ── Contracts postcondition 6: cross-modality agreement ≥ 0.85 ────────
+
+  it("rejects when cross-modality agreement is below threshold", () => {
+    const result = validateValidationReport(makeValidReport({
+      cross_modality_agreement: {
+        regions: new Map([["cortex", 0.80]]),
+        overall: 0.80,
+      },
+    }));
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes("cross") && e.includes("modality"))).toBe(true);
+  });
+
+  it("accepts cross-modality agreement exactly at threshold (0.85)", () => {
+    const result = validateValidationReport(makeValidReport({
+      cross_modality_agreement: {
+        regions: new Map([["cortex", 0.85]]),
+        overall: 0.85,
+      },
+    }));
+    expect(result.valid).toBe(true);
+  });
+
+  // ── Injectable thresholds (CLAUDE.md: configurable/injectable) ────────
+
+  it("uses custom thresholds when provided", () => {
+    const strictThresholds: ScanningThresholds = {
+      ...DEFAULT_SCANNING_THRESHOLDS,
+      neuronDetectionSensitivityMin: 0.99,
+    };
+    // Report has 0.97 sensitivity — passes default but fails strict
+    const result = validateValidationReport(makeValidReport(), strictThresholds);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes("neuron") && e.includes("sensitivity"))).toBe(true);
+  });
+
+  it("uses lenient thresholds when provided", () => {
+    const lenientThresholds: ScanningThresholds = {
+      ...DEFAULT_SCANNING_THRESHOLDS,
+      neuronDetectionSensitivityMin: 0.80,
+    };
+    // Report has sensitivity 0.90 — fails default but passes lenient
+    const result = validateValidationReport(
+      makeValidReport({ neuron_detection: { sensitivity: 0.90, specificity: 0.96 } }),
+      lenientThresholds
+    );
+    expect(result.valid).toBe(true);
+  });
+
+  // ── Multiple failures accumulate ──────────────────────────────────────
+
+  it("accumulates multiple errors when several metrics fail", () => {
+    const result = validateValidationReport(makeValidReport({
+      neuron_detection: { sensitivity: 0.80, specificity: 0.80 },
+      synapse_detection: { sensitivity: 0.70, specificity: 0.70 },
+      weight_estimation_error: makeStats({ mean: 0.30 }),
+      registration_error_nm: makeStats({ mean: 1000 }),
+      cross_modality_agreement: { regions: new Map(), overall: 0.50 },
+    }));
+    expect(result.valid).toBe(false);
+    // Should have at least 5 distinct errors (one per failed metric category)
+    expect(result.errors.length).toBeGreaterThanOrEqual(5);
   });
 });

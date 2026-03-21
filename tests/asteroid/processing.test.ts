@@ -79,6 +79,29 @@ describe('processOre', () => {
     expect(slag).toBeDefined();
   });
 
+  it('throws when oreMassKg is 0 or negative', () => {
+    const pipeline = defaultCTypePipeline();
+    const comp = cTypeComposition();
+    expect(() => processOre(comp, 0, pipeline)).toThrow('oreMassKg must be > 0');
+    expect(() => processOre(comp, -10, pipeline)).toThrow('oreMassKg must be > 0');
+  });
+
+  it('throws when pipeline has no stages', () => {
+    const comp = cTypeComposition();
+    const pipeline = { stages: [], energySource: 'solar' as const, processingRate: 1000 };
+    expect(() => processOre(comp, 1000, pipeline)).toThrow('pipeline must have at least 1 stage');
+  });
+
+  it('throws when stage yieldFraction is out of range', () => {
+    const comp = cTypeComposition();
+    const pipeline = {
+      stages: [{ name: 'bad', type: 'sorting' as const, energyCostPerKg: 0.1, yieldFraction: 0 }],
+      energySource: 'solar' as const,
+      processingRate: 1000,
+    };
+    expect(() => processOre(comp, 1000, pipeline)).toThrow('yieldFraction must be in (0, 1]');
+  });
+
   it('all products directed to specified depot', () => {
     const pipeline = defaultCTypePipeline();
     const comp = cTypeComposition();

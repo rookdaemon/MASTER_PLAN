@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { RollbackEngineImpl } from "../rollback-engine.js";
 import {
   NeuronSubstrateState,
+  BrainRegionPriority,
   type ReplacementUnit,
   type PsiMetric,
   DEFAULT_GRACE_PERIOD_MS,
@@ -18,6 +19,7 @@ function makeUnit(
     neuronId: `neuron-${stepIndex}`,
     clusterId: `cluster-0`,
     loopIds: ["loop-0"],
+    regionPriority: BrainRegionPriority.Periphery,
     state: NeuronSubstrateState.Synthetic,
     stepIndex,
     replacedAt_ms: now - 10_000,

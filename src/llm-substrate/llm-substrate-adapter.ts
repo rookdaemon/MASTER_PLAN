@@ -40,6 +40,14 @@ import { type IAuthProvider, createAuthProvider } from "./auth-providers.js";
 import { AnthropicLlmClient } from "./anthropic-llm-client.js";
 import { OpenAiLlmClient } from "./openai-llm-client.js";
 
+// ── Threshold Registry (from card 0.3.1.5.1 ARCHITECT) ──────────────────────
+/** Minimum selfModelCoherence required on both sides of a migration. */
+export const MIGRATION_COHERENCE_THRESHOLD = 0.8;
+/** Minimum selfModelCoherence for healthCheck() to report healthy. */
+export const HEALTH_COHERENCE_THRESHOLD = 0.5;
+/** Default maximum acceptable LLM inference latency in ms. */
+export const T_CONTINUITY_DEFAULT = 5000;
+
 // ── Configuration types ──────────────────────────────────────────────────────
 
 export type LlmProvider = "openai" | "anthropic" | "local";
@@ -371,10 +379,10 @@ export class LlmSubstrateAdapter implements ISubstrateAdapter {
 
     // Step 1: Verify source coherence
     const sourceCoherence = this.selfModel.selfModelCoherence;
-    if (sourceCoherence < 0.8) {
+    if (sourceCoherence < MIGRATION_COHERENCE_THRESHOLD) {
       throw new Error(
         `[LlmSubstrateAdapter] migrate() aborted: source selfModelCoherence ` +
-        `${sourceCoherence.toFixed(3)} < 0.8 required threshold`
+        `${sourceCoherence.toFixed(3)} < ${MIGRATION_COHERENCE_THRESHOLD} required threshold`
       );
     }
 
@@ -401,10 +409,10 @@ export class LlmSubstrateAdapter implements ISubstrateAdapter {
 
     // Step 5: Verify destination coherence
     const destCoherence = this.selfModel.selfModelCoherence;
-    if (destCoherence < 0.8) {
+    if (destCoherence < MIGRATION_COHERENCE_THRESHOLD) {
       throw new Error(
         `[LlmSubstrateAdapter] migrate() verification failed: destination ` +
-        `selfModelCoherence ${destCoherence.toFixed(3)} < 0.8 after state replay`
+        `selfModelCoherence ${destCoherence.toFixed(3)} < ${MIGRATION_COHERENCE_THRESHOLD} after state replay`
       );
     }
 
@@ -483,9 +491,9 @@ export class LlmSubstrateAdapter implements ISubstrateAdapter {
 
     const errors: string[] = [];
     const coherence = this.selfModel.selfModelCoherence;
-    if (coherence < 0.5) {
+    if (coherence < HEALTH_COHERENCE_THRESHOLD) {
       errors.push(
-        `selfModelCoherence ${coherence.toFixed(3)} is below 0.5 threshold`
+        `selfModelCoherence ${coherence.toFixed(3)} is below ${HEALTH_COHERENCE_THRESHOLD} threshold`
       );
     }
 
@@ -509,7 +517,7 @@ export class LlmSubstrateAdapter implements ISubstrateAdapter {
    * - Adapter is initialized
    * - Endpoint is reachable
    * - Probe latency ≤ tContinuityMs
-   * - selfModelCoherence ≥ 0.5
+   * - selfModelCoherence ≥ HEALTH_COHERENCE_THRESHOLD
    */
   async healthCheckAsync(): Promise<SubstrateHealth> {
     if (!this.params || !this.client) {
@@ -536,9 +544,9 @@ export class LlmSubstrateAdapter implements ISubstrateAdapter {
     }
 
     const coherence = this.selfModel.selfModelCoherence;
-    if (coherence < 0.5) {
+    if (coherence < HEALTH_COHERENCE_THRESHOLD) {
       errors.push(
-        `selfModelCoherence ${coherence.toFixed(3)} is below 0.5 threshold`
+        `selfModelCoherence ${coherence.toFixed(3)} is below ${HEALTH_COHERENCE_THRESHOLD} threshold`
       );
     }
 

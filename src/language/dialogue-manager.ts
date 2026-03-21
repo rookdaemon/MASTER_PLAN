@@ -53,6 +53,9 @@ export class DialogueManager implements IDialogueManager {
   /** Minimum episodic relevance score to surface in GenerationContext. */
   private static readonly MEMORY_RELEVANCE_THRESHOLD = 0.5;
 
+  /** Maximum active topics tracked per session before oldest are evicted. */
+  private static readonly ACTIVE_TOPICS_MAX = 10;
+
   private readonly sessions = new Map<string, SessionState>();
 
   constructor(
@@ -154,8 +157,8 @@ export class DialogueManager implements IDialogueManager {
       }
     }
     // Keep active topic list bounded
-    if (session.activeTopics.length > 10) {
-      session.activeTopics.splice(0, session.activeTopics.length - 10);
+    if (session.activeTopics.length > DialogueManager.ACTIVE_TOPICS_MAX) {
+      session.activeTopics.splice(0, session.activeTopics.length - DialogueManager.ACTIVE_TOPICS_MAX);
     }
 
     // Track open questions

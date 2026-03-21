@@ -37,6 +37,13 @@ import type { IStabilitySentinel } from './interfaces.js';
 import type { IValueKernel } from './interfaces.js';
 import type { IIdentityContinuityManager } from './interfaces.js';
 import type { IGoalCoherenceEngine } from './interfaces.js';
+import {
+  HIGH_DRIFT_ANOMALY_THRESHOLD,
+  STABILITY_GOAL_WEIGHT,
+  STABILITY_HISTORY_MAX,
+  STABILITY_IDENTITY_WEIGHT,
+  STABILITY_VALUE_WEIGHT,
+} from './constants.js';
 
 // ── Peer Verifier interface ──────────────────────────────────
 // In production, peers would be remote agents in a trust network.
@@ -74,7 +81,7 @@ export class StabilitySentinel implements IStabilitySentinel {
     identityManager: IIdentityContinuityManager,
     goalEngine: IGoalCoherenceEngine,
     peers: PeerVerifier[] = [],
-    maxHistory = 500,
+    maxHistory = STABILITY_HISTORY_MAX,
   ) {
     this._valueKernel = valueKernel;
     this._identityManager = identityManager;
@@ -116,7 +123,7 @@ export class StabilitySentinel implements IStabilitySentinel {
     // 2. Identity continuity verification
     const identityVerification = this._identityManager.verifyIdentity();
     if (!identityVerification.verified) {
-      const severity = identityVerification.functionalDrift > 0.5 ? 'critical' : 'warning';
+      const severity = identityVerification.functionalDrift > HIGH_DRIFT_ANOMALY_THRESHOLD ? 'critical' : 'warning';
       const alert: StabilityAlert = {
         subsystem: 'identity-continuity',
         severity,
@@ -180,7 +187,7 @@ export class StabilitySentinel implements IStabilitySentinel {
     const valueScore = valueIntegrity.intact ? 1.0 : 0.0;
     const identityScore = identityVerification.verified ? 1.0 : Math.max(0, 1.0 - identityVerification.functionalDrift);
     const goalScore = goalCoherence.coherenceScore;
-    const overallScore = (valueScore * 0.4 + identityScore * 0.3 + goalScore * 0.3);
+    const overallScore = (valueScore * STABILITY_VALUE_WEIGHT + identityScore * STABILITY_IDENTITY_WEIGHT + goalScore * STABILITY_GOAL_WEIGHT);
 
     const stable =
       valueIntegrity.intact &&

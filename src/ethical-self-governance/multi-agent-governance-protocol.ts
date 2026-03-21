@@ -13,6 +13,7 @@
  */
 
 import type { IMultiAgentGovernanceProtocol } from './interfaces.js';
+import { PROPOSAL_EXPIRY } from './constants.js';
 import type {
   AgentId,
   AgreementId,
@@ -95,7 +96,7 @@ export class MultiAgentGovernanceProtocol implements IMultiAgentGovernanceProtoc
       participants,
       terms,
       context,
-      expiresAt: Date.now() + 3600_000, // 1 hour expiry
+      expiresAt: Date.now() + PROPOSAL_EXPIRY,
       status: 'pending',
     };
 

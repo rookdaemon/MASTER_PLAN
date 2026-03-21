@@ -12,3 +12,5 @@ export * from "./types.js";
 export * from "./shielding.js";
 export * from "./substrate.js";
 export * from "./degradation-model.js";
+export * from "./radiation-aware-runtime.js";
+export * from "./conscious-process-manager.js";

@@ -13,6 +13,14 @@ import type {
   ResourceMap,
 } from './types.js';
 import { totalResourceMass } from './prospecting.js';
+import {
+  BASE_EXTRACTION_RATE_FRACTION,
+  VOLATILE_RATIO_THRESHOLD,
+  DAILY_EFFICIENCY_RANGE_LOW,
+  DAILY_EFFICIENCY_RANGE_HIGH,
+  FAULT_PROBABILITY,
+  ENERGY_PER_KG_EXTRACTION,
+} from './constants.js';
 
 /**
  * Determine extraction method based on spectral type.
@@ -31,7 +39,7 @@ export function recommendExtractionMethod(
   const method =
     candidate.spectralType === 'M'
       ? 'drill' as const
-      : volatileRatio > 0.3
+      : volatileRatio > VOLATILE_RATIO_THRESHOLD
         ? 'ablation' as const
         : 'mass-driver' as const;
 
@@ -53,8 +61,8 @@ export function recommendExtractionMethod(
  */
 function estimateExtractionRate(candidate: AsteroidCandidate): number {
   const total = totalResourceMass(candidate.estimatedComposition);
-  // Base rate: extract ~0.1% of total per day, scaled by accessibility
-  const baseRate = total * 0.001;
+  // Base rate: extract a fraction of total per day, scaled by accessibility
+  const baseRate = total * BASE_EXTRACTION_RATE_FRACTION;
   return baseRate * candidate.accessibilityScore;
 }
 
@@ -77,6 +85,9 @@ export function simulateMining(
   seed: number = 42,
 ): ExtractionResult {
   const days = durationDays ?? operation.operationalLifetime;
+  if (days <= 0) {
+    throw new RangeError('durationDays must be > 0');
+  }
   const log: LogEntry[] = [];
   let totalOre = 0;
   let totalVolatiles = 0;
@@ -99,14 +110,13 @@ export function simulateMining(
       composition.volatiles.ammonia) /
     totalMass;
 
-  // Energy cost: ~0.5 kWh per kg extracted
-  const energyPerKg = 0.5;
+  const energyPerKg = ENERGY_PER_KG_EXTRACTION;
 
   log.push({ timestamp: 0, event: 'MINING_START', details: `Target: ${operation.targetId}` });
 
   for (let day = 1; day <= days; day++) {
     // Equipment fault: ~2% chance per day, resolved autonomously (1-day pause)
-    if (random() < 0.02) {
+    if (random() < FAULT_PROBABILITY) {
       log.push({
         timestamp: day,
         event: 'FAULT_DETECTED',
@@ -117,7 +127,7 @@ export function simulateMining(
     }
 
     // Daily efficiency: 85-100% of nominal
-    const efficiency = 0.85 + random() * 0.15;
+    const efficiency = DAILY_EFFICIENCY_RANGE_LOW + random() * (DAILY_EFFICIENCY_RANGE_HIGH - DAILY_EFFICIENCY_RANGE_LOW);
     const dailyExtraction = operation.extractionRate * efficiency;
 
     const oreToday = dailyExtraction * (1 - volatileFraction);

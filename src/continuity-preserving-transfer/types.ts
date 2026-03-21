@@ -154,6 +154,8 @@ export interface ReplacementUnit {
   clusterId: ClusterId;
   /** Thalamocortical loop(s) this neuron participates in */
   loopIds: LoopId[];
+  /** Brain region priority — determines replacement order (periphery first) */
+  regionPriority: BrainRegionPriority;
   /** Current substrate state */
   state: NeuronSubstrateState;
   /** Step index at which this unit was/will be replaced */

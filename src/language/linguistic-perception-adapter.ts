@@ -38,6 +38,13 @@ import type {
  *    confidence is below 0.7 (as specified by the interface contract).
  */
 export class LinguisticPerceptionAdapter implements ILanguageComprehension {
+  /**
+   * When intent confidence is below this threshold, a ClarificationRequest is
+   * generated.  Currently proxied by the `intent === 'unknown'` heuristic
+   * (deterministic extraction does not produce confidence scores).
+   */
+  static readonly GROUNDING_CONFIDENCE_THRESHOLD = 0.7;
+
   constructor(private readonly pipeline: IPerceptionPipeline) {}
 
   // ── ILanguageComprehension ────────────────────────────────────────────────

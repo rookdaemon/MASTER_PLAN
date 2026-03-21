@@ -330,7 +330,7 @@ Open Question:   Is L_div (diversity regularisation) sufficient to prevent
 ### FM-5.1: Ignition Threshold Sensitivity Across Substrates
 
 ```
-Failure Mode:    The ignition threshold θ_ign is a free parameter in [0.3, 0.7]
+Failure Mode:    The ignition threshold θ_ign is a free parameter in [0.5, 0.7]
                  that determines the boundary between sub-threshold (unconscious)
                  and supra-threshold (conscious) processing. Different substrates
                  will have different noise floors, activation ranges, and dynamic

@@ -12,6 +12,7 @@ export interface TelemetryConfig {
   cooldownMs: number;              // default 300_000 (5 min)
   energyAlertThreshold: number;    // default 0.15
   materialAlertThreshold: number;  // default 0.10
+  metricsHistoryLimit: number;     // default 100
 }
 
 const DEFAULT_CONFIG: TelemetryConfig = {
@@ -21,6 +22,7 @@ const DEFAULT_CONFIG: TelemetryConfig = {
   cooldownMs: 300_000,
   energyAlertThreshold: 0.15,
   materialAlertThreshold: 0.10,
+  metricsHistoryLimit: 100,
 };
 
 export class CapacityTelemetry {
@@ -36,8 +38,8 @@ export class CapacityTelemetry {
   recordMetrics(metrics: NodeMetrics): void {
     const history = this.nodeMetrics.get(metrics.nodeId) ?? [];
     history.push(metrics);
-    // Keep only last 100 entries per node
-    if (history.length > 100) history.shift();
+    // Keep only last metricsHistoryLimit entries per node
+    if (history.length > this.config.metricsHistoryLimit) history.shift();
     this.nodeMetrics.set(metrics.nodeId, history);
 
     // Track SLA miss duration

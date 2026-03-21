@@ -22,6 +22,8 @@ import {
   type Assembler,
   type Recycler,
   type LayerAllocation,
+  type Clock,
+  type Timer,
 } from "./types.js";
 
 // ── Configuration ────────────────────────────────────────────────────────────
@@ -31,10 +33,26 @@ export interface OrchestratorConfig {
   minNodesPerLayer: number;
   /** Fabricator utilisation threshold that triggers self-replication (0.0–1.0) */
   replicationUtilisationThreshold: number;
+  /** Sustained days above threshold before replication triggers (Threshold Registry) */
+  replicationSustainedDays: number;
   /** Target material recovery rate (acceptance criterion: ≥0.95) */
   targetRecoveryRate: number;
+  /** Maximum throughput loss from any single node failure (fraction) */
+  maxSingleNodeThroughputLoss: number;
+  /** Maximum hours to full recovery after single-node failure */
+  maxRecoveryHours: number;
+  /** Minimum critical feedstock/component stockpile in days */
+  inventoryBufferDays: number;
+  /** Max days for capacity self-expansion via replication after demand spike */
+  demandSpikeScalingDays: number;
+  /** Time in seconds to detect failure and reroute supply chains */
+  failoverDetectionSeconds: number;
   /** Node IDs available in each layer */
   layerNodes: Record<1 | 2 | 3 | 4 | 5, string[]>;
+
+  // Environment abstractions (CLAUDE.md: injectable and mockable)
+  clock: Clock;
+  timer: Timer;
 
   // Layer implementations
   extractors: Map<string, ResourceExtractor>;
@@ -44,6 +62,18 @@ export interface OrchestratorConfig {
   recyclers: Map<string, Recycler>;
 }
 
+// ── Threshold Constants (from Threshold Registry) ────────────────────────────
+
+export const MIN_NODES_PER_LAYER = 3;
+export const REPLICATION_UTILISATION_THRESHOLD = 0.80;
+export const REPLICATION_SUSTAINED_DAYS = 30;
+export const TARGET_RECOVERY_RATE = 0.95;
+export const MAX_SINGLE_NODE_THROUGHPUT_LOSS = 0.09;
+export const MAX_RECOVERY_HOURS = 72;
+export const INVENTORY_BUFFER_DAYS = 90;
+export const DEMAND_SPIKE_SCALING_DAYS = 180;
+export const FAILOVER_DETECTION_SECONDS = 60;
+
 // ── Internal State ───────────────────────────────────────────────────────────
 
 interface OrchestratorState {
@@ -52,6 +82,8 @@ interface OrchestratorState {
   disruptions: Map<string, DisruptionEvent>;
   /** Per-layer throughput fractions (degraded by disruptions) */
   layerThroughput: Record<1 | 2 | 3 | 4 | 5, number>;
+  /** Timestamp (ms) when fabricator utilisation first exceeded threshold, or null */
+  fabricatorHighUtilSinceMs: number | null;
 }
 
 interface InternalHandle extends ExecutionHandle {
@@ -61,14 +93,27 @@ interface InternalHandle extends ExecutionHandle {
 
 // ── Factory ──────────────────────────────────────────────────────────────────
 
+/** Extended orchestrator with replication check capability */
+export interface ManufacturingOrchestratorWithReplication extends ManufacturingOrchestrator {
+  /**
+   * Check fabricator utilisation and trigger self-replication if sustained
+   * above threshold for replicationSustainedDays.
+   * @param currentUtilisation - current fabricator utilisation fraction (0.0–1.0)
+   * @param nowMs - current timestamp in milliseconds (injectable for testing)
+   * @returns the ID of the new fabricator node if replication was triggered, or null
+   */
+  checkReplication(currentUtilisation: number, nowMs: number): string | null;
+}
+
 export function createManufacturingOrchestrator(
   config: OrchestratorConfig
-): ManufacturingOrchestrator {
+): ManufacturingOrchestratorWithReplication {
   const state: OrchestratorState = {
     activePlan: null,
     activeHandle: null,
     disruptions: new Map(),
     layerThroughput: { 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 5: 1.0 },
+    fabricatorHighUtilSinceMs: null,
   };
 
   // ── plan ─────────────────────────────────────────────────────────────────
@@ -93,10 +138,10 @@ export function createManufacturingOrchestrator(
     });
 
     const productionPlan: ProductionPlan = {
-      planId: `plan-${demand.forecastId}-${Date.now()}`,
+      planId: `plan-${demand.forecastId}-${config.clock.now()}`,
       forecastId: demand.forecastId,
       phases,
-      createdAt: Date.now(),
+      createdAt: config.clock.now(),
     };
 
     return productionPlan;
@@ -107,7 +152,7 @@ export function createManufacturingOrchestrator(
   function execute(plan: ProductionPlan): ExecutionHandle {
     const handle: InternalHandle = {
       planId: plan.planId,
-      startedAt: Date.now(),
+      startedAt: config.clock.now(),
       _completionFraction: 0,
       _cancelled: false,
       progress() {
@@ -138,7 +183,7 @@ export function createManufacturingOrchestrator(
     );
 
     return {
-      timestamp: Date.now(),
+      timestamp: config.clock.now(),
       overallHealthFraction,
       layerHealth: layerHealth as Record<1 | 2 | 3 | 4 | 5, number>,
       activeDisruptions: [...state.disruptions.values()],
@@ -165,7 +210,7 @@ export function createManufacturingOrchestrator(
 
     // Schedule automatic recovery: restore throughput after estimated recovery window.
     const recoveryMs = event.estimatedRecoveryHours * 60 * 60 * 1000;
-    setTimeout(() => {
+    config.timer.schedule(() => {
       state.disruptions.delete(event.eventId);
       state.layerThroughput[layer] = Math.min(
         1.0,
@@ -223,5 +268,45 @@ export function createManufacturingOrchestrator(
     return values.reduce((sum, v) => sum + v, 0) / values.length;
   }
 
-  return { plan, execute, monitor, rebalance };
+  // ── checkReplication ─────────────────────────────────────────────────────
+
+  function checkReplication(currentUtilisation: number, nowMs: number): string | null {
+    if (currentUtilisation > config.replicationUtilisationThreshold) {
+      if (state.fabricatorHighUtilSinceMs === null) {
+        state.fabricatorHighUtilSinceMs = nowMs;
+      }
+
+      const sustainedMs = nowMs - state.fabricatorHighUtilSinceMs;
+      const sustainedDays = sustainedMs / (24 * 60 * 60 * 1000);
+
+      if (sustainedDays >= config.replicationSustainedDays) {
+        // Pick the first fabricator and replicate
+        const firstFabEntry = config.fabricators.entries().next();
+        if (!firstFabEntry.done) {
+          const [, fabricator] = firstFabEntry.value;
+          const replica = fabricator.selfReplicate({
+            modelId: "auto-replica",
+            capabilities: [],
+            throughputUnitsPerDay: 0,
+          });
+
+          const newNodeId = `layer3-replica-${config.clock.now()}`;
+          config.fabricators.set(newNodeId, replica);
+          config.layerNodes[3].push(newNodeId);
+
+          // Reset the sustained timer
+          state.fabricatorHighUtilSinceMs = null;
+
+          return newNodeId;
+        }
+      }
+    } else {
+      // Utilisation dropped below threshold — reset
+      state.fabricatorHighUtilSinceMs = null;
+    }
+
+    return null;
+  }
+
+  return { plan, execute, monitor, rebalance, checkReplication };
 }

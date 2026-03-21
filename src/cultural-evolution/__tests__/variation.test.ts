@@ -8,6 +8,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { VariationEngine } from '../variation-engine';
 import { MemeCodec } from '../meme-codec';
+import { ICulturalEnvironment } from '../environment';
 import {
   Meme,
   MemeType,
@@ -17,10 +18,23 @@ import {
   VariationType,
 } from '../types';
 
+// ─── Mock Environment ─────────────────────────────────────────────────
+
+function createMockEnvironment(): ICulturalEnvironment {
+  let callCount = 0;
+  return {
+    nowTimestamp: () => `2026-01-01T00:00:0${callCount++}.000Z`,
+    nowMillis: () => 1735689600000 + callCount++,
+    random: () => 0.42,
+  };
+}
+
 // ─── Test Helpers ────────────────────────────────────────────────────────
 
+let mockEnv: ICulturalEnvironment;
+
 function makeTestMeme(overrides: Partial<Meme> = {}): Meme {
-  const codec = new MemeCodec();
+  const codec = new MemeCodec(mockEnv);
   const base = codec.encode({
     type: MemeType.VALUE,
     description: 'Test value meme',
@@ -31,7 +45,7 @@ function makeTestMeme(overrides: Partial<Meme> = {}): Meme {
 }
 
 function makeNormMeme(content: string, agent: string = 'agent-002'): Meme {
-  const codec = new MemeCodec();
+  const codec = new MemeCodec(mockEnv);
   return codec.encode({
     type: MemeType.NORM,
     description: `Norm: ${content}`,
@@ -41,7 +55,7 @@ function makeNormMeme(content: string, agent: string = 'agent-002'): Meme {
 }
 
 function makeAestheticMeme(content: string, agent: string = 'agent-003'): Meme {
-  const codec = new MemeCodec();
+  const codec = new MemeCodec(mockEnv);
   return codec.encode({
     type: MemeType.AESTHETIC,
     description: `Aesthetic: ${content}`,
@@ -66,7 +80,8 @@ describe('VariationEngine', () => {
   let engine: VariationEngine;
 
   beforeEach(() => {
-    engine = new VariationEngine();
+    mockEnv = createMockEnvironment();
+    engine = new VariationEngine(mockEnv);
   });
 
   // ─── Mutation ────────────────────────────────────────────────────────
@@ -133,7 +148,7 @@ describe('VariationEngine', () => {
       const lowMut = engine.mutate(original, lowPressure);
       const highMut = engine.mutate(original, highPressure);
 
-      const codec = new MemeCodec();
+      const codec = new MemeCodec(mockEnv);
       const distLow = codec.distance(original, lowMut);
       const distHigh = codec.distance(original, highMut);
 
@@ -171,6 +186,34 @@ describe('VariationEngine', () => {
 
       expect(mutated.fitness.adoption_count).toBe(0);
       expect(mutated.fitness.current_prevalence).toBe(0);
+    });
+
+    it('should throw if magnitude is less than 0', () => {
+      const original = makeTestMeme();
+      const pressure: MutationPressure = {
+        type: MutationPressureType.RANDOM,
+        magnitude: -0.1,
+        context: 'invalid',
+        source_agent: null,
+      };
+
+      expect(() => engine.mutate(original, pressure)).toThrow(
+        'mutate() requires magnitude ∈ [0, 1]'
+      );
+    });
+
+    it('should throw if magnitude is greater than 1', () => {
+      const original = makeTestMeme();
+      const pressure: MutationPressure = {
+        type: MutationPressureType.RANDOM,
+        magnitude: 1.5,
+        context: 'invalid',
+        source_agent: null,
+      };
+
+      expect(() => engine.mutate(original, pressure)).toThrow(
+        'mutate() requires magnitude ∈ [0, 1]'
+      );
     });
   });
 
@@ -238,6 +281,14 @@ describe('VariationEngine', () => {
       expect(result.lineage.parent_ids).toHaveLength(1);
       expect(result.lineage.variation_type).toBe(VariationType.SYNTHESIS);
     });
+
+    it('should throw if inputs array is empty', () => {
+      const context = makeExperientialContext();
+
+      expect(() => engine.synthesize([], context)).toThrow(
+        'synthesize() requires at least one input meme'
+      );
+    });
   });
 
   // ─── Crossover ───────────────────────────────────────────────────────
@@ -261,7 +312,7 @@ describe('VariationEngine', () => {
       const biasedToA = engine.crossover(a, b, 0.9); // mostly A
       const biasedToB = engine.crossover(a, b, 0.1); // mostly B
 
-      const codec = new MemeCodec();
+      const codec = new MemeCodec(mockEnv);
       const distA_biasedA = codec.distance(a, biasedToA);
       const distA_biasedB = codec.distance(a, biasedToB);
 
@@ -300,6 +351,24 @@ describe('VariationEngine', () => {
 
       expect(result.type).toBe(MemeType.NORM);
     });
+
+    it('should throw if blend_ratio is less than 0', () => {
+      const a = makeTestMeme();
+      const b = makeNormMeme('test');
+
+      expect(() => engine.crossover(a, b, -0.1)).toThrow(
+        'crossover() requires blend_ratio ∈ [0, 1]'
+      );
+    });
+
+    it('should throw if blend_ratio is greater than 1', () => {
+      const a = makeTestMeme();
+      const b = makeNormMeme('test');
+
+      expect(() => engine.crossover(a, b, 1.5)).toThrow(
+        'crossover() requires blend_ratio ∈ [0, 1]'
+      );
+    });
   });
 
   // ─── Analogical Transfer ─────────────────────────────────────────────
@@ -324,7 +393,7 @@ describe('VariationEngine', () => {
 
     it('should preserve semantic relationship to source', () => {
       const source = makeTestMeme();
-      const codec = new MemeCodec();
+      const codec = new MemeCodec(mockEnv);
 
       const analog = engine.generateAnalog(source, MemeType.MEANING);
 

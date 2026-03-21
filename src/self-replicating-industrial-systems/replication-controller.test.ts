@@ -102,6 +102,8 @@ function makeSeed(): SystemInstance {
   };
 }
 
+const FIXED_NOW_MS = 1_700_000_000_000; // deterministic epoch ms for tests
+
 function makeConfig(overrides: Partial<ReplicationControllerConfig> = {}): ReplicationControllerConfig {
   return {
     feedstock: stubFeedstock(),
@@ -110,6 +112,7 @@ function makeConfig(overrides: Partial<ReplicationControllerConfig> = {}): Repli
     energy: stubEnergy(),
     seedInstance: makeSeed(),
     energyBudgetWh: 10_000,
+    now: () => FIXED_NOW_MS,
     ...overrides,
   };
 }
@@ -189,13 +192,13 @@ describe("ReplicationController", () => {
     expect(status.phase).toBe("resource-check");
   });
 
-  it("logs provenance with generation number and parent ID", () => {
+  it("logs provenance with generation number, parent ID, and deterministic timestamp", () => {
     const controller = createReplicationController(makeConfig());
     const cycleId = controller.startCycle();
     const status = controller.cycleStatus(cycleId);
     expect(status.parentInstanceId).toBe("seed-0");
     expect(status.targetGeneration).toBe(1);
-    expect(status.startedAt).toBeTypeOf("number");
-    expect(status.startedAt).toBeGreaterThan(0);
+    // startedAt must equal the injected clock value — not Date.now()
+    expect(status.startedAt).toBe(FIXED_NOW_MS);
   });
 });

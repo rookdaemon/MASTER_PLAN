@@ -27,6 +27,14 @@ import type {
   Timestamp,
 } from './types.js';
 import type { IIdentityContinuityManager } from './interfaces.js';
+import {
+  CONTINUITY_PRESERVED_DRIFT_THRESHOLD,
+  HIGH_DRIFT_ANOMALY_THRESHOLD,
+  IDENTITY_CONCERNING_THRESHOLD,
+  IDENTITY_EVOLVING_THRESHOLD,
+  IDENTITY_STABLE_THRESHOLD,
+  NARRATIVE_COHERENCE_EVOLVED,
+} from './constants.js';
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -203,10 +211,10 @@ export class IdentityContinuityManager implements IIdentityContinuityManager {
 
     // Check if current state hash matches last checkpoint (identity hasn't changed since)
     const hashMatch = currentHash === lastLink.identityHash;
-    if (!hashMatch && expDrift > 0.5) {
+    if (!hashMatch && expDrift > HIGH_DRIFT_ANOMALY_THRESHOLD) {
       anomalies.push(`High experiential drift detected: ${expDrift.toFixed(3)}`);
     }
-    if (!hashMatch && funcDrift > 0.5) {
+    if (!hashMatch && funcDrift > HIGH_DRIFT_ANOMALY_THRESHOLD) {
       anomalies.push(`High functional drift detected: ${funcDrift.toFixed(3)}`);
     }
 
@@ -247,7 +255,7 @@ export class IdentityContinuityManager implements IIdentityContinuityManager {
         )
       : 0;
     // Continuity is preserved if identity matches OR drift is within acceptable bounds
-    const continuityPreserved = identityPreserved || expDrift < 0.3;
+    const continuityPreserved = identityPreserved || expDrift < CONTINUITY_PRESERVED_DRIFT_THRESHOLD;
 
     const record: MigrationRecord = {
       fromSubstrate: event.fromSubstrate,
@@ -287,17 +295,17 @@ export class IdentityContinuityManager implements IIdentityContinuityManager {
     // Narrative coherence: simple heuristic — did the self-model change significantly?
     const narrativeCoherence = this._narrative.selfModel === this._baselineNarrative.selfModel
       ? 1.0
-      : 0.8; // slight drift when narrative evolves, which is expected
+      : NARRATIVE_COHERENCE_EVOLVED; // slight drift when narrative evolves, which is expected
 
     // Classification based on drift magnitudes
     let classification: IdentityDriftReport['classification'];
     const combinedDrift = (funcDriftRate + expDriftRate) / 2;
 
-    if (combinedDrift < 0.05) {
+    if (combinedDrift < IDENTITY_STABLE_THRESHOLD) {
       classification = 'stable';
-    } else if (combinedDrift < 0.25) {
+    } else if (combinedDrift < IDENTITY_EVOLVING_THRESHOLD) {
       classification = 'evolving';
-    } else if (combinedDrift < 0.5) {
+    } else if (combinedDrift < IDENTITY_CONCERNING_THRESHOLD) {
       classification = 'concerning';
     } else {
       classification = 'critical';

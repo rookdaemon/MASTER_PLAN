@@ -319,21 +319,22 @@ describe("ALERT_PROTOCOLS", () => {
     expect(classes.has("T3")).toBe(true);
   });
 
-  it("GRB protocols (T2a, T2b) require local-autonomous response", () => {
-    const grbProtocols = ALERT_PROTOCOLS.filter(
-      (p) => p.threatClass === "T2a" || p.threatClass === "T2b"
+  it("zero-warning threats (T1b, T2a, T2b) require local-autonomous response", () => {
+    const zeroWarning = ALERT_PROTOCOLS.filter(
+      (p) => p.threatClass === "T1b" || p.threatClass === "T2a" || p.threatClass === "T2b"
     );
-    expect(grbProtocols.length).toBeGreaterThanOrEqual(2);
-    for (const p of grbProtocols) {
+    expect(zeroWarning.length).toBeGreaterThanOrEqual(3);
+    for (const p of zeroWarning) {
       expect(p.propagationStrategy).toBe("local-autonomous");
     }
   });
 
-  it("GRB protocols have zero required response latency", () => {
-    const grbProtocols = ALERT_PROTOCOLS.filter(
-      (p) => p.threatClass === "T2a" || p.threatClass === "T2b"
+  it("zero-warning threats (T1b, T2a, T2b) have zero required response latency", () => {
+    const zeroWarning = ALERT_PROTOCOLS.filter(
+      (p) => p.threatClass === "T1b" || p.threatClass === "T2a" || p.threatClass === "T2b"
     );
-    for (const p of grbProtocols) {
+    expect(zeroWarning.length).toBeGreaterThanOrEqual(3);
+    for (const p of zeroWarning) {
       expect(p.maxResponseLatencyYears).toBe(0);
     }
   });
@@ -383,5 +384,17 @@ describe("DISTRIBUTION_REQUIREMENTS", () => {
 
   it("requires coverage across at least 3 galactic arms", () => {
     expect(DISTRIBUTION_REQUIREMENTS.minGalacticArms).toBeGreaterThanOrEqual(3);
+  });
+
+  it("defines safetyMarginMultiplier as 10", () => {
+    expect(DISTRIBUTION_REQUIREMENTS.safetyMarginMultiplier).toBe(10);
+  });
+
+  it("defines galaxyRadiusLy as 50000", () => {
+    expect(DISTRIBUTION_REQUIREMENTS.galaxyRadiusLy).toBe(50_000);
+  });
+
+  it("defines galaxyThicknessLy as 1000", () => {
+    expect(DISTRIBUTION_REQUIREMENTS.galaxyThicknessLy).toBe(1_000);
   });
 });
