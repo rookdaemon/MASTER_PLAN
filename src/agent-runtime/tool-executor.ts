@@ -972,17 +972,26 @@ function handleReflect(
 
   const results: string[] = [];
 
-  // 1. Store experience
+  // 1. Store experience (with dedup — update existing memory if same topic exists)
   if (deps.memorySystem) {
-    const entry = deps.memorySystem.semantic.store({
-      topic: topic ?? 'reflection',
-      content: experience,
-      relationships: [],
-      sourceEpisodeIds: [],
-      confidence: 0.7,
-      embedding: null,
-    });
-    results.push(`Memory stored (id: ${entry.id})`);
+    const effectiveTopic = topic ?? 'reflection';
+    const existing = deps.memorySystem.semantic.getByTopic(effectiveTopic);
+    if (existing.length > 0) {
+      // Update the most recent entry with the same topic instead of creating a duplicate
+      const latest = existing[existing.length - 1];
+      deps.memorySystem.semantic.update(latest.id, { content: experience });
+      results.push(`Memory updated (id: ${latest.id}, topic: ${effectiveTopic})`);
+    } else {
+      const entry = deps.memorySystem.semantic.store({
+        topic: effectiveTopic,
+        content: experience,
+        relationships: [],
+        sourceEpisodeIds: [],
+        confidence: 0.7,
+        embedding: null,
+      });
+      results.push(`Memory stored (id: ${entry.id})`);
+    }
   } else {
     results.push('Memory storage skipped (no memory system)');
   }

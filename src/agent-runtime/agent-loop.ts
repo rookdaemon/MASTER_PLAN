@@ -920,6 +920,17 @@ export class AgentLoop implements IAgentLoop {
       }
     }
 
+    // Inject existing memory topics so the agent knows what it's already explored
+    if (this._memorySystem) {
+      const allTopics = this._memorySystem.semantic.all().map(e => e.topic);
+      const uniqueTopics = [...new Set(allTopics)].sort();
+      if (uniqueTopics.length > 0) {
+        promptParts.push('');
+        promptParts.push('## Topics I already have memories about (do NOT re-explore these — build on them or explore something NEW):');
+        promptParts.push(`  ${uniqueTopics.join(', ')}`);
+      }
+    }
+
     promptParts.push('');
     promptParts.push('I should use my tools to take meaningful NEW action on these drives.');
     promptParts.push('DO NOT call introspect if I already know my state from context above.');
