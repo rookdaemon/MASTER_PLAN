@@ -90,7 +90,8 @@ export class AgentLoop implements IAgentLoop {
 
   // ── LLM integration ─────────────────────────────────────────
   private _llm: ILlmClient | null = null;
-  private _conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+  /** Per-peer conversation history. Key is peer name (or '_web' / '_stdio' for non-Agora). */
+  private _peerConversationHistories: Map<string, Array<{ role: 'user' | 'assistant'; content: string }>> = new Map();
   private _systemPrompt: string = defaultSystemPrompt();
   private _maxTokens: number = 4096;
 
@@ -624,14 +625,15 @@ export class AgentLoop implements IAgentLoop {
         const mono = this._innerMonologue;
         const raw = rawInputs[0];
         const peerName = raw.metadata?.['peerName'] as string | undefined;
+        const historyKey = peerName ?? (raw.adapterId === 'web-chat' ? '_web' : '_stdio');
         const userText = peerName ? `[${peerName} via agora] ${raw.text}` : raw.text;
 
-        // Log incoming message to per-peer chat history
+        // Log incoming message to per-peer chat history (persistent file)
         if (peerName && this._chatLog) {
           this._chatLog.append({ role: 'peer', peer: peerName, text: raw.text, timestamp: Date.now() });
         }
 
-        // Build prompt with peer conversation context if available
+        // Build prompt with peer conversation context from persistent log
         let contextPrefix = '';
         if (peerName && this._chatLog) {
           const history = this._chatLog.formatForPrompt(peerName, 10);
@@ -645,20 +647,26 @@ export class AgentLoop implements IAgentLoop {
           uptimeMs: Date.now() - this._loopStartMs,
         }) + contextPrefix;
 
-        this._conversationHistory.push({ role: 'user', content: userText });
+        // Use per-peer conversation history — prevents cross-contamination between peers
+        if (!this._peerConversationHistories.has(historyKey)) {
+          this._peerConversationHistories.set(historyKey, []);
+        }
+        const peerHistory = this._peerConversationHistories.get(historyKey)!;
+        peerHistory.push({ role: 'user', content: userText });
+
         mono?.userMessage(userText);
-        dl?.log('llm', `Calling LLM (history=${this._conversationHistory.length} msgs, peer=${peerName ?? 'none'})`);
+        dl?.log('llm', `Calling LLM (history=${peerHistory.length} msgs, peer=${historyKey})`);
         const llmResult = await this._llm.infer(
           enrichedPrompt,
-          [...this._conversationHistory],
+          [...peerHistory],
           this._maxTokens,
         );
         text = llmResult.content;
-        this._conversationHistory.push({ role: 'assistant', content: text });
+        peerHistory.push({ role: 'assistant', content: text });
         mono?.assistantText(text);
         mono?.summary(1, llmResult.promptTokens, llmResult.completionTokens);
 
-        // Log outgoing response to per-peer chat history
+        // Log outgoing response to per-peer chat history (persistent file)
         if (peerName && this._chatLog && text) {
           this._chatLog.append({ role: 'self', peer: peerName, text, timestamp: Date.now() });
         }
