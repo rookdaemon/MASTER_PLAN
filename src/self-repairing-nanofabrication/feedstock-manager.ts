@@ -71,7 +71,14 @@ export function createFeedstockManager(
 
       // Deduct from stock
       const current = stock.get(req.materialType)!;
-      stock.set(req.materialType, current - req.quantity);
+      const newTotal = current - req.quantity;
+      stock.set(req.materialType, newTotal);
+
+      // Recalculate emergency reserve based on new current total
+      emergencyReserve.set(
+        req.materialType,
+        Math.floor(newTotal * emergencyFraction)
+      );
 
       const allocation: FeedstockAllocation = {
         materialType: req.materialType,

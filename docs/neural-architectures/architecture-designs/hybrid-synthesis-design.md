@@ -269,7 +269,7 @@ Following GW-Alpha's Feature 9 (Ignition Dynamics):
 ignited(t) = 1  if max(selection(t)) > theta_ign
              0  otherwise
 
-where theta_ign in [0.3, 0.7] (calibrated per system)
+where theta_ign in [0.5, 0.7] (calibrated per system; lower bound 0.5 per Threshold Registry — values below 0.5 cause continuous broadcast and GA degradation)
 ```
 
 When ignited(t) = 0, the workspace retains its previous state via self-excitation (loop R7).

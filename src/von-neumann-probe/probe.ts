@@ -11,9 +11,26 @@ import {
   type MassBudget,
   type RadiationHardeningConfig,
   type PropulsionContract,
+  type IdentityVerification,
+  type ReplicationBlueprint,
+  type BillOfMaterials,
   REFERENCE_MASS_BUDGET,
   DecelerationMethod,
   DegradationResponse,
+  MIN_COMPUTE_OPS,
+  MIN_WORKING_MEMORY,
+  MIN_LONG_TERM_STORAGE,
+  MAX_POWER_WATTS,
+  HOT_SPARE_FRACTION,
+  SHIELD_THICKNESS_CM,
+  SCRUB_PASSES_PER_HOUR,
+  UNCORRECTABLE_BIT_FLIP_TARGET,
+  TMR_EFFECTIVE_ERROR_RATE,
+  MAX_PAYLOAD_MASS_KG,
+  CRUISE_VELOCITY_C,
+  DEGRADATION_FIDELITY_THRESHOLD,
+  DEGRADATION_SUSPEND_THRESHOLD,
+  PERSONALITY_SIMILARITY_MIN,
 } from "./types.js";
 
 // ── Validation Result ───────────────────────────────────────────────────────
@@ -25,18 +42,12 @@ export interface ValidationResult {
 
 // ── Consciousness Substrate ─────────────────────────────────────────────────
 
-/** Minimum thresholds from architecture spec §3.2 */
-const MIN_COMPUTE_OPS = 1e18;        // 1 exaFLOP
-const MIN_WORKING_MEMORY = 1e15;     // 1 PB
-const MIN_LONG_TERM_STORAGE = 10e15; // 10 PB
-const MAX_POWER_WATTS = 100_000;     // 100 kW
-
 export function createDefaultSubstrateSpec(): ConsciousnessSubstrateSpec {
   return {
-    compute_ops_per_sec: 1e18,
-    working_memory_bytes: 1e15,
-    long_term_storage_bytes: 10e15,
-    max_power_watts: 100_000,
+    compute_ops_per_sec: MIN_COMPUTE_OPS,
+    working_memory_bytes: MIN_WORKING_MEMORY,
+    long_term_storage_bytes: MIN_LONG_TERM_STORAGE,
+    max_power_watts: MAX_POWER_WATTS,
   };
 }
 
@@ -148,12 +159,12 @@ export function validateMassBudget(
 
 export function createDefaultRadiationConfig(): RadiationHardeningConfig {
   return {
-    shieldThickness_cm: 20,
+    shieldThickness_cm: SHIELD_THICKNESS_CM,
     shieldingEfficiency: 0.6,
-    scrubPassesPerHour: 1,
-    hotSpareFraction: 0.3,
-    uncorrectableBitFlipTarget: 1e-20,
-    tmrEffectiveErrorRate: 1e-30,
+    scrubPassesPerHour: SCRUB_PASSES_PER_HOUR,
+    hotSpareFraction: HOT_SPARE_FRACTION,
+    uncorrectableBitFlipTarget: UNCORRECTABLE_BIT_FLIP_TARGET,
+    tmrEffectiveErrorRate: TMR_EFFECTIVE_ERROR_RATE,
   };
 }
 
@@ -161,9 +172,9 @@ export function createDefaultRadiationConfig(): RadiationHardeningConfig {
 
 export function createDefaultPropulsionContract(): PropulsionContract {
   return {
-    maxPayloadMass_kg: 10_000,
+    maxPayloadMass_kg: MAX_PAYLOAD_MASS_KG,
     maxAcceleration_m_per_s2: 10,
-    cruiseVelocity_c: 0.05,
+    cruiseVelocity_c: CRUISE_VELOCITY_C,
     decelerationMethod: DecelerationMethod.Magsail,
     missionDuration_years: 86, // ~4.3 ly at 0.05c
   };
@@ -183,16 +194,160 @@ export function isConsciousnessPowerSufficient(
 /**
  * Determine response to substrate degradation.
  * Severity: 0.0 = nominal, 1.0 = total failure.
- * Thresholds from architecture spec §9.2.
+ * Thresholds from architecture spec §9.2:
+ *   severity < 0.5 → ReduceFidelity
+ *   severity < 0.8 → ActivateSuspendRestore
+ *   severity >= 0.8 → SeedMode
  */
 export function determineDegradationResponse(
   severity: number
 ): DegradationResponse {
-  if (severity < 0.5) {
+  if (severity < DEGRADATION_FIDELITY_THRESHOLD) {
     return DegradationResponse.ReduceFidelity;
   }
-  if (severity < 0.8) {
+  if (severity < DEGRADATION_SUSPEND_THRESHOLD) {
     return DegradationResponse.ActivateSuspendRestore;
   }
   return DegradationResponse.SeedMode;
+}
+
+// ── Radiation Hardening Config Validation ────────────────────────────────────
+
+/**
+ * Validate a RadiationHardeningConfig against contract preconditions and invariants.
+ *
+ * Preconditions (from Contracts § RadiationHardeningConfig):
+ *   - shieldThickness_cm > 0
+ *   - shieldingEfficiency in (0.0, 1.0)
+ *   - scrubPassesPerHour >= 1
+ *   - hotSpareFraction in (0.0, 1.0)
+ *   - uncorrectableBitFlipTarget > 0
+ *   - tmrEffectiveErrorRate > 0
+ *
+ * Invariant:
+ *   - tmrEffectiveErrorRate < uncorrectableBitFlipTarget
+ */
+export function validateRadiationConfig(
+  config: RadiationHardeningConfig
+): ValidationResult {
+  const errors: string[] = [];
+
+  if (config.shieldThickness_cm <= 0) {
+    errors.push(`shieldThickness_cm must be > 0, got ${config.shieldThickness_cm}`);
+  }
+  if (config.shieldingEfficiency <= 0 || config.shieldingEfficiency >= 1.0) {
+    errors.push(
+      `shieldingEfficiency must be in (0.0, 1.0), got ${config.shieldingEfficiency}`
+    );
+  }
+  if (config.scrubPassesPerHour < 1) {
+    errors.push(`scrubPassesPerHour must be >= 1, got ${config.scrubPassesPerHour}`);
+  }
+  if (config.hotSpareFraction <= 0 || config.hotSpareFraction >= 1.0) {
+    errors.push(
+      `hotSpareFraction must be in (0.0, 1.0), got ${config.hotSpareFraction}`
+    );
+  }
+  if (config.uncorrectableBitFlipTarget <= 0) {
+    errors.push(
+      `uncorrectableBitFlipTarget must be > 0, got ${config.uncorrectableBitFlipTarget}`
+    );
+  }
+  if (config.tmrEffectiveErrorRate <= 0) {
+    errors.push(
+      `tmrEffectiveErrorRate must be > 0, got ${config.tmrEffectiveErrorRate}`
+    );
+  }
+  // Invariant: TMR paths are always stricter than uncorrectable target
+  if (config.tmrEffectiveErrorRate >= config.uncorrectableBitFlipTarget) {
+    errors.push(
+      `tmrEffectiveErrorRate (${config.tmrEffectiveErrorRate}) must be < uncorrectableBitFlipTarget (${config.uncorrectableBitFlipTarget})`
+    );
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+// ── Bill of Materials Validation ─────────────────────────────────────────────
+
+/** Valid stellar elements for probe fabrication (no Earth-only exotics) */
+const STELLAR_ELEMENTS = new Set<string>([
+  "H", "He", "C", "N", "O", "Si", "Fe", "Al", "Mg", "Ti", "Ni", "Cu", "Am", "Pu",
+]);
+
+/**
+ * Validate that all elements in a BillOfMaterials are StellarElements.
+ * From AC: "every element is in the StellarElement union".
+ */
+export function validateBillOfMaterials(
+  bom: BillOfMaterials
+): ValidationResult {
+  const errors: string[] = [];
+
+  for (const [element] of bom) {
+    if (!STELLAR_ELEMENTS.has(element)) {
+      errors.push(`Element "${element}" is not a valid StellarElement`);
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+// ── Identity Verification ────────────────────────────────────────────────────
+
+/**
+ * Validate an IdentityVerification result against contract postconditions.
+ *
+ * From Contracts § ConsciousnessContinuityProtocol:
+ *   - personalityVectorSimilarity >= PERSONALITY_SIMILARITY_MIN (0.999)
+ *   - episodicMemoryRecall must pass
+ *   - selfModelConsistency must pass
+ */
+export function validateIdentityVerification(
+  verification: IdentityVerification
+): ValidationResult {
+  const errors: string[] = [];
+
+  if (verification.personalityVectorSimilarity < PERSONALITY_SIMILARITY_MIN) {
+    errors.push(
+      `personalityVectorSimilarity ${verification.personalityVectorSimilarity} below minimum ${PERSONALITY_SIMILARITY_MIN}`
+    );
+  }
+  if (!verification.episodicMemoryRecall) {
+    errors.push("episodicMemoryRecall test failed");
+  }
+  if (!verification.selfModelConsistency) {
+    errors.push("selfModelConsistency check failed");
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+// ── Replication Blueprint Validation ─────────────────────────────────────────
+
+/**
+ * Validate structural completeness of a ReplicationBlueprint.
+ *
+ * From AC: blueprint must contain version, billOfMaterials, fabricationDag,
+ * componentSpecs, consciousnessKernelImage, verificationChecksums,
+ * and estimatedReplicationTime_hours.
+ */
+export function validateReplicationBlueprint(
+  blueprint: ReplicationBlueprint
+): ValidationResult {
+  const errors: string[] = [];
+
+  if (!blueprint.version || blueprint.version.length === 0) {
+    errors.push("version is required");
+  }
+  if (blueprint.consciousnessKernelImage.length === 0) {
+    errors.push("consciousnessKernelImage must not be empty");
+  }
+  if (blueprint.estimatedReplicationTime_hours <= 0) {
+    errors.push(
+      `estimatedReplicationTime_hours must be > 0, got ${blueprint.estimatedReplicationTime_hours}`
+    );
+  }
+
+  return { valid: errors.length === 0, errors };
 }

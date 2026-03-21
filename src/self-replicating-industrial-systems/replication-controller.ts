@@ -20,13 +20,6 @@ import type {
   ReplicationControllerConfig,
 } from "./types.js";
 
-let cycleCounter = 0;
-
-function generateCycleId(): CycleId {
-  cycleCounter++;
-  return `cycle-${cycleCounter}-${Date.now()}`;
-}
-
 /**
  * Create a ReplicationController from the given configuration.
  *
@@ -39,7 +32,15 @@ export function createReplicationController(
   config: ReplicationControllerConfig
 ): ReplicationController {
   const cycles = new Map<CycleId, CycleStatus>();
-  const { feedstock, fabricator, fidelity, energy, seedInstance, energyBudgetWh } = config;
+  const { fabricator, energy, seedInstance, energyBudgetWh, now } = config;
+
+  // Per-controller cycle counter — no shared mutable module state
+  let cycleCounter = 0;
+
+  function generateCycleId(): CycleId {
+    cycleCounter++;
+    return `cycle-${cycleCounter}-${now()}`;
+  }
 
   // Track current generation for the next cycle
   let nextGeneration = seedInstance.generation + 1;
@@ -72,7 +73,7 @@ export function createReplicationController(
         phaseProgress: 0.0,
         energyBudgetWh,
         parentInstanceId: seedInstance.instanceId,
-        startedAt: Date.now(),
+        startedAt: now(),
       };
 
       cycles.set(cycleId, status);

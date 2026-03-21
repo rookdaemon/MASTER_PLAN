@@ -79,6 +79,13 @@ export function calculateSEU_BER(
   fluxPerCm2PerSec: number,
   options?: SEU_BER_Options,
 ): number {
+  if (fluxPerCm2PerSec < 0) {
+    throw new Error("fluxPerCm2PerSec must be non-negative");
+  }
+  if (substrate.seuCrossSection_cm2 <= 0) {
+    throw new Error("substrate.seuCrossSection_cm2 must be > 0");
+  }
+
   const attenuation = options?.shieldingAttenuation ?? DEFAULT_GCR_SHIELDING_ATTENUATION;
   const effectiveFlux = fluxPerCm2PerSec * attenuation;
 

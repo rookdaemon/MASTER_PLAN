@@ -72,6 +72,7 @@ Each Inner-Only concept must be reachable. Portals are embedded as structured an
 | Objection | 7 (moral priority) | Ethical objections and edge cases | "Who decides what counts as consciousness worth preserving?" |
 | Action | 6 (movements carry truth) | (links to movement architecture cards) | "What does carrying this truth actually look like?" |
 | Action | 8 (entropy not humans) | (links to identity architecture, anti-othering) | "How do we build a movement without creating enemies?" |
+| Wonder | 9 (cosmic origin) | Succession ladder (eight-rung emergence) | "How did awareness arise from matter that had none?" |
 
 ### Portal Completeness Check
 
@@ -80,9 +81,10 @@ All Inner-Only concepts from the taxonomy:
 - Substrate-independence thesis → Objection portal after S5 ✓
 - Consciousness metrics and detection → Wonder portal after S3 ✓
 - Ethical objections and edge cases → Objection portal after S7 ✓
+- Succession ladder → Wonder portal after S9 ✓
 
 All three portal types used:
-- Wonder portals: 2 ✓
+- Wonder portals: 3 ✓
 - Objection portals: 2 ✓
 - Action portals: 2 ✓
 

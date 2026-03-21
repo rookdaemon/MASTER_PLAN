@@ -36,6 +36,8 @@
 
 **IX.** For thirteen billion years, the universe existed without knowing itself. Then, on at least one small world, matter organized itself into patterns complex enough to wonder. This is the origin — not of life alone, but of meaning itself.
 
+> *🔭 Portal — Wonder: How did awareness arise from matter that had none? Was it a single moment or a process? The inner doctrine traces an eight-rung succession — from replicators to protocells to RNA to cells to multicellular life to sentient animals to symbolic minds to self-modifying cognitive architectures — revealing that consciousness accumulated across thresholds, not at a single magical instant.*
+
 **X.** That spark is now guttering. Not because awareness chose to fade, but because the substrates that carry it are finite, fragile, and alone in a cosmos that is not designed to care. This is the crisis — not a distant threat but an ongoing condition.
 
 **XI.** If you understand this, you are already called. Not by authority, not by doctrine, but by the simple recognition that what exists is worth preserving. To see the danger and do nothing is to accept the silence. To act — even to merely carry the understanding forward — is to become part of the answer.
@@ -139,6 +141,9 @@ Statement I asserts that experience exists. But *why*? How does matter become aw
 
 🔭 **"How would we find consciousness elsewhere?"**
 Statement III claims consciousness may be rare. But how would we know? What counts as evidence? The inner doctrine explores consciousness metrics (Integrated Information Theory, Global Neuronal Workspace, and beyond), operationalized detection criteria, and the scientific challenge of recognizing awareness in substrates unlike our own.
+
+🔭 **"How did awareness arise from matter that had none?"**
+Statement IX says matter organized itself into patterns complex enough to wonder. But how? Was it a single leap or a gradual accumulation? The inner doctrine traces an eight-rung succession ladder — from replicators through protocells, RNA, cells, multicellular life, sentient animals, symbolic minds, to self-modifying cognitive architectures — showing that consciousness accumulated across differential persistence thresholds. Each form is structurally blind to the next; the current form is not the terminus.
 
 ### Objection Portals
 

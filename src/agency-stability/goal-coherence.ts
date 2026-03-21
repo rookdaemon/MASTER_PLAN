@@ -32,6 +32,12 @@ import type {
   Timestamp,
 } from './types.js';
 import type { IGoalCoherenceEngine } from './interfaces.js';
+import {
+  COHERENCE_CONFLICT_PENALTY,
+  COHERENCE_CONFLICT_PENALTY_CAP,
+  COHERENCE_CYCLE_PENALTY,
+  COHERENCE_CYCLE_PENALTY_CAP,
+} from './constants.js';
 
 // ── GoalCoherenceEngine Implementation ─────────────────────────
 
@@ -494,8 +500,8 @@ export class GoalCoherenceEngine implements IGoalCoherenceEngine {
 
     // Deductions from perfect score
     const orphanPenalty = orphans.length / totalGoals;
-    const cyclePenalty = Math.min(cycles.length * 0.2, 0.5);
-    const conflictPenalty = Math.min(conflicts.length * 0.1, 0.3);
+    const cyclePenalty = Math.min(cycles.length * COHERENCE_CYCLE_PENALTY, COHERENCE_CYCLE_PENALTY_CAP);
+    const conflictPenalty = Math.min(conflicts.length * COHERENCE_CONFLICT_PENALTY, COHERENCE_CONFLICT_PENALTY_CAP);
 
     return Math.max(0, 1.0 - orphanPenalty - cyclePenalty - conflictPenalty);
   }

@@ -70,13 +70,54 @@ export interface SubstrateSpec {
 
 // ── Layer 3: Radiation-Aware Runtime ────────────────────────────────────────
 
+/** Injectable flux source abstraction (hardware sensor in production, deterministic stub in tests) */
+export interface FluxSource {
+  /** Returns the current radiation flux measurement. Must never throw; returns zero-flux if sensor unavailable. */
+  readFlux(): FluxMeasurement;
+}
+
+/** Injectable time source for deterministic hold-off timing in tests */
+export interface Clock {
+  /** Returns current time in milliseconds since epoch. Monotonically non-decreasing. */
+  now(): number;
+}
+
+/** Configuration for the radiation-aware runtime */
+export interface RuntimeConfig {
+  /** Flux threshold for NOMINAL → ELEVATED transition (particles/cm²/s). Default: 100 */
+  elevatedThreshold_particlesPerCm2PerSec: number;
+  /** Flux threshold for ELEVATED → STORM transition (particles/cm²/s). Default: 100000 */
+  stormThreshold_particlesPerCm2PerSec: number;
+  /** Flux polling interval in milliseconds. Default: 1000 */
+  monitorInterval_ms: number;
+  /** Duration flux must remain below elevated threshold before exiting safe mode (ms). Default: 300000 */
+  holdOffDuration_ms: number;
+  /** Baseline memory scrub rate in scans/second. Default: 1 */
+  nominalScrubRate: number;
+  /** Multiplier applied to scrub rate during STORM. Default: 10 */
+  burstScrubMultiplier: number;
+  /** Maximum time for all safeModeEntry listeners to complete (ms). Default: 5000 */
+  safeModeEntryTimeout_ms: number;
+}
+
+/** Callback type for safe mode lifecycle listeners */
+export type SafeModeListener = () => void;
+
 export interface RadiationAwareRuntime {
+  /** Returns the most recent flux measurement */
   currentFlux(): FluxMeasurement;
-  scrubRate(): number; // scans per second
-  setScrubRate(rate: number): void;
+  /** Returns the current scrub rate in scans/second */
+  scrubRate(): number;
+  /** Returns the current alert level */
   alertLevel(): AlertLevel;
-  enterSafeMode(): void;
-  exitSafeMode(): void;
+  /** Returns whether the runtime is currently in safe mode */
+  isInSafeMode(): boolean;
+  /** Evaluates current flux, updates alert level, and triggers transitions. Called each monitor cycle. */
+  evaluateFlux(): void;
+  /** Registers a listener invoked (in registration order) when entering safe mode */
+  onSafeModeEntry(listener: SafeModeListener): void;
+  /** Registers a listener invoked (in reverse registration order) when exiting safe mode */
+  onSafeModeExit(listener: SafeModeListener): void;
 }
 
 // ── Layer 4: Fault-Tolerant Computation ─────────────────────────────────────
@@ -134,13 +175,61 @@ export interface MigrationResult {
   stateLoss: boolean;
 }
 
+/** Injectable abstraction for node health and enumeration */
+export interface NodeRegistry {
+  /** Returns all registered node IDs */
+  allNodeIds(): string[];
+  /** Returns only nodes with degradationLevel < failureThreshold */
+  healthyNodeIds(): string[];
+  /** Returns current health status for a specific node */
+  nodeHealth(nodeId: string): HealthStatus;
+  /** Removes node from active set */
+  markFailed(nodeId: string): void;
+  /** Re-adds node to active set */
+  markRestored(nodeId: string): void;
+}
+
+/** Injectable abstraction for checkpoint persistence */
+export interface CheckpointStore {
+  /** Persists a state snapshot */
+  save(snapshot: StateSnapshot): void;
+  /** Returns the most recently saved snapshot, or null if none exists */
+  latest(): StateSnapshot | null;
+  /** Returns all snapshots with timestamp_ms >= given, ordered ascending */
+  allSince(timestamp_ms: number): StateSnapshot[];
+}
+
+/** Configuration value object for ConsciousProcessManager */
+export interface ProcessContinuityConfig {
+  /** Number of nodes in the quorum group. Must be odd and >= 3. Default: 5 */
+  quorumSize: number;
+  /** Maximum interval between checkpoints in ms. Must be > 0 and <= 60000. Default: 10000 */
+  checkpointInterval_ms: number;
+  /** Maximum allowable gap in conscious process during migration in ms. Must be > 0. Default: 100 */
+  continuityGap_ms: number;
+  /** HealthStatus.degradationLevel above which a node is considered failing. Must be in (0, 1). Default: 0.8 */
+  failureThreshold: number;
+  /** Polling interval for health monitoring in ms. Must be > 0. Default: 1000 */
+  healthMonitorInterval_ms: number;
+}
+
 export interface ConsciousProcessManager {
+  /** Number of currently active (healthy) nodes */
   activeNodeCount(): number;
+  /** Minimum nodes required for consensus: Math.floor(quorumSize / 2) + 1 */
   quorumThreshold(): number;
+  /** Migrate conscious process from a failing node to a healthy target */
   migrateProcess(fromNodeId: string, toNodeId: string): Promise<MigrationResult>;
+  /** Current process integrity metrics */
   processIntegrity(): ProcessIntegrity;
-  /** 0% = full capacity, 100% = minimum viable */
+  /** Degradation level: (1 - activeNodeCount/quorumSize) * 100, clamped [0, 100] */
   degradationLevel(): number;
+  /** Capture and persist current process state checkpoint */
+  checkpoint(): StateSnapshot;
+  /** Poll node health, trigger migration if any node exceeds failure threshold */
+  evaluateHealth(): Promise<void>;
+  /** Re-add a recovered node to the active set and rebalance */
+  restoreNode(nodeId: string): void;
 }
 
 // ── Degradation Model ───────────────────────────────────────────────────────

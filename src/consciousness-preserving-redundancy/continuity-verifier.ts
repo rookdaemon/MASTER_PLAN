@@ -53,10 +53,31 @@ export type ContinuityVerifierImpl = ConsciousnessContinuityVerifier;
 export function createContinuityVerifier(): ContinuityVerifierImpl {
   const log: ContinuityEvent[] = [];
 
+  function validateState(state: ConsciousState, label: string): void {
+    if (state.memoryState.length === 0) {
+      throw new Error(`${label}: memoryState buffer must not be empty`);
+    }
+    if (state.registerState.length === 0) {
+      throw new Error(`${label}: registerState buffer must not be empty`);
+    }
+    if (state.dynamicalVariables.length === 0) {
+      throw new Error(`${label}: dynamicalVariables buffer must not be empty`);
+    }
+    if (state.temporalContextBuffer.length === 0) {
+      throw new Error(
+        `${label}: temporalContextBuffer buffer must not be empty`
+      );
+    }
+  }
+
   function measureContinuity(
     before: ConsciousState,
     after: ConsciousState
   ): ContinuityMetrics {
+    // Precondition: both states must have non-empty byte arrays
+    validateState(before, "before");
+    validateState(after, "after");
+
     const temporalGap_ms = Math.abs(after.timestamp_ms - before.timestamp_ms);
 
     // Composite state divergence: average divergence across all state buffers

@@ -8,6 +8,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TransmissionProtocol } from '../transmission-protocol';
 import { MemeCodec } from '../meme-codec';
+import { ICulturalEnvironment } from '../environment';
 import {
   MemeType,
   TransmissionTarget,
@@ -16,6 +17,17 @@ import {
   TransmissionScope,
   AdoptionDecision,
 } from '../types';
+
+// ─── Mock Environment ─────────────────────────────────────────────────
+
+function createMockEnvironment(): ICulturalEnvironment {
+  let callCount = 0;
+  return {
+    nowTimestamp: () => `2026-01-01T00:00:0${callCount++}.000Z`,
+    nowMillis: () => 1735689600000 + callCount++,
+    random: () => 0.42,
+  };
+}
 
 // ─── Test Helpers ──────────────────────────────────────────────────────
 
@@ -44,9 +56,26 @@ describe('TransmissionProtocol', () => {
   let testMeme: Meme;
 
   beforeEach(() => {
-    protocol = new TransmissionProtocol();
-    codec = new MemeCodec();
+    const mockEnv = createMockEnvironment();
+    protocol = new TransmissionProtocol(mockEnv);
+    codec = new MemeCodec(mockEnv);
     testMeme = codec.encode(makeTrait());
+  });
+
+  // ─── Encoding Guards ──────────────────────────────────────────────────
+
+  describe('MemeCodec.encode() precondition guard', () => {
+    it('should throw if semantic_content is empty', () => {
+      expect(() => codec.encode(makeTrait({ semantic_content: '' }))).toThrow(
+        'encode() requires a CulturalTrait with non-empty semantic_content'
+      );
+    });
+
+    it('should throw if semantic_content is whitespace-only', () => {
+      expect(() => codec.encode(makeTrait({ semantic_content: '   ' }))).toThrow(
+        'encode() requires a CulturalTrait with non-empty semantic_content'
+      );
+    });
   });
 
   // ─── Broadcasting ────────────────────────────────────────────────────

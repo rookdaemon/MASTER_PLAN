@@ -13,6 +13,52 @@
  *   PI — Propulsion Interface
  */
 
+// ── Threshold Registry ──────────────────────────────────────────────────────
+// All named constants from the architecture spec's Threshold Registry.
+// See plan/0.4.2.1-von-neumann-probe-architectures.md § Threshold Registry.
+
+/** Minimum compute: 1 exaFLOP for whole-brain emulation (ops/s) */
+export const MIN_COMPUTE_OPS = 1e18;
+
+/** Minimum working memory: 1 PB for conscious state + episodic memory (bytes) */
+export const MIN_WORKING_MEMORY = 1e15;
+
+/** Minimum long-term storage: 10 PB for blueprint + knowledge archive (bytes) */
+export const MIN_LONG_TERM_STORAGE = 10e15;
+
+/** Maximum transit power draw: 100 kW ceiling from energy subsystem (watts) */
+export const MAX_POWER_WATTS = 100_000;
+
+/** Hot spare fraction: 30% overcapacity for radiation damage failover */
+export const HOT_SPARE_FRACTION = 0.30;
+
+/** Graded-Z shield thickness reducing GCR flux ~60% (cm) */
+export const SHIELD_THICKNESS_CM = 20;
+
+/** Memory scrubbing frequency for bit-flip correction (passes/hr) */
+export const SCRUB_PASSES_PER_HOUR = 1;
+
+/** Target for < 1 uncorrectable error/century across 1 PB (per bit per sec) */
+export const UNCORRECTABLE_BIT_FLIP_TARGET = 1e-20;
+
+/** TMR effective error rate on consciousness-critical paths (per bit per sec) */
+export const TMR_EFFECTIVE_ERROR_RATE = 1e-30;
+
+/** Maximum probe payload mass for propulsion compatibility (kg) */
+export const MAX_PAYLOAD_MASS_KG = 10_000;
+
+/** Target cruise velocity as fraction of c */
+export const CRUISE_VELOCITY_C = 0.05;
+
+/** Degradation severity threshold: below this → ReduceFidelity */
+export const DEGRADATION_FIDELITY_THRESHOLD = 0.5;
+
+/** Degradation severity threshold: below this → ActivateSuspendRestore; at or above → SeedMode */
+export const DEGRADATION_SUSPEND_THRESHOLD = 0.8;
+
+/** Identity verification: minimum personality vector cosine similarity */
+export const PERSONALITY_SIMILARITY_MIN = 0.999;
+
 // ── Element & Material Types ────────────────────────────────────────────────
 
 /** Elements abundant in stellar systems, usable for probe fabrication */

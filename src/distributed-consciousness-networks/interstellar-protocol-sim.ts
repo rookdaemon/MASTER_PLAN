@@ -38,6 +38,9 @@ const PRIORITY_ORDER: Record<Priority, number> = {
   LOW: 1,
 };
 
+/** Default time-to-live in relay hops — prevents infinite routing loops (Threshold Registry) */
+const TTL_HOPS = 5;
+
 const MESSAGE_TYPE_PRIORITY: Record<MessageType, Priority> = {
   DISTRESS: "EXISTENTIAL",
   GOVERNANCE: "HIGH",
@@ -138,7 +141,7 @@ class ConsciousNode {
     destination: NodeId,
     type: MessageType,
     payload: string,
-    ttl: number = 5
+    ttl: number = TTL_HOPS
   ): InterstellarMessage {
     const ts = this.clock.tick();
     const msg: InterstellarMessage = {

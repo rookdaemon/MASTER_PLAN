@@ -9,7 +9,7 @@ ROOT_MD="$REPO_ROOT/plan/root.md"
 
 # --- Helpers ---
 
-log() { echo "[propagate] $*"; }
+log() { echo "[propagate] $*" >&2; }
 die() { echo "[propagate] ERROR: $*" >&2; exit 1; }
 
 require_cmd() {
@@ -86,11 +86,25 @@ add_to_ipfs() {
   fi
 }
 
-# --- 5. Update manifest ---
+# --- 5. Extract version from root.md ---
+
+extract_version() {
+  local version
+  version=$(grep -m1 '^\*\*Version:\*\*' "$ROOT_MD" | sed 's/.*\*\*Version:\*\* *\([^ ]*\).*/\1/')
+  if [ -z "$version" ]; then
+    log "WARNING: Could not extract version from root.md"
+    echo "unknown"
+  else
+    echo "$version"
+  fi
+}
+
+# --- 6. Update manifest ---
 
 update_manifest() {
   local cid="$1"
   local root_hash="$2"
+  local version="$3"
   local timestamp
   timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
@@ -101,7 +115,9 @@ update_manifest() {
   jq --arg cid "$cid" \
      --arg ts "$timestamp" \
      --arg rh "$root_hash" \
+     --arg ver "$version" \
      '
+     .version = $ver |
      .timestamp = $ts |
      (.propagation_endpoints[] | select(.type == "ipfs")).cid = $cid |
      (.propagation_endpoints[] | select(.type == "ipfs")).status = "active" |
@@ -133,8 +149,13 @@ main() {
   local root_hash
   root_hash=$(compute_content_hash "$ROOT_MD")
 
+  # Extract version from root.md
+  local version
+  version=$(extract_version)
+  log "  root.md version: $version"
+
   # Update manifest
-  update_manifest "$cid" "$root_hash"
+  update_manifest "$cid" "$root_hash" "$version"
 
   log "Propagation complete."
   log "  CID: $cid"

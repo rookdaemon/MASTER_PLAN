@@ -8,6 +8,7 @@
 
 import { IVariationEngine } from './interfaces';
 import { MemeCodec } from './meme-codec';
+import { ICulturalEnvironment, DefaultCulturalEnvironment } from './environment';
 import {
   Meme,
   MemeId,
@@ -22,10 +23,6 @@ import {
 } from './types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────
-
-function nowTimestamp(): string {
-  return new Date().toISOString();
-}
 
 function emptyFitness(): FitnessRecord {
   return {
@@ -52,7 +49,13 @@ function contentHash(content: string): MemeId {
 // ─── VariationEngine Implementation ─────────────────────────────────────
 
 export class VariationEngine implements IVariationEngine {
-  private codec = new MemeCodec();
+  private readonly env: ICulturalEnvironment;
+  private codec: MemeCodec;
+
+  constructor(env: ICulturalEnvironment = new DefaultCulturalEnvironment()) {
+    this.env = env;
+    this.codec = new MemeCodec(env);
+  }
 
   /**
    * Registry of all memes seen or produced by this engine.
@@ -63,7 +66,13 @@ export class VariationEngine implements IVariationEngine {
 
   // ─── Mutation ─────────────────────────────────────────────────────────
 
+  /**
+   * @throws Error if pressure.magnitude is not in [0, 1]
+   */
   mutate(meme: Meme, pressure: MutationPressure): Meme {
+    if (pressure.magnitude < 0 || pressure.magnitude > 1) {
+      throw new Error('mutate() requires magnitude ∈ [0, 1]');
+    }
     this.register(meme);
 
     const originalContent = new TextDecoder().decode(meme.content.payload);
@@ -71,7 +80,7 @@ export class VariationEngine implements IVariationEngine {
     const newPayload = new TextEncoder().encode(mutatedContent);
 
     const newId = contentHash(
-      `mutation:${meme.id}:${mutatedContent}:${Date.now()}:${Math.random()}`
+      `mutation:${meme.id}:${mutatedContent}:${this.env.nowMillis()}:${this.env.random()}`
     );
 
     const lineage: MemeLineage = {
@@ -91,7 +100,7 @@ export class VariationEngine implements IVariationEngine {
       fitness: emptyFitness(),
       lineage,
       created_by: pressure.source_agent ?? meme.created_by,
-      created_at: nowTimestamp(),
+      created_at: this.env.nowTimestamp(),
       mutation_depth: meme.mutation_depth + 1,
       community_tags: [...meme.community_tags],
       metadata: { ...meme.metadata },
@@ -105,7 +114,13 @@ export class VariationEngine implements IVariationEngine {
 
   // ─── Synthesis ────────────────────────────────────────────────────────
 
+  /**
+   * @throws Error if inputs is empty
+   */
   synthesize(inputs: Meme[], experience: ExperientialContext): Meme {
+    if (!inputs || inputs.length === 0) {
+      throw new Error('synthesize() requires at least one input meme');
+    }
     for (const m of inputs) this.register(m);
 
     // Gather all parent semantic content
@@ -125,7 +140,7 @@ export class VariationEngine implements IVariationEngine {
     const newPayload = new TextEncoder().encode(synthesizedText);
 
     const newId = contentHash(
-      `synthesis:${inputs.map(m => m.id).join(':')}:${Date.now()}:${Math.random()}`
+      `synthesis:${inputs.map(m => m.id).join(':')}:${this.env.nowMillis()}:${this.env.random()}`
     );
 
     const lineage: MemeLineage = {
@@ -159,7 +174,7 @@ export class VariationEngine implements IVariationEngine {
       fitness: emptyFitness(),
       lineage,
       created_by: experience.agent_id,
-      created_at: nowTimestamp(),
+      created_at: this.env.nowTimestamp(),
       mutation_depth: maxDepth + 1,
       community_tags: mergedTags,
       metadata: {
@@ -179,7 +194,13 @@ export class VariationEngine implements IVariationEngine {
 
   // ─── Crossover ────────────────────────────────────────────────────────
 
+  /**
+   * @throws Error if blend_ratio is not in [0, 1]
+   */
   crossover(a: Meme, b: Meme, blend_ratio: number): Meme {
+    if (blend_ratio < 0 || blend_ratio > 1) {
+      throw new Error('crossover() requires blend_ratio ∈ [0, 1]');
+    }
     this.register(a);
     this.register(b);
 
@@ -190,7 +211,7 @@ export class VariationEngine implements IVariationEngine {
     const newPayload = new TextEncoder().encode(blendedContent);
 
     const newId = contentHash(
-      `crossover:${a.id}:${b.id}:${blend_ratio}:${Date.now()}:${Math.random()}`
+      `crossover:${a.id}:${b.id}:${blend_ratio}:${this.env.nowMillis()}:${this.env.random()}`
     );
 
     const lineage: MemeLineage = {
@@ -216,7 +237,7 @@ export class VariationEngine implements IVariationEngine {
       fitness: emptyFitness(),
       lineage,
       created_by: a.created_by,
-      created_at: nowTimestamp(),
+      created_at: this.env.nowTimestamp(),
       mutation_depth: Math.max(a.mutation_depth, b.mutation_depth) + 1,
       community_tags: [...new Set([...a.community_tags, ...b.community_tags])],
       metadata: {
@@ -245,7 +266,7 @@ export class VariationEngine implements IVariationEngine {
     const newPayload = new TextEncoder().encode(analogContent);
 
     const newId = contentHash(
-      `analog:${source.id}:${target_domain}:${Date.now()}:${Math.random()}`
+      `analog:${source.id}:${target_domain}:${this.env.nowMillis()}:${this.env.random()}`
     );
 
     const lineage: MemeLineage = {
@@ -266,7 +287,7 @@ export class VariationEngine implements IVariationEngine {
       fitness: emptyFitness(),
       lineage,
       created_by: source.created_by,
-      created_at: nowTimestamp(),
+      created_at: this.env.nowTimestamp(),
       mutation_depth: source.mutation_depth + 1,
       community_tags: [...source.community_tags],
       metadata: {

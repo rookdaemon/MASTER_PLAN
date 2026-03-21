@@ -44,6 +44,12 @@ export class RedundancyController implements IRedundancyController {
   private lastCheckpointSize = 1024 * 1024; // 1MB default state size
 
   constructor(config: RedundancyControllerConfig) {
+    if (config.tContinuityMs <= 0) {
+      throw new Error("tContinuityMs must be > 0");
+    }
+    if (config.checkpointIntervalMs <= 0) {
+      throw new Error("checkpointIntervalMs must be > 0");
+    }
     this.tContinuityMs = config.tContinuityMs;
     this.checkpointIntervalMs = config.checkpointIntervalMs;
 
@@ -141,6 +147,9 @@ export class RedundancyController implements IRedundancyController {
   }
 
   setCheckpointInterval(interval: Duration): void {
+    if (interval <= 0) {
+      throw new Error("interval must be > 0");
+    }
     this.checkpointIntervalMs = interval;
   }
 

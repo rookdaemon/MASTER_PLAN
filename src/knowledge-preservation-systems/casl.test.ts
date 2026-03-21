@@ -27,6 +27,9 @@ import type {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Fixed timestamp for deterministic tests. */
+const NOW = 5000;
+
 function makeItem(content: string, overrides?: Partial<KnowledgeItem>): KnowledgeItem {
   return createKnowledgeItem({
     content,
@@ -102,7 +105,7 @@ describe('ContentAddressedStorageLayer', () => {
 
   it('stores and retrieves an item by hash', () => {
     const item = makeItem('knowledge A');
-    casl.store(item);
+    casl.store(item, NOW);
     const retrieved = casl.get(item.id);
     expect(retrieved).toEqual(item);
   });
@@ -115,8 +118,8 @@ describe('ContentAddressedStorageLayer', () => {
     const item1 = makeItem('duplicate me');
     const item2 = makeItem('duplicate me');
     expect(item1.id).toBe(item2.id);
-    casl.store(item1);
-    casl.store(item2); // should not throw, just dedup
+    casl.store(item1, NOW);
+    casl.store(item2, NOW); // should not throw, just dedup
     expect(casl.itemCount()).toBe(1);
   });
 
@@ -124,20 +127,20 @@ describe('ContentAddressedStorageLayer', () => {
 
   it('rejects overwrites of existing items with different metadata', () => {
     const item = makeItem('immutable content');
-    casl.store(item);
+    casl.store(item, NOW);
 
     const altered = { ...item, contentType: 'application/json' };
-    expect(() => casl.store(altered)).toThrow(/immutable|overwrite/i);
+    expect(() => casl.store(altered, NOW)).toThrow(/immutable|overwrite/i);
   });
 
   // ── Version Chains ────────────────────────────────────────────────────
 
   it('supports version chains — new item links to predecessor', () => {
     const v1 = makeItem('version 1');
-    casl.store(v1);
+    casl.store(v1, NOW);
 
     const v2 = makeItem('version 2', { versionChain: v1.id } as any);
-    casl.store(v2);
+    casl.store(v2, NOW);
 
     expect(v2.versionChain).toBe(v1.id);
     const history = casl.history(v2.id);
@@ -148,7 +151,7 @@ describe('ContentAddressedStorageLayer', () => {
 
   it('history returns single item for genesis items', () => {
     const item = makeItem('genesis');
-    casl.store(item);
+    casl.store(item, NOW);
     const history = casl.history(item.id);
     expect(history).toHaveLength(1);
     expect(history[0].id).toBe(item.id);
@@ -158,7 +161,7 @@ describe('ContentAddressedStorageLayer', () => {
 
   it('tracks replication status for stored items', () => {
     const item = makeItem('replicated');
-    casl.store(item);
+    casl.store(item, NOW);
     const status = casl.replicationStatus(item.id);
     expect(status).not.toBeNull();
     expect(status!.currentCopies).toBe(1);
@@ -168,7 +171,7 @@ describe('ContentAddressedStorageLayer', () => {
 
   it('registers remote copies and updates replication count', () => {
     const item = makeItem('multi-node');
-    casl.store(item);
+    casl.store(item, NOW);
     casl.registerRemoteCopy(item.id, 'node-2');
     casl.registerRemoteCopy(item.id, 'node-3');
     casl.registerRemoteCopy(item.id, 'node-4');
@@ -181,8 +184,8 @@ describe('ContentAddressedStorageLayer', () => {
   it('lists items below replication threshold', () => {
     const a = makeItem('item-a');
     const b = makeItem('item-b');
-    casl.store(a);
-    casl.store(b);
+    casl.store(a, NOW);
+    casl.store(b, NOW);
 
     // Bring a above threshold
     casl.registerRemoteCopy(a.id, 'node-2');
@@ -198,27 +201,31 @@ describe('ContentAddressedStorageLayer', () => {
 
   it('records tamper anomaly on overwrite attempt', () => {
     const item = makeItem('tamper target');
-    casl.store(item);
+    casl.store(item, NOW);
 
+    const tamperTime = 6000;
     const altered = { ...item, contentType: 'application/xml' };
-    try { casl.store(altered); } catch { /* expected */ }
+    try { casl.store(altered, tamperTime); } catch { /* expected */ }
 
     const anomalies = casl.tamperAnomalies();
     expect(anomalies).toHaveLength(1);
     expect(anomalies[0].affectedItemId).toBe(item.id);
     expect(anomalies[0].attemptingNodeId).toBe('node-1');
+    expect(anomalies[0].detectedAt).toBe(tamperTime);
   });
 
   // ── Merkle Manifest ───────────────────────────────────────────────────
 
   it('generates a Merkle manifest of all stored item IDs', () => {
-    casl.store(makeItem('one'));
-    casl.store(makeItem('two'));
-    casl.store(makeItem('three'));
+    casl.store(makeItem('one'), NOW);
+    casl.store(makeItem('two'), NOW);
+    casl.store(makeItem('three'), NOW);
 
-    const manifest = casl.merkleManifest();
+    const manifestTime = 7000;
+    const manifest = casl.merkleManifest(manifestTime);
     expect(manifest.itemIds).toHaveLength(3);
     expect(manifest.nodeId).toBe('node-1');
     expect(manifest.merkleRoot.length).toBeGreaterThan(0);
+    expect(manifest.generatedAt).toBe(manifestTime);
   });
 });

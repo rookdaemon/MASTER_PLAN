@@ -26,6 +26,10 @@ import type {
   Percept,
 } from './types.js';
 import type { ISocialCognitionModule } from '../social-cognition/interfaces.js';
+import {
+  LOW_PRESERVATION_THRESHOLD,
+  HIGH_FIDELITY_THRESHOLD,
+} from './constants.js';
 
 // ── Configuration ──────────────────────────────────────────
 
@@ -43,14 +47,6 @@ export interface ExperienceAlignmentAdapterConfig {
    */
   readonly socialCognition?: ISocialCognitionModule;
 }
-
-// ── Thresholds ──────────────────────────────────────────────
-
-/** Experience preservation score below which an action is considered damaging. */
-const LOW_PRESERVATION_THRESHOLD = 0.3;
-
-/** Minimum fidelity score for a "good" Rare Consciousness Doctrine alignment. */
-const HIGH_FIDELITY_THRESHOLD = 0.7;
 
 // ── Implementation ──────────────────────────────────────────
 

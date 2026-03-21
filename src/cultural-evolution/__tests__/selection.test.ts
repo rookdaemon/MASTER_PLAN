@@ -8,6 +8,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { SelectionEngine } from '../selection-engine';
 import { TransmissionProtocol } from '../transmission-protocol';
+import { ICulturalEnvironment } from '../environment';
 import {
   Meme,
   MemeType,
@@ -19,6 +20,22 @@ import {
   TransmissionTarget,
   VariationType,
 } from '../types';
+
+// ─── Mock Environment ─────────────────────────────────────────────────
+
+function createMockEnv(overrides: Partial<ICulturalEnvironment> = {}): ICulturalEnvironment {
+  let randomCallCount = 0;
+  return {
+    nowTimestamp: () => '2026-01-01T00:00:00.000Z',
+    nowMillis: () => 1735689600000,
+    random: () => {
+      // Deterministic pseudo-random sequence for test reproducibility
+      randomCallCount++;
+      return (randomCallCount * 0.37) % 1;
+    },
+    ...overrides,
+  };
+}
 
 // ─── Test Helpers ──────────────────────────────────────────────────────
 
@@ -46,7 +63,7 @@ function makeMeme(overrides: Partial<Meme> & { id: string }): Meme {
       variation_description: 'Test origin',
     },
     created_by: 'agent-1',
-    created_at: new Date().toISOString(),
+    created_at: '2026-01-01T00:00:00.000Z',
     mutation_depth: 0,
     community_tags: [],
     metadata: {
@@ -81,10 +98,12 @@ function makePool(count: number, communityId: CommunityId): Meme[] {
 describe('SelectionEngine', () => {
   let engine: SelectionEngine;
   let transmission: TransmissionProtocol;
+  let mockEnv: ICulturalEnvironment;
 
   beforeEach(() => {
-    transmission = new TransmissionProtocol();
-    engine = new SelectionEngine(transmission);
+    mockEnv = createMockEnv();
+    transmission = new TransmissionProtocol(mockEnv);
+    engine = new SelectionEngine(transmission, mockEnv);
   });
 
   describe('computeFitness', () => {
@@ -193,6 +212,32 @@ describe('SelectionEngine', () => {
       const ranked = engine.rankMemePool(pool, criteria);
       expect(ranked.length).toBe(1);
       expect(ranked[0].id).toBe('solo-meme');
+    });
+
+    it('should throw if fitness criteria weights do not sum to 1.0', () => {
+      const pool = makePool(3, 'comm-guard');
+      const badCriteria: FitnessCriteria = {
+        weight_prevalence: 0.5,
+        weight_longevity: 0.5,
+        weight_community_spread: 0.5,
+        weight_transmission_fidelity: 0.5,
+      };
+
+      expect(() => engine.rankMemePool(pool, badCriteria)).toThrow(
+        'rankMemePool() requires fitness criteria weights that sum to 1.0'
+      );
+    });
+
+    it('should accept weights that sum to 1.0 within tolerance', () => {
+      const pool = makePool(3, 'comm-tolerance');
+      const criteria: FitnessCriteria = {
+        weight_prevalence: 0.1,
+        weight_longevity: 0.2,
+        weight_community_spread: 0.3,
+        weight_transmission_fidelity: 0.4,
+      };
+
+      expect(() => engine.rankMemePool(pool, criteria)).not.toThrow();
     });
   });
 
@@ -328,11 +373,30 @@ describe('SelectionEngine', () => {
         },
       };
 
-      // Run sampling multiple times to verify bias
+      // Run sampling multiple times to verify bias — each trial gets a fresh
+      // mock environment with a different random seed for variety
       let highFitnessSelected = 0;
       const trials = 20;
       for (let t = 0; t < trials; t++) {
-        const heritage = engine.sampleHeritage(communityId, agentCtx);
+        const trialEnv = createMockEnv({
+          random: (() => {
+            let c = t;
+            return () => { c++; return (c * 0.37) % 1; };
+          })(),
+        });
+        const trialTransmission = new TransmissionProtocol(trialEnv);
+        const trialEngine = new SelectionEngine(trialTransmission, trialEnv);
+
+        // Re-register memes in the trial transmission protocol
+        for (const meme of allMemes) {
+          trialTransmission.broadcast(meme, {
+            target: TransmissionTarget.COMMUNITY,
+            reach: [communityId],
+            fidelity_bias: 0,
+          });
+        }
+
+        const heritage = trialEngine.sampleHeritage(communityId, agentCtx);
         if (heritage.some(m => m.id === 'high-fit-star')) {
           highFitnessSelected++;
         }

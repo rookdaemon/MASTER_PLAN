@@ -403,3 +403,15 @@ export const LATENCY_BUDGET = {
   /** Adaptive remapping: modality change to stable experience < 2000ms */
   ADAPTIVE_REMAPPING: 2000 * NS_PER_MS,
 } as const;
+
+/**
+ * Minimum consciousness stability score for remapping to proceed.
+ * Below this, Experience Continuity Guard blocks transitions.
+ */
+export const MIN_STABILITY_THRESHOLD: StabilityScore = 0.7;
+
+/**
+ * Below this confidence, predictions are considered unreliable.
+ * Defines the maximum reliable prediction horizon boundary.
+ */
+export const PREDICTION_RELIABLE_CONFIDENCE: Confidence = 0.5;

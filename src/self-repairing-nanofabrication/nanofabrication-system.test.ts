@@ -299,6 +299,69 @@ describe("NanofabricationSystem", () => {
       expect(reports.every((r) => r.status === RepairStatus.Success)).toBe(true);
     });
 
+    it("repairs CRITICAL regions before MEDIUM regions (Scenario 4 priority ordering)", async () => {
+      // region-01 = MEDIUM severity, region-02 = CRITICAL severity
+      // System should repair region-02 first despite region-01 appearing first in config
+      const repairOrder: string[] = [];
+
+      const damagedSensor = {
+        read(regionId: string): SensorReading {
+          const deviation = regionId === "region-02" ? 0.95 : 0.35;
+          return {
+            regionId,
+            sensorType: SensorType.MolecularStrain,
+            timestamp_ms: Date.now(),
+            value: 1.0 - deviation,
+            baseline: 1.0,
+            deviation,
+          };
+        },
+        evaluate: createDamageSensor({
+          regions: ["region-01", "region-02"],
+          sensorType: SensorType.MolecularStrain,
+        }).evaluate,
+      };
+
+      const trackingActuator = createRepairActuator({ verify: () => true });
+      const originalRepair = trackingActuator.repair.bind(trackingActuator);
+      const wrappedActuator: typeof trackingActuator = {
+        async repair(order, feedstock) {
+          repairOrder.push(order.regionId);
+          return originalRepair(order, feedstock);
+        },
+      };
+
+      const system = createNanofabricationSystem({
+        regions: ["region-01", "region-02"],
+        sensor: damagedSensor,
+        diagnosisEngine: createDiagnosisEngine({
+          assessImpact: () => ({
+            activeProcesses: ["proc-1"],
+            criticality: 0.5,
+            redundancyAvailable: true,
+          }),
+        }),
+        feedstockManager: createFeedstockManager({
+          materials: [{ materialType: "silicon", initialQuantity: 1000 }],
+          reservoirId: "reservoir-main",
+          emergencyReserveFraction: 0.1,
+        }),
+        repairActuator: wrappedActuator,
+        hotSwapCoordinator: createHotSwapCoordinator({
+          redundancyLayer: makeRedundancyLayer(),
+        }),
+      });
+
+      const reports = await system.runCycle();
+
+      // Both repairs succeed
+      expect(reports).toHaveLength(2);
+      expect(reports.every((r) => r.status === RepairStatus.Success)).toBe(true);
+
+      // CRITICAL (region-02) must be repaired before MEDIUM (region-01)
+      expect(repairOrder).toEqual(["region-02", "region-01"]);
+    });
+
     it("sustains multiple consecutive detect-diagnose-repair cycles", async () => {
       let cycleCount = 0;
       const damagedSensor = {

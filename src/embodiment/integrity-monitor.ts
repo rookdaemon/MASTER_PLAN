@@ -112,6 +112,9 @@ export class IntegrityMonitor implements IIntegrityMonitor {
   }
 
   getConsciousnessRiskForecast(horizon: Duration): RiskForecast {
+    if (horizon <= 0) {
+      throw new Error("horizon must be > 0");
+    }
     const current = this.computeAlertLevel();
     const threats = this.identifyActiveThreats();
     const riskFactors: string[] = [];

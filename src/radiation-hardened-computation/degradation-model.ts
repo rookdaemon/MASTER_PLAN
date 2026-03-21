@@ -54,6 +54,16 @@ export function simulateDegradation(
   years: number,
   stepSize_years: number = 10,
 ): DegradationModelResult[] {
+  if (years <= 0) {
+    throw new Error("years must be > 0");
+  }
+  if (stepSize_years <= 0) {
+    throw new Error("stepSize_years must be > 0");
+  }
+  if (params.operatingTemp_K <= 0) {
+    throw new Error("operatingTemp_K must be > 0");
+  }
+
   const { substrate, annualDose_rad, particleFlux_per_cm2_per_s, operatingTemp_K } = params;
   const results: DegradationModelResult[] = [];
 

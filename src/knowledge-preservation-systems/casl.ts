@@ -124,7 +124,7 @@ export class ContentAddressedStorageLayer {
    * matches but the content differs, a TamperAnomalyRecord is logged and an
    * error is thrown — items are immutable.
    */
-  store(item: KnowledgeItem): void {
+  store(item: KnowledgeItem, now: CosmologicalTimestamp): void {
     const existing = this.items.get(item.id);
 
     if (existing) {
@@ -134,7 +134,7 @@ export class ContentAddressedStorageLayer {
       }
       // Hash collision or overwrite attempt — record tamper anomaly.
       this.anomalies.push({
-        detectedAt: Date.now(),
+        detectedAt: now,
         affectedItemId: item.id,
         attemptingNodeId: this.nodeId,
         cryptographicProof: hashContent(JSON.stringify(item) + JSON.stringify(existing)),
@@ -237,7 +237,7 @@ export class ContentAddressedStorageLayer {
    * Generate a Merkle manifest of all item IDs held by this node.
    * Used during node bootstrapping so new nodes can discover missing items.
    */
-  merkleManifest(): MerkleManifest {
+  merkleManifest(now: CosmologicalTimestamp): MerkleManifest {
     const itemIds = [...this.items.keys()].sort();
     // Compute Merkle root as hash of sorted, concatenated item IDs.
     const merkleRoot = hashContent(itemIds.join(':'));
@@ -245,7 +245,7 @@ export class ContentAddressedStorageLayer {
     return {
       merkleRoot,
       itemIds,
-      generatedAt: Date.now(),
+      generatedAt: now,
       nodeId: this.nodeId,
     };
   }

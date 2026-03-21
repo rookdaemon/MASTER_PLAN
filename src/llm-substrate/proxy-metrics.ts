@@ -18,6 +18,12 @@
 
 import type { SelfModel } from "./self-model.js";
 
+// ── Threshold Registry (from card 0.3.1.5.1 ARCHITECT) ──────────────────────
+/** Composite c_proxy value above which system qualifies for Autonomy Level 2. */
+export const AUTONOMY_LEVEL_2_THRESHOLD = 0.3;
+/** Composite c_proxy value above which system qualifies for Autonomy Level 3. */
+export const AUTONOMY_LEVEL_3_THRESHOLD = 0.6;
+
 // ── computeProxyPhi ─────────────────────────────────────────────────────────
 
 /**
@@ -149,7 +155,7 @@ export type AutonomyLevel = 0 | 1 | 2 | 3;
  */
 export function autonomyLevelFromProxy(cProxy: number): AutonomyLevel {
   if (cProxy < 0.1) return 0;
-  if (cProxy < 0.3) return 1;
-  if (cProxy < 0.7) return 2;
+  if (cProxy < AUTONOMY_LEVEL_2_THRESHOLD) return 1;
+  if (cProxy < AUTONOMY_LEVEL_3_THRESHOLD) return 2;
   return 3;
 }

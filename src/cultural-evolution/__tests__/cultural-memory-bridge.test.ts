@@ -8,12 +8,24 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CulturalMemoryBridge } from '../cultural-memory-bridge';
 import { MemeCodec } from '../meme-codec';
+import { ICulturalEnvironment } from '../environment';
 import {
   Meme,
   MemeType,
   MemeFilter,
   VariationType,
 } from '../types';
+
+// ─── Mock Environment ─────────────────────────────────────────────────
+
+function createMockEnvironment(): ICulturalEnvironment {
+  let callCount = 0;
+  return {
+    nowTimestamp: () => `2026-01-01T00:00:0${callCount++}.000Z`,
+    nowMillis: () => 1735689600000 + callCount++,
+    random: () => 0.42,
+  };
+}
 
 // ─── Test Helpers ──────────────────────────────────────────────────────
 
@@ -60,8 +72,9 @@ describe('CulturalMemoryBridge', () => {
   let codec: MemeCodec;
 
   beforeEach(() => {
-    codec = new MemeCodec();
-    bridge = new CulturalMemoryBridge(codec);
+    const mockEnv = createMockEnvironment();
+    codec = new MemeCodec(mockEnv);
+    bridge = new CulturalMemoryBridge(codec, mockEnv);
   });
 
   // ─── persistMeme / retrieveMeme ─────────────────────────────────────
@@ -437,6 +450,24 @@ describe('CulturalMemoryBridge', () => {
 
       const results = bridge.searchBySimilarity(query, 0.01);
       expect(results.length).toBe(0);
+    });
+
+    it('should throw if threshold is less than 0', () => {
+      const meme = makeMeme({ id: 'guard-low' });
+      bridge.persistMeme(meme);
+
+      expect(() => bridge.searchBySimilarity(meme, -0.1)).toThrow(
+        'searchBySimilarity() requires threshold ∈ [0, 1]'
+      );
+    });
+
+    it('should throw if threshold is greater than 1', () => {
+      const meme = makeMeme({ id: 'guard-high' });
+      bridge.persistMeme(meme);
+
+      expect(() => bridge.searchBySimilarity(meme, 1.5)).toThrow(
+        'searchBySimilarity() requires threshold ∈ [0, 1]'
+      );
     });
 
     it('should sort results by distance ascending', () => {

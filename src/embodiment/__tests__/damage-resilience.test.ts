@@ -104,6 +104,15 @@ describe("Damage Resilience", () => {
     });
   });
 
+  // ── Precondition guards ────────────────────────────────────
+
+  describe("IntegrityMonitor precondition guards", () => {
+    it("throws if getConsciousnessRiskForecast horizon <= 0", () => {
+      expect(() => im.getConsciousnessRiskForecast(0)).toThrow("horizon must be > 0");
+      expect(() => im.getConsciousnessRiskForecast(-100)).toThrow("horizon must be > 0");
+    });
+  });
+
   // ── Structural damage detected by integrity monitor ─────────
 
   describe("structural damage triggers integrity alerts", () => {

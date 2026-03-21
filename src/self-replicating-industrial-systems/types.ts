@@ -345,4 +345,9 @@ export interface ReplicationControllerConfig {
   seedInstance: SystemInstance;
   /** Energy budget per replication cycle in watt-hours */
   energyBudgetWh: number;
+  /**
+   * Injectable clock — returns current time as epoch milliseconds.
+   * Defaults to Date.now; override in tests for deterministic results.
+   */
+  now: () => number;
 }

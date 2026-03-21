@@ -129,6 +129,12 @@ export const DISTRIBUTION_REQUIREMENTS = {
   maxFractionDestroyedPerEvent: 0.01,
   /** Target extinction probability per millennium. */
   extinctionProbabilityTargetPerMillennium: 1e-20,
+  /** Multiplier applied to all threat rates to compensate for rate uncertainties and independence assumption. */
+  safetyMarginMultiplier: 10,
+  /** Milky Way disk radius for volume normalization (light-years). */
+  galaxyRadiusLy: 50_000,
+  /** Milky Way thin disk thickness for volume normalization (light-years). */
+  galaxyThicknessLy: 1_000,
 };
 
 // ---------------------------------------------------------------------------
@@ -222,8 +228,7 @@ export function validateDistribution(colonies: Colony[]): ValidationResult {
 export function colonyExtinctionProbabilityPerMillennium(
   threats: ThreatClass[] = THREAT_CATALOG
 ): number {
-  const galaxyRadiusLy = 50_000;
-  const galaxyThicknessLy = 1_000;
+  const { galaxyRadiusLy, galaxyThicknessLy } = DISTRIBUTION_REQUIREMENTS;
   const galaxyVolumeLy3 = Math.PI * galaxyRadiusLy ** 2 * galaxyThicknessLy;
 
   let totalP = 0;
@@ -267,8 +272,8 @@ export function simulateExtinctionProbability(
   const n = colonies.length;
   const pSingle = colonyExtinctionProbabilityPerMillennium(threats);
 
-  // Apply 10× conservative safety margin on rates
-  const pSingleConservative = pSingle * 10;
+  // Apply conservative safety margin on rates
+  const pSingleConservative = pSingle * DISTRIBUTION_REQUIREMENTS.safetyMarginMultiplier;
 
   // Use log10 arithmetic to avoid floating-point underflow
   // P(extinction) = pSingleConservative^n

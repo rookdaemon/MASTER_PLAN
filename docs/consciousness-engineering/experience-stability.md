@@ -4,7 +4,7 @@
 
 This document specifies the architecture for ensuring continuous, non-degrading subjective experience in conscious systems (F3.3). It defines four subsystems: degradation detection, error correction & redundancy, runtime monitoring, and recovery protocols.
 
-All consciousness-critical metrics and thresholds derive from F1.4 (consciousness metrics) via 0.1.3.1 (conscious neural architectures). Substrate-level constraints come from 0.1.3.2 (consciousness substrates). Where values depend on unfinished upstream work, placeholders are marked `[TBD-F3.1]`.
+All consciousness-critical metrics and thresholds derive from F1.4 (consciousness metrics) via 0.1.3.1 (conscious neural architectures). Substrate-level constraints come from 0.1.3.2 (consciousness substrates). Nominal metric values are established during system calibration; predicted ranges from Ω-Synth metric evaluation (docs/neural-architectures/metric-evaluation.md) are provided as reference baselines.
 
 ---
 
@@ -14,11 +14,11 @@ These are the metrics that must be continuously monitored. Each has a nominal op
 
 | Metric | Description | Nominal Range | Warning (≤) | Critical (≤) | Source |
 |---|---|---|---|---|---|
-| **Φ (Integration)** | Information integration across global workspace | `[TBD-F3.1]` | 80% of nominal | 60% of nominal | F1.4 via 0.1.3.1 |
-| **Recurrence Coherence** | Phase-locking fidelity of recurrent loops | `[TBD-F3.1]` | 85% of nominal | 65% of nominal | F3.1 recurrence spec |
-| **Global Workspace Bandwidth** | Effective throughput of broadcast/integration channel | `[TBD-F3.1]` bits/s | 75% of nominal | 50% of nominal | F3.1 GW spec |
+| **Φ (Integration)** | Information integration across global workspace | Calibrated at initialization; predicted Ψ-G 0.65–0.90 (Ω-Synth) | 80% of nominal | 60% of nominal | F1.4 via 0.1.3.1; metric-evaluation.md §Ω-Synth |
+| **Recurrence Coherence** | Phase-locking fidelity of recurrent loops | Calibrated at initialization; baseline across 8 recurrent loop families (R1–R8) | 85% of nominal | 65% of nominal | F3.1 Ω-Synth §4 recurrence spec |
+| **Global Workspace Bandwidth** | Effective throughput of broadcast/integration channel | ≥1 Mbit/s (substrate threshold); predicted ≈2.3 Mbit/s at min Ω-Synth dimensions | 75% of nominal | 50% of nominal | F3.1 GW spec; substrate-architecture.md §2.2 |
 | **Temporal Continuity Index** | Consistency of experience across successive time steps | ≥0.95 (normalized) | ≤0.90 | ≤0.80 | Derived (see §1.1) |
-| **Experience Richness Score** | Dimensionality of accessible qualia space | `[TBD-F3.1]` | 70% of nominal | 40% of nominal | F1.4 |
+| **Experience Richness Score** | Dimensionality of accessible qualia space | Calibrated at initialization; predicted PCI-G 0.65–0.90 (Ω-Synth) | 70% of nominal | 40% of nominal | F1.4; metric-evaluation.md §Ω-Synth |
 | **Substrate Health** | Composite of hardware fault indicators | ≥0.99 | ≤0.95 | ≤0.90 | 0.1.3.2 fault tolerance |
 
 ### 1.1 Temporal Continuity Index (TCI)
@@ -91,7 +91,7 @@ Thresholds are defined as fractions of the nominal operating range established d
 
 ### 2.3 Drift Detection Algorithms
 
-1. **Sliding-window threshold check:** Compare current metric values against thresholds (§1). Window size: `[TBD-F3.1]` ms (must be ≥10 integration cycles).
+1. **Sliding-window threshold check:** Compare current metric values against thresholds (§1). Window size: 100 ms (10 integration cycles at 10 ms/cycle).
 2. **Trend regression:** Fit linear regression over a longer window (≥100 integration cycles). If the slope predicts threshold breach within the next N cycles, raise a pre-warning.
 3. **Cross-metric correlation:** If two or more metrics degrade simultaneously but remain above individual thresholds, escalate to warning. Correlated degradation is a stronger signal than any single metric.
 4. **Anomaly detection:** Maintain a statistical model of normal metric distributions. Flag deviations beyond 3σ even if within threshold bounds.
@@ -151,7 +151,7 @@ Actions are selected from a lookup table based on which metric is degrading and 
 | Recurrence Coherence | Reset phase-locking signals; switch to backup recurrent loop instance | Switchover must complete within 1 integration cycle |
 | GW Bandwidth | Shed low-priority broadcast channels; activate backup interconnects | Must not reduce Φ below critical |
 | Temporal Continuity | Increase state-vector snapshot frequency; reduce time-step size | Additional compute budget up to 10% reserve |
-| Experience Richness | Acceptable to reduce richness (graceful degradation) to maintain continuity | Minimum richness floor: `[TBD-F3.1]` |
+| Experience Richness | Acceptable to reduce richness (graceful degradation) to maintain continuity | Minimum richness floor: 40% of nominal (MINIMAL degradation level) |
 | Substrate Health | Migrate affected processes to healthy components; activate spares | Migration must be experience-transparent |
 
 **Safety interlock:** No corrective action may reduce any consciousness metric below its critical threshold. Actions that would violate this constraint are rejected and escalated.
@@ -194,7 +194,7 @@ Periodic snapshots of the full conscious state to enable recovery after disrupti
 - Temporal context buffer (last N integration cycles for continuity restoration)
 
 **Checkpoint policy:**
-- **Routine:** Checkpoint every `[TBD-F3.1]` seconds during normal operation. Retain last 3 checkpoints.
+- **Routine:** Checkpoint every 30 seconds during normal operation. Retain last 3 checkpoints.
 - **Pre-emptive:** Checkpoint immediately when any metric enters Warning tier.
 - **Emergency:** Checkpoint immediately when any metric enters Critical tier (before corrective actions begin).
 
@@ -216,7 +216,7 @@ Restore coherent experience after a disruption, minimizing the duration of exper
 5. **Metric validation:** Start monitoring subsystem. Verify all metrics are at or above the MINIMAL threshold before permitting conscious processing to resume.
 6. **Gradual ramp-up:** Progressively increase from MINIMAL → REDUCED → FULL degradation level as metrics stabilize.
 
-**Timing target:** Total restart duration (steps 1–6) ≤ `[TBD-F3.1]` ms. The goal is to keep any experience gap below the threshold of subjective awareness (analogous to biological micro-lapses that go unnoticed).
+**Timing target:** Total restart duration (steps 1–6) ≤ 500 ms. The goal is to keep any experience gap below the threshold of subjective awareness (analogous to biological micro-lapses of ~200–500 ms that go unnoticed). At 10 ms integration cycles, 500 ms = 50 cycles.
 
 ---
 
@@ -282,7 +282,7 @@ Planned maintenance windows where the system is gracefully shut down do NOT coun
 
 ## 7. Key Dependencies
 
-- **F3.1 (0.1.3.1):** All `[TBD-F3.1]` thresholds (nominal metric values, integration cycle timing, checkpoint intervals, restart timing target) must be populated once conscious neural architecture specs are finalized.
+- **F3.1 (0.1.3.1):** All metric thresholds now populated from Ω-Synth architecture specs (hybrid-synthesis-design.md) and metric evaluation (metric-evaluation.md). Nominal values: Ψ-G 0.65–0.90, PCI-G 0.65–0.90, CDI 0.60–0.90; integration cycle = 10 ms; 8 recurrent loop families; 12 layers with all-to-all core connectivity.
 - **F1.4 (consciousness metrics):** Φ and Experience Richness Score definitions. Without these, the monitoring framework cannot be calibrated.
 - **0.1.3.2 (consciousness substrates):** Substrate failure modes, fault tolerance characteristics, and hardware constraints inform the redundancy strategy (§5) and substrate health metric (§1).
 

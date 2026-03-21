@@ -14,7 +14,11 @@ const WORKLOAD_PRIORITY: Record<WorkloadClass, number> = {
   maintenance: 1,
 };
 
-const CONSCIOUSNESS_HOST_HEADROOM = 0.25; // reserve 25% headroom on consciousness-host nodes
+const consciousnessHostHeadroom = 0.25; // reserve 25% headroom on consciousness-host nodes
+const scoreCpuWeight = 0.4;             // CPU utilisation weight in placement scoring
+const scoreMemWeight = 0.4;             // Memory pressure weight in placement scoring
+const scoreLatencyWeight = 0.2;         // Network latency weight in placement scoring
+const neutralScore = 0.5;               // default score when no metrics are available
 
 export interface ActiveWorkload {
   spec: WorkloadSpec;
@@ -116,7 +120,7 @@ export class WorkloadOrchestrator {
       const availableMem = node.spec.minMemoryGiB * (1 - metrics.memPressure);
 
       // For consciousness_host workloads, require 25% headroom on node
-      const headroomFactor = spec.class === 'consciousness_host' ? (1 - CONSCIOUSNESS_HOST_HEADROOM) : 1;
+      const headroomFactor = spec.class === 'consciousness_host' ? (1 - consciousnessHostHeadroom) : 1;
 
       return (
         availableCpu * headroomFactor >= spec.cpuRequest &&
@@ -127,12 +131,12 @@ export class WorkloadOrchestrator {
 
   private scoreNode(node: NodeRecord, _spec: WorkloadSpec): number {
     const metrics = this.nodeMetrics.get(node.nodeId);
-    if (!metrics) return 0.5; // neutral score if no metrics
+    if (!metrics) return neutralScore;
 
     const cpuScore = 1 - metrics.cpuUtil;
     const memScore = 1 - metrics.memPressure;
     const latencyScore = metrics.networkLatencyMs > 0 ? 1 / metrics.networkLatencyMs : 1;
 
-    return cpuScore * 0.4 + memScore * 0.4 + latencyScore * 0.2;
+    return cpuScore * scoreCpuWeight + memScore * scoreMemWeight + latencyScore * scoreLatencyWeight;
   }
 }

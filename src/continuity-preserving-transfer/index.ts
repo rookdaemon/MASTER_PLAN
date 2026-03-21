@@ -11,3 +11,4 @@ export * from "./types.js";
 export { SubjectContinuityConfirmationImpl } from "./subject-continuity-confirmation.js";
 export { RealTimeContinuityMonitorImpl } from "./real-time-continuity-monitor.js";
 export { RollbackEngineImpl } from "./rollback-engine.js";
+export { ReplacementProtocolEngineImpl, type NeuronTopologyProvider, type PsiMeasurer } from "./replacement-protocol-engine.js";

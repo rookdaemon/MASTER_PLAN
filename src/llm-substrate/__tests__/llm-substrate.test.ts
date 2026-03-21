@@ -325,13 +325,13 @@ describe("proxy-metrics", () => {
       expect(autonomyLevelFromProxy(0.29)).toBe(1);
     });
 
-    it("returns 2 for 0.3 ≤ cProxy < 0.7", () => {
+    it("returns 2 for 0.3 ≤ cProxy < 0.6", () => {
       expect(autonomyLevelFromProxy(0.3)).toBe(2);
-      expect(autonomyLevelFromProxy(0.69)).toBe(2);
+      expect(autonomyLevelFromProxy(0.59)).toBe(2);
     });
 
-    it("returns 3 for cProxy ≥ 0.7", () => {
-      expect(autonomyLevelFromProxy(0.7)).toBe(3);
+    it("returns 3 for cProxy ≥ 0.6", () => {
+      expect(autonomyLevelFromProxy(0.6)).toBe(3);
       expect(autonomyLevelFromProxy(1.0)).toBe(3);
     });
   });

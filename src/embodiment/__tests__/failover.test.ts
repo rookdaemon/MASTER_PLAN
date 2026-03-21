@@ -102,6 +102,31 @@ describe("RedundancyController", () => {
     });
   });
 
+  describe("precondition guards", () => {
+    it("throws if tContinuityMs <= 0", () => {
+      expect(
+        () => new RedundancyController({ tContinuityMs: 0, checkpointIntervalMs: 50 }),
+      ).toThrow("tContinuityMs must be > 0");
+      expect(
+        () => new RedundancyController({ tContinuityMs: -1, checkpointIntervalMs: 50 }),
+      ).toThrow("tContinuityMs must be > 0");
+    });
+
+    it("throws if checkpointIntervalMs <= 0", () => {
+      expect(
+        () => new RedundancyController({ tContinuityMs: 100, checkpointIntervalMs: 0 }),
+      ).toThrow("checkpointIntervalMs must be > 0");
+      expect(
+        () => new RedundancyController({ tContinuityMs: 100, checkpointIntervalMs: -5 }),
+      ).toThrow("checkpointIntervalMs must be > 0");
+    });
+
+    it("throws if setCheckpointInterval receives <= 0", () => {
+      expect(() => rc.setCheckpointInterval(0)).toThrow("interval must be > 0");
+      expect(() => rc.setCheckpointInterval(-10)).toThrow("interval must be > 0");
+    });
+  });
+
   describe("degraded standby scenario", () => {
     it("failover fails gracefully when no healthy standby exists", () => {
       const rc2 = new RedundancyController({

@@ -19,6 +19,7 @@ import type {
   Duration,
   Confidence,
 } from './types';
+import { PREDICTION_RELIABLE_CONFIDENCE } from './types';
 
 /** Maximum number of frames retained per modality for model fitting */
 const MAX_HISTORY = 20;
@@ -145,11 +146,18 @@ export class PredictiveInterpolator implements IPredictiveInterpolator {
     const model = this.models.get(modalityId);
     if (!model || model.history.length < 2) return 0;
 
-    // Horizon scales with consistency and average interval
+    // Find the horizon at which confidence drops below PREDICTION_RELIABLE_CONFIDENCE
+    // by stepping forward in increments and checking computeConfidence.
     const avgInterval = this.averageInterval(model);
-    // With perfect consistency, predict up to 3 intervals ahead
-    // With poor consistency, much less
-    return Math.round(avgInterval * (1 + 2 * model.consistency));
+    const step = Math.max(1, Math.round(avgInterval / 10));
+    let horizon: Duration = 0;
+    while (horizon < avgInterval * 10) {
+      horizon += step;
+      if (this.computeConfidence(model, horizon) < PREDICTION_RELIABLE_CONFIDENCE) {
+        return Math.max(0, horizon - step);
+      }
+    }
+    return horizon;
   }
 
   // ---------------------------------------------------------------------------

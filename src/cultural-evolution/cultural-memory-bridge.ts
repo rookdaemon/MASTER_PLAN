@@ -11,6 +11,7 @@
  */
 
 import { ICulturalMemoryBridge } from './interfaces';
+import { ICulturalEnvironment, DefaultCulturalEnvironment } from './environment';
 import { MemeCodec } from './meme-codec';
 import {
   Meme,
@@ -39,12 +40,6 @@ interface SnapshotRecord {
   total_agents: number;
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────
-
-function nowTimestamp(): string {
-  return new Date().toISOString();
-}
-
 // ─── CulturalMemoryBridge Implementation ────────────────────────────────
 
 export class CulturalMemoryBridge implements ICulturalMemoryBridge {
@@ -57,7 +52,14 @@ export class CulturalMemoryBridge implements ICulturalMemoryBridge {
   /** Community snapshots, keyed by `${communityId}:${timestamp}` */
   private snapshots: SnapshotRecord[] = [];
 
-  constructor(private codec: MemeCodec) {}
+  private readonly env: ICulturalEnvironment;
+
+  constructor(
+    private codec: MemeCodec,
+    env: ICulturalEnvironment = new DefaultCulturalEnvironment(),
+  ) {
+    this.env = env;
+  }
 
   // ─── persistMeme ────────────────────────────────────────────────────
 
@@ -212,7 +214,7 @@ export class CulturalMemoryBridge implements ICulturalMemoryBridge {
     this.extinctMemes.set(meme.id, {
       meme,
       reason,
-      extinct_at: nowTimestamp(),
+      extinct_at: this.env.nowTimestamp(),
     });
 
     // Remove from active store
@@ -229,6 +231,10 @@ export class CulturalMemoryBridge implements ICulturalMemoryBridge {
    * Results are sorted by distance (most similar first).
    */
   searchBySimilarity(query: Meme, threshold: number): Meme[] {
+    if (threshold < 0 || threshold > 1) {
+      throw new Error('searchBySimilarity() requires threshold ∈ [0, 1]');
+    }
+
     const results: Array<{ meme: Meme; distance: number }> = [];
 
     for (const meme of this.memes.values()) {
@@ -257,7 +263,7 @@ export class CulturalMemoryBridge implements ICulturalMemoryBridge {
 
     this.snapshots.push({
       community_id: community,
-      captured_at: nowTimestamp(),
+      captured_at: this.env.nowTimestamp(),
       meme_ids: memeIds,
       total_agents: totalAgents,
     });

@@ -23,6 +23,7 @@ import {
   validateBootstrapTimeline,
   validateSeedPackageFraction,
   adaptRefiningForComposition,
+  validateAdaptation,
   isEnergySufficient,
 } from "../extraction.js";
 import {
@@ -463,5 +464,156 @@ describe("isEnergySufficient", () => {
     ]]);
     // Very low power
     expect(isEnergySufficient(1, spec, recipes)).toBe(false);
+  });
+});
+
+// ── Behavioral Spec Scenarios ─────────────────────────────────────────────
+
+describe("Scenario 1: Nominal bootstrap in Sun-like system", () => {
+  it("reaches ReplicationReady within MAX_REPLICATION_TIMELINE_YEARS for a G2V system", () => {
+    // Given: arriving probe enters a G2V system with rocky bodies
+    const star = createSunlikestar();
+
+    // Phase 1 (Year 0-1): deploy seed collectors
+    const seedCollectors = [createCollectorUnit("seed-1", SEED_PHASE_POWER_WATTS, false)];
+    const seedPower = computeTotalCollectorOutput(seedCollectors);
+    expect(seedPower).toBe(SEED_PHASE_POWER_WATTS);
+    expect(determineBootstrapPhase(0.5, 1, 0, 0)).toBe(BootstrapPhase.SeedEnergy);
+
+    // Phase 2 (Year 1-3): land mining on highest-priority asteroid
+    const bodies: CelestialBody[] = [
+      { bodyId: "ast-1", bodyType: "asteroid", mass_kg: 1e15, surfaceGravity_m_per_s2: 0.01, orbitalDistance_AU: 2.0 },
+    ];
+    const assays = new Map<string, CompositionAssay>();
+    const comp = new Map<MaterialClass, number>();
+    for (const cls of ALL_MATERIAL_CLASSES) comp.set(cls, 0.1);
+    assays.set("ast-1", { bodyId: "ast-1", composition: comp, confidence: 0.9, method: "xrf" });
+    const survey = evaluateSurvey(bodies, assays, ALL_MATERIAL_CLASSES);
+    expect(survey.allClassesCoverable).toBe(true);
+    expect(survey.rankedBodies[0].bodyId).toBe("ast-1");
+    expect(determineBootstrapPhase(2, 1, 1, 0)).toBe(BootstrapPhase.SeedMining);
+
+    // Phase 3 (Year 3-10): fabricate additional collectors and mining units
+    expect(determineBootstrapPhase(5, 5, 2, 0)).toBe(BootstrapPhase.FirstExpansion);
+
+    // Phase 4 (Year 10-20): full-scale refining operations
+    expect(determineBootstrapPhase(15, 50, 10, 0.5)).toBe(BootstrapPhase.FullScaleOperations);
+
+    // Build full feedstock inventory meeting all 6 material classes
+    const spec: FeedstockSpec = ALL_MATERIAL_CLASSES.map((cls) => ({
+      materialClass: cls,
+      mass_kg: 1000,
+      purityRequired: cls === MaterialClass.Semiconductors ? SEMICONDUCTOR_PURITY : 0.99,
+    }));
+    const entries: FeedstockEntry[] = ALL_MATERIAL_CLASSES.map((cls) => ({
+      materialClass: cls,
+      mass_kg: 1500,
+      purity: cls === MaterialClass.Semiconductors ? SEMICONDUCTOR_PURITY : 0.999,
+      meetsSpec: true,
+    }));
+    const inventory = computeFeedstockInventory(entries, spec);
+    const readiness = computeReplicationReadiness(inventory);
+    expect(readiness).toBe(1.0);
+
+    // Then: ReplicationReadiness reaches 1.0 within MAX_REPLICATION_TIMELINE_YEARS
+    const signal = evaluateReplicationReadiness(inventory, spec, 20);
+    expect(signal.ready).toBe(true);
+    expect(signal.timestamp_years).toBeLessThanOrEqual(MAX_REPLICATION_TIMELINE_YEARS);
+
+    // All 6 MaterialClass entries covered
+    expect(signal.classCoverage.size).toBe(ALL_MATERIAL_CLASSES.length);
+    for (const [, covered] of signal.classCoverage) {
+      expect(covered).toBe(true);
+    }
+
+    // Phase is ReplicationReady
+    expect(determineBootstrapPhase(20, 100, 20, 1.0)).toBe(BootstrapPhase.ReplicationReady);
+
+    // Validate timeline passes
+    expect(validateBootstrapTimeline(20, BootstrapPhase.ReplicationReady).valid).toBe(true);
+  });
+});
+
+describe("Scenario 2: Compositional adaptation for novel mineralogy", () => {
+  it("adapts refining with first-principles fallback and validates on small batch", () => {
+    // Given: refining subsystem encounters a composition not in recipe library
+    // (simulated by providing only a subset of required processes)
+    const defaultRecipe = getDefaultRefiningRecipe(MaterialClass.Semiconductors);
+
+    // When: searches recipe library and finds no match (only 1 of 3 processes available)
+    const { recipe: adaptedRecipe, adaptation } = adaptRefiningForComposition(
+      MaterialClass.Semiconductors,
+      [RefiningProcess.CzochralskiGrowth], // missing 2 of 3 processes
+      SEMICONDUCTOR_PURITY
+    );
+
+    // Then: AdaptationLogEntry created with validated=false initially
+    expect(adaptation.validated).toBe(false);
+    expect(adaptation.category).toBe("refining_recipe");
+
+    // Output purity is ≤ the default recipe purity (degraded but functional)
+    expect(adaptedRecipe.outputPurity).toBeLessThanOrEqual(defaultRecipe.outputPurity);
+    expect(adaptedRecipe.outputPurity).toBeGreaterThan(0);
+
+    // When: validates on small batch → mark validated
+    const validatedAdaptation = validateAdaptation(adaptation, 5.0);
+    expect(validatedAdaptation.validated).toBe(true);
+    expect(validatedAdaptation.timestamp_years).toBe(5.0);
+
+    // Adapted recipe is used for full-scale refining
+    const rawEntry = {
+      materialClass: MaterialClass.Semiconductors,
+      mass_kg: 1000,
+      sourceBodyId: "ast-1",
+      rawPurity: 0.5,
+    };
+    const output = computeRefiningOutput(rawEntry, adaptedRecipe);
+    expect(output.mass_kg).toBeGreaterThan(0);
+    expect(output.purity).toBeLessThanOrEqual(defaultRecipe.outputPurity);
+  });
+});
+
+describe("Scenario 3: Red dwarf system with limited energy", () => {
+  it("requires orders of magnitude more collectors for M5V than G2V", () => {
+    // Given: arriving probe enters an M5V system (luminosity ≈ 0.0017 L☉)
+    const redDwarf = createRedDwarfStar();
+    const sunlike = createSunlikestar();
+    expect(redDwarf.luminosity_solar).toBeCloseTo(0.0017, 4);
+
+    const outputPerUnit = 1e9;
+
+    // When: estimateCollectorsForTarget is computed for TARGET_FULL_SCALE_POWER_WATTS
+    const redDwarfCollectors = estimateCollectorsForTarget(
+      redDwarf, TARGET_FULL_SCALE_POWER_WATTS, outputPerUnit
+    );
+    const sunCollectors = estimateCollectorsForTarget(
+      sunlike, TARGET_FULL_SCALE_POWER_WATTS, outputPerUnit
+    );
+
+    // Then: required collector count is orders of magnitude higher
+    expect(redDwarfCollectors / sunCollectors).toBeGreaterThan(100);
+
+    // Energy budget allocation automatically reduces all subsystem allocations proportionally
+    // (both get same reserve margin, but absolute watts differ proportionally)
+    const redBudget = computeEnergyBudget(redDwarf.luminosity_solar * 1e12);
+    const sunBudget = computeEnergyBudget(sunlike.luminosity_solar * 1e12);
+
+    // Same reserve margin for both
+    expect(redBudget.reserveMarginFraction).toBe(sunBudget.reserveMarginFraction);
+
+    // Red dwarf allocations are proportionally lower
+    const ratio = redDwarf.luminosity_solar / sunlike.luminosity_solar;
+    expect(redBudget.miningAllocation_watts / sunBudget.miningAllocation_watts).toBeCloseTo(ratio, 2);
+    expect(redBudget.refiningAllocation_watts / sunBudget.refiningAllocation_watts).toBeCloseTo(ratio, 2);
+
+    // Bootstrap timeline extends but remains within MAX_REPLICATION_TIMELINE_YEARS
+    // (validated by: if we eventually reach replication ready at year 45, it's still valid)
+    expect(
+      validateBootstrapTimeline(45, BootstrapPhase.ReplicationReady).valid
+    ).toBe(true);
+    // But exceeding MAX without readiness fails
+    expect(
+      validateBootstrapTimeline(55, BootstrapPhase.FullScaleOperations).valid
+    ).toBe(false);
   });
 });

@@ -12,8 +12,11 @@ import type {
   ScanTimingProtocol,
   BrainScanDataset,
   FidelityLevel,
+  ValidationReport,
 } from "./types.js";
 import { FIDELITY_RESOLUTION_NM } from "./types.js";
+import type { ScanningThresholds } from "./constants.js";
+import { DEFAULT_SCANNING_THRESHOLDS } from "./constants.js";
 
 // ── Validation Result ───────────────────────────────────────────────────────
 
@@ -123,6 +126,79 @@ export function estimateRawDataSize(
 
   // Scale linearly by brain volume
   return humanBrainBytes * (brainVolume_cm3 / HUMAN_BRAIN_CM3);
+}
+
+// ── Full Dataset Validation ─────────────────────────────────────────────────
+
+// ── Validation Report Validation ───────────────────────────────────────────
+
+/**
+ * Validates a ValidationReport against scanning threshold requirements.
+ *
+ * Checks detection metrics (neuron/synapse sensitivity/specificity),
+ * weight estimation error, registration error, and cross-modality agreement
+ * against configurable thresholds (injectable per CLAUDE.md).
+ *
+ * Contracts invariants:
+ *   neuron_detection.sensitivity ≥ NEURON_DETECTION_SENSITIVITY_MIN
+ *   synapse_detection.sensitivity ≥ SYNAPSE_DETECTION_SENSITIVITY_MIN
+ *
+ * Behavioral Spec Scenario 1 Then clauses:
+ *   neuron_detection.sensitivity ≥ 0.95
+ *   synapse_detection.sensitivity ≥ 0.90
+ *   weight_estimation_error.mean ≤ 0.15
+ *   registration_error_nm.mean ≤ 500
+ *   cross_modality_agreement.overall ≥ 0.85
+ */
+export function validateValidationReport(
+  report: ValidationReport,
+  thresholds: ScanningThresholds = DEFAULT_SCANNING_THRESHOLDS,
+): ValidationResult {
+  const errors: string[] = [];
+
+  if (report.neuron_detection.sensitivity < thresholds.neuronDetectionSensitivityMin) {
+    errors.push(
+      `neuron detection sensitivity (${report.neuron_detection.sensitivity}) is below minimum threshold (${thresholds.neuronDetectionSensitivityMin})`
+    );
+  }
+
+  if (report.neuron_detection.specificity < thresholds.neuronDetectionSpecificityMin) {
+    errors.push(
+      `neuron detection specificity (${report.neuron_detection.specificity}) is below minimum threshold (${thresholds.neuronDetectionSpecificityMin})`
+    );
+  }
+
+  if (report.synapse_detection.sensitivity < thresholds.synapseDetectionSensitivityMin) {
+    errors.push(
+      `synapse detection sensitivity (${report.synapse_detection.sensitivity}) is below minimum threshold (${thresholds.synapseDetectionSensitivityMin})`
+    );
+  }
+
+  if (report.synapse_detection.specificity < thresholds.synapseDetectionSpecificityMin) {
+    errors.push(
+      `synapse detection specificity (${report.synapse_detection.specificity}) is below minimum threshold (${thresholds.synapseDetectionSpecificityMin})`
+    );
+  }
+
+  if (report.weight_estimation_error.mean > thresholds.weightEstimationRmseMax) {
+    errors.push(
+      `weight estimation error mean (${report.weight_estimation_error.mean}) exceeds maximum threshold (${thresholds.weightEstimationRmseMax})`
+    );
+  }
+
+  if (report.registration_error_nm.mean > thresholds.registrationErrorMaxNm) {
+    errors.push(
+      `registration error mean (${report.registration_error_nm.mean} nm) exceeds maximum threshold (${thresholds.registrationErrorMaxNm} nm)`
+    );
+  }
+
+  if (report.cross_modality_agreement.overall < thresholds.crossModalityAgreementMin) {
+    errors.push(
+      `cross-modality agreement (${report.cross_modality_agreement.overall}) is below minimum threshold (${thresholds.crossModalityAgreementMin})`
+    );
+  }
+
+  return errors.length === 0 ? ok() : fail(...errors);
 }
 
 // ── Full Dataset Validation ─────────────────────────────────────────────────

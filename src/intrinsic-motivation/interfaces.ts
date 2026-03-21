@@ -14,7 +14,7 @@
  *   - All dependencies (world model, personality, activity history) are injected
  */
 
-import type { ExperientialState } from '../conscious-core/types.js';
+import type { ExperientialState, Timestamp } from '../conscious-core/types.js';
 import type { GoalAddResult } from '../agency-stability/types.js';
 import type {
   DriveContext,
@@ -61,8 +61,9 @@ export interface IDriveSystem {
    *
    * @param candidate - The candidate that was submitted
    * @param result    - The result returned by addGoal()
+   * @param now       - Current wall-clock time (epoch ms), used for cooldown computation
    */
-  notifyGoalResult(candidate: DriveGoalCandidate, result: GoalAddResult): void;
+  notifyGoalResult(candidate: DriveGoalCandidate, result: GoalAddResult, now: Timestamp): void;
 
   /**
    * Return the current state of all drives.

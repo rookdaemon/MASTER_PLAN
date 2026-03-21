@@ -143,6 +143,12 @@ describe('PersonalityModel — trait profile', () => {
     expect(profile.traits.get('humor')!.value).toBeCloseTo(0.8);
   });
 
+  test('throws Error for empty agentId', () => {
+    expect(() => {
+      new PersonalityModel({ agentId: '', initialTraits: {} });
+    }).toThrow('agentId');
+  });
+
   test('throws RangeError for out-of-range initialTrait value', () => {
     expect(() => {
       new PersonalityModel({ agentId: 'x', initialTraits: { openness: 1.5 } });
@@ -294,6 +300,49 @@ describe('PersonalityModel — deliberation biasing', () => {
     expect(outHigh.action.parameters['approach']).toBe('novel');
     // Low openness should prefer familiar primary
     expect(outLow.action.parameters['approach']).toBe('familiar');
+  });
+
+  test('applyToDeliberation never changes action.type even when a differently-typed alternative scores higher', () => {
+    // High openness agent would strongly prefer 'novel' approach
+    const model = new PersonalityModel({
+      agentId: 'type-safe',
+      initialTraits: { openness: 0.99, assertiveness: 0.5, warmth: 0.5, deliberateness: 0.5 },
+    });
+    // Primary: type='respond', familiar approach (low personality score)
+    // Alternative: type='explore' (DIFFERENT type), novel approach (high personality score)
+    const decision = makeDecision(
+      'respond',
+      { approach: 'familiar' },
+      0.7,
+      [{ type: 'explore', parameters: { approach: 'novel' } }],
+    );
+    const result = model.applyToDeliberation(decision, makeContext());
+    // Must preserve primary action.type — cannot switch to 'explore'
+    expect(result.action.type).toBe('respond');
+  });
+
+  test('applyToDeliberation never selects a differently-typed alternative even when mixed with same-type alternatives', () => {
+    // High openness agent strongly prefers 'novel' approach
+    const model = new PersonalityModel({
+      agentId: 'mixed-type',
+      initialTraits: { openness: 0.99, assertiveness: 0.5, warmth: 0.5, deliberateness: 0.5 },
+    });
+    // Primary: type='respond', familiar (low score)
+    // Alt 1: type='explore' (DIFFERENT type), novel (would score highest if considered)
+    // Alt 2: type='respond' (SAME type), novel (should be selected)
+    const decision = makeDecision(
+      'respond',
+      { approach: 'familiar' },
+      0.7,
+      [
+        { type: 'explore', parameters: { approach: 'novel' } },
+        { type: 'respond', parameters: { approach: 'novel' } },
+      ],
+    );
+    const result = model.applyToDeliberation(decision, makeContext());
+    // Must preserve action.type='respond' — the same-type novel alternative should win
+    expect(result.action.type).toBe('respond');
+    expect(result.action.parameters['approach']).toBe('novel');
   });
 
   test('applyToDeliberation output confidence stays in [0, 1]', () => {

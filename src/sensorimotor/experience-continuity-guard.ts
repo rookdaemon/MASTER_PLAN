@@ -22,6 +22,7 @@ import type {
   RollbackResult,
   Timestamp,
 } from './types';
+import { MIN_STABILITY_THRESHOLD } from './types';
 
 /**
  * Provider of consciousness stability metrics.
@@ -96,7 +97,7 @@ export class ExperienceContinuityGuard implements IExperienceContinuityGuard {
 
   constructor(options: ExperienceContinuityGuardOptions) {
     this.metricsProvider = options.metricsProvider;
-    this.minimumThreshold = options.minimumStabilityThreshold ?? 0.6;
+    this.minimumThreshold = options.minimumStabilityThreshold ?? MIN_STABILITY_THRESHOLD;
     this.getTimestamp = options.getTimestamp ?? (() => Date.now() * 1_000_000);
     this.weights = options.weights ?? { phi: 0.4, coherence: 0.3, continuity: 0.3 };
   }

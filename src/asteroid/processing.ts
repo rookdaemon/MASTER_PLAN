@@ -14,6 +14,7 @@ import type {
   MaterialType,
   EnergySource,
 } from './types.js';
+import { SOLAR_ARRAY_POWER, H2_ENERGY_DENSITY } from './constants.js';
 
 /**
  * Default C-type asteroid processing pipeline stages.
@@ -92,6 +93,21 @@ export function processOre(
   pipeline: ProcessingPipelineConfig,
   depotId: string = 'depot-primary',
 ): ProcessingOutput {
+  if (oreMassKg <= 0) {
+    throw new RangeError('oreMassKg must be > 0');
+  }
+  if (pipeline.stages.length < 1) {
+    throw new RangeError('pipeline must have at least 1 stage');
+  }
+  for (const stage of pipeline.stages) {
+    if (stage.yieldFraction <= 0 || stage.yieldFraction > 1) {
+      throw new RangeError(`stage "${stage.name}" yieldFraction must be in (0, 1]`);
+    }
+    if (stage.energyCostPerKg < 0) {
+      throw new RangeError(`stage "${stage.name}" energyCostPerKg must be ≥ 0`);
+    }
+  }
+
   const yield_ = cumulativeYield(pipeline.stages);
   const energyPerKg = totalEnergyCostPerKg(pipeline.stages);
 
@@ -142,11 +158,23 @@ export function processOre(
   }
 
   // --- Volatiles ---
-  // Water electrolysis → LOX + LH2
+  // BS3: Half of water stored as water (≥99.9% purity), half electrolyzed
   const waterMass = oreComposition.volatiles.water_ice * scale * yield_;
-  // Water → 88.9% O2 + 11.1% H2 by mass
-  const loxMass = waterMass * 0.889;
-  const lh2Mass = waterMass * 0.111;
+  const waterForStorage = waterMass * 0.5;
+  const waterForElectrolysis = waterMass * 0.5;
+
+  // Electrolysis: Water → 88.9% O2 + 11.1% H2 by mass
+  const loxMass = waterForElectrolysis * 0.889;
+  const lh2Mass = waterForElectrolysis * 0.111;
+
+  if (waterForStorage > 0) {
+    products.push({
+      material: 'water',
+      purity: 0.999,
+      massKg: waterForStorage,
+      destinationDepot: depotId,
+    });
+  }
 
   if (loxMass > 0) {
     products.push({
@@ -162,16 +190,6 @@ export function processOre(
       material: 'lh2',
       purity: 0.995,
       massKg: lh2Mass,
-      destinationDepot: depotId,
-    });
-  }
-
-  // Water itself as product too
-  if (waterMass > 0) {
-    products.push({
-      material: 'water',
-      purity: 0.999,
-      massKg: waterMass * 0.5, // Half stored as water, half electrolyzed
       destinationDepot: depotId,
     });
   }
@@ -213,13 +231,12 @@ export function processOre(
   const totalEnergyConsumed = oreMassKg * energyPerKg;
 
   // Energy produced: H2+O2 fuel cells produce ~33.3 kWh/kg H2
-  // We use half the water for electrolysis
-  const h2ForEnergy = lh2Mass * 0.5; // Half of H2 for energy, half stored
-  const energyFromH2 = h2ForEnergy * 33.3;
+  // All LH2 from electrolysis is available for fuel cell energy
+  const energyFromH2 = lh2Mass * H2_ENERGY_DENSITY;
 
   // Solar energy collected during processing (150 kW array for industrial-scale ops)
   const processingDays = oreMassKg / pipeline.processingRate;
-  const solarEnergy = pipeline.energySource === 'solar' ? 150 * 24 * processingDays : 0;
+  const solarEnergy = pipeline.energySource === 'solar' ? SOLAR_ARRAY_POWER * 24 * processingDays : 0;
 
   const totalEnergyProduced = energyFromH2 + solarEnergy;
   const energyBalance = totalEnergyConsumed > 0 ? totalEnergyProduced / totalEnergyConsumed : 0;

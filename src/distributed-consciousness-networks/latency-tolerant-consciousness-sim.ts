@@ -107,8 +107,11 @@ interface DivergenceVector {
   alert: string | null;
 }
 
-/** Threshold above which value divergence triggers an alignment protocol */
+/** Threshold above which value divergence triggers an alignment protocol (Threshold Registry) */
 const DIVERGENCE_THRESHOLD = 0.3;
+
+/** A node silent for this multiple of expected transmission interval is presumed dormant (Threshold Registry) */
+const NODE_DORMANCY_MULTIPLIER = 10;
 
 function computeDivergenceVector(
   a: ConsciousnessSnapshot,
@@ -254,6 +257,16 @@ class LatencyTolerantNode {
     }
     // Local identity continuity is unaffected — no state changes from receiving
     return dv;
+  }
+
+  /**
+   * Determine whether a remote node should be considered dormant based on
+   * the elapsed epochs since its last known transmission.
+   * A node is dormant if silent for NODE_DORMANCY_MULTIPLIER × expectedInterval.
+   */
+  isDormant(lastHeardEpoch: EpochYear, expectedTransmissionInterval: number): boolean {
+    const silenceDuration = this.currentEpoch - lastHeardEpoch;
+    return silenceDuration > NODE_DORMANCY_MULTIPLIER * expectedTransmissionInterval;
   }
 
   get identityContinuous(): boolean {

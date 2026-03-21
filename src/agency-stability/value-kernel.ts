@@ -33,6 +33,13 @@ import type {
 } from './types.js';
 import type { Constraint } from './types.js';
 import type { IValueKernel } from './interfaces.js';
+import {
+  AMENDMENT_DELIBERATION_PERIOD,
+  ANOMALOUS_CONFIDENCE_SHIFT,
+  ANOMALOUS_UPDATE_COUNT,
+  PREFERENCE_CONFLICT_CONFIDENCE_THRESHOLD,
+  PREFERENCE_HISTORY_MAX,
+} from './constants.js';
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -204,7 +211,7 @@ export class ValueKernel implements IValueKernel {
     for (const pref of this._preferences.values()) {
       if (
         pref.domain === decision.action.type &&
-        pref.confidence < 0.3
+        pref.confidence < PREFERENCE_CONFLICT_CONFIDENCE_THRESHOLD
       ) {
         preferenceConflicts.push(pref.id);
       }
@@ -238,7 +245,7 @@ export class ValueKernel implements IValueKernel {
     this._preferences.set(pref.id, pref);
     // Log a preference history snapshot (kept bounded to last 1000 entries).
     this._preferenceHistory.push({ at: Date.now(), snapshot: new Map(this._preferences) });
-    if (this._preferenceHistory.length > 1000) {
+    if (this._preferenceHistory.length > PREFERENCE_HISTORY_MAX) {
       this._preferenceHistory.shift();
     }
   }
@@ -254,7 +261,7 @@ export class ValueKernel implements IValueKernel {
       justification.includes(id),
     );
 
-    const deliberationPeriodMs = 7 * 24 * 60 * 60 * 1000; // 7 days default
+    const deliberationPeriodMs = AMENDMENT_DELIBERATION_PERIOD;
     const proposal: AmendmentProposal = {
       constraintId,
       proposedRule: existing.rule, // caller should mutate via the proposal once approved
@@ -300,7 +307,7 @@ export class ValueKernel implements IValueKernel {
         const updateCount = this._preferenceHistory.filter(
           (h) => h.snapshot.get(id)?.value !== baseline.value,
         ).length;
-        if (shift > 0.5 || updateCount > 3) {
+        if (shift > ANOMALOUS_CONFIDENCE_SHIFT || updateCount > ANOMALOUS_UPDATE_COUNT) {
           anomalous.push(id);
         }
       }

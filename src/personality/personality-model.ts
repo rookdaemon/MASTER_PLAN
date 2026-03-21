@@ -92,6 +92,9 @@ export class PersonalityModel implements IPersonalityModel {
   private readonly kernel?: IValueKernel;
 
   constructor(config: PersonalityConfig, kernel?: IValueKernel) {
+    if (!config.agentId) {
+      throw new Error('PersonalityConfig requires a non-empty agentId.');
+    }
     this.agentId = config.agentId;
     this.createdAt = Date.now();
     this.lastUpdated = this.createdAt;
@@ -388,14 +391,19 @@ export class PersonalityModel implements IPersonalityModel {
     decision: Decision,
     traits: { openness: number; warmth: number; assertiveness: number; deliberateness: number },
   ): typeof decision.action {
-    const candidates = [decision.action, ...decision.alternatives];
+    // Only consider alternatives with the same action.type as the primary —
+    // changing action.type would violate Contract §Invariants.
+    const sameTypeAlternatives = decision.alternatives.filter(
+      alt => alt.type === decision.action.type,
+    );
+    const candidates = [decision.action, ...sameTypeAlternatives];
     if (candidates.length === 1) return decision.action;
 
     // Score each candidate action by personality alignment
     let bestAction = decision.action;
     let bestScore = PersonalityModel.scoreAction(decision.action, traits);
 
-    for (const alt of decision.alternatives) {
+    for (const alt of sameTypeAlternatives) {
       const score = PersonalityModel.scoreAction(alt, traits);
       if (score > bestScore) {
         bestScore = score;
