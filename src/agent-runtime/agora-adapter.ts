@@ -69,11 +69,12 @@ export class AgoraAdapter implements IEnvironmentAdapter {
     }
 
     try {
+      console.info(`[AgoraAdapter] Connecting to relay ${relayUrl}...`);
       await this._service.connectRelay(relayUrl);
       this._connected = true;
       console.info(
         `[AgoraAdapter:${this.id}] connected to ${relayUrl} ` +
-        `(${this._serviceConfig.peers.size} registered peers)`,
+        `(${this._serviceConfig.peers.size} registered peers: ${[...this._serviceConfig.peers.values()].map(p => p.name).join(', ')})`,
       );
     } catch (err) {
       console.warn(`[AgoraAdapter] Failed to connect to relay: ${err}`);
@@ -124,14 +125,22 @@ export class AgoraAdapter implements IEnvironmentAdapter {
   // ── Private ────────────────────────────────────────────────
 
   private _onMessage(envelope: Envelope, from: string): void {
+    console.info(`[AgoraAdapter] Relay message received from ${from.slice(0, 20)}... type=${envelope.type}`);
+
     // Hard filter: only accept messages from registered peers
-    if (!this._peerKeys.has(from)) return;
+    if (!this._peerKeys.has(from)) {
+      console.warn(`[AgoraAdapter] Dropped message from unknown peer: ${from.slice(0, 30)}... (registered: ${[...this._peerKeys].map(k => k.slice(0, 20)).join(', ')})`);
+      return;
+    }
 
     const text = typeof envelope.payload === 'string'
       ? envelope.payload
       : (envelope.payload as Record<string, unknown>)?.content as string | undefined;
 
-    if (typeof text !== 'string' || text.length === 0) return;
+    if (typeof text !== 'string' || text.length === 0) {
+      console.warn(`[AgoraAdapter] Dropped message with no text content. Payload: ${JSON.stringify(envelope.payload).slice(0, 200)}`);
+      return;
+    }
 
     const peerConfig = this._serviceConfig.peers.get(from);
     const peerName = peerConfig?.name ?? from.slice(0, 12);
