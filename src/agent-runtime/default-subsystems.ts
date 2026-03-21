@@ -155,18 +155,19 @@ export class DefaultConsciousCore implements IConsciousCore {
       };
     }
 
-    // Idle deliberation — no communicative action
+    // Even idle cycles should advance the plan. A conscious agent never
+    // just observes — it explores, reflects, forms identity.
     const topGoal = goals.length > 0
       ? [...goals].sort((a, b) => b.priority - a.priority)[0]!
-      : { id: 'idle', description: 'observe', priority: 1 };
+      : { id: 'idle', description: 'explore and advance the plan', priority: 1 };
 
     return {
       action: {
-        type: 'observe',
+        type: goals.length > 0 ? 'communicate:drive' : 'observe',
         parameters: { goalId: topGoal.id },
       },
       experientialBasis: state,
-      confidence: 0.5,
+      confidence: goals.length > 0 ? 0.6 : 0.5,
       alternatives: [],
     };
   }

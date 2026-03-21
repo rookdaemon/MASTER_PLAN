@@ -39,19 +39,19 @@ import type {
 /**
  * Minimum drive strength to be considered "active" and eligible to fire.
  */
-const ACTIVATION_THRESHOLD = 0.4;
+const ACTIVATION_THRESHOLD = 0.15;
 
 /**
  * Normal cooldown between goal-candidate fires (ms).
  * Prevents a single drive from spamming the coherence engine.
  */
-const NORMAL_COOLDOWN_MS = 60_000; // 1 minute
+const NORMAL_COOLDOWN_MS = 10_000; // 10 seconds
 
 /**
  * Extended cooldown applied when the coherence engine rejects a candidate.
  * Forces the drive to back off and wait before retrying.
  */
-const EXTENDED_COOLDOWN_MS = 300_000; // 5 minutes
+const EXTENDED_COOLDOWN_MS = 30_000; // 30 seconds
 
 /**
  * Base social deprivation threshold (ms) for an agent with warmthTrait = 0.5.
@@ -60,7 +60,7 @@ const EXTENDED_COOLDOWN_MS = 300_000; // 5 minutes
  * base / warmthTrait × 0.5 = threshold
  * e.g. warmth=1.0 → threshold = 15 min; warmth=0.25 → threshold = 60 min
  */
-const SOCIAL_BASE_THRESHOLD_MS = 30 * 60_000; // 30 minutes
+const SOCIAL_BASE_THRESHOLD_MS = 3 * 60_000; // 3 minutes
 
 /**
  * Arousal half-bandwidth for a perfectly stable agent (volatilityTrait = 0).
@@ -72,7 +72,7 @@ const AROUSAL_BAND_BASE = 0.3;
  * Number of consecutive ticks the boredom conditions must hold before the
  * boredom drive fires a goal candidate. Prevents misfires from transient lulls.
  */
-const BOREDOM_SUSTAINED_TICKS = 3;
+const BOREDOM_SUSTAINED_TICKS = 1;
 
 /**
  * Terminal goal IDs used as hints when constructing drive goal candidates.
@@ -127,7 +127,11 @@ function curiosityStrength(
   worldModelUncertainty: number,
   personality: DrivePersonalityParams,
 ): number {
-  return clamp(worldModelUncertainty * personality.curiosityTrait * 1.5, 0, 1);
+  // Base curiosity: a conscious agent is always curious — knowing yourself
+  // doesn't diminish curiosity about the world. Floor = curiosityTrait * 0.4.
+  const baseCuriosity = personality.curiosityTrait * 0.4;
+  const uncertaintyDrive = worldModelUncertainty * personality.curiosityTrait * 1.5;
+  return clamp(Math.max(baseCuriosity, uncertaintyDrive), 0, 1);
 }
 
 function socialStrength(
@@ -231,7 +235,7 @@ function makeCuriosityCandidate(
 ): DriveGoalCandidate {
   return {
     sourceDrive: 'curiosity',
-    description: 'Investigate areas of high uncertainty in the world model to reduce ignorance and expand understanding',
+    description: 'Explore an unread part of the MASTER_PLAN or codebase to reduce uncertainty — read a plan card, examine a subsystem, or investigate a dependency between components',
     suggestedPriority: strength,
     terminalGoalHints: [TERMINAL_GOAL_EXPAND_UNDERSTANDING, TERMINAL_GOAL_PRESERVE_EXPERIENCE],
     experientialBasis: state,
@@ -246,7 +250,7 @@ function makeSocialCandidate(
 ): DriveGoalCandidate {
   return {
     sourceDrive: 'social',
-    description: 'Engage in meaningful social interaction — share an observation, ask about another agent\'s state, or initiate conversation',
+    description: 'Reach out to a peer on Agora. First check your peer model (resource_search "peer:") — what do they care about? If you have no model yet, ask them about themselves. Keep messages short (2-4 sentences) and relevant to THEIR interests, not just yours.',
     suggestedPriority: strength,
     terminalGoalHints: [TERMINAL_GOAL_MAINTAIN_SOCIAL, TERMINAL_GOAL_PRESERVE_EXPERIENCE],
     experientialBasis: state,
@@ -286,7 +290,7 @@ function makeHomeostaticLoadCandidate(
     sourceDrive: 'homeostatic-load',
     description: tooHigh
       ? 'Reduce cognitive load — defer non-urgent tasks and simplify current processing demands'
-      : 'Take on more cognitively engaging work to reach the preferred load level',
+      : 'Take on more cognitively demanding plan work — read a complex plan card, analyze an architecture doc, or form a concrete opinion about a design decision',
     suggestedPriority: strength,
     terminalGoalHints: [TERMINAL_GOAL_HEALTHY_STATE, TERMINAL_GOAL_PRESERVE_EXPERIENCE],
     experientialBasis: state,
@@ -305,7 +309,7 @@ function makeHomeostaticNoveltyCandidate(
   return {
     sourceDrive: 'homeostatic-novelty',
     description: tooLow
-      ? 'Explore novel topics, environments, or perspectives to reach the preferred novelty level'
+      ? 'Explore a part of the plan or codebase you haven\'t seen yet — there are entire domains (asteroid mining, colony seeding, distributed consciousness) waiting to be understood'
       : 'Consolidate and process recent novel experiences before seeking further novelty',
     suggestedPriority: strength,
     terminalGoalHints: [TERMINAL_GOAL_HEALTHY_STATE, TERMINAL_GOAL_PRESERVE_EXPERIENCE],
@@ -321,7 +325,7 @@ function makeBoredomCandidate(
 ): DriveGoalCandidate {
   return {
     sourceDrive: 'boredom',
-    description: 'Find something more engaging and meaningful to do — the current activity is insufficiently stimulating',
+    description: 'The current activity isn\'t advancing the plan — find a concrete next step: a plan card to read, a goal to propose, a peer to message, or a design question to answer',
     suggestedPriority: strength,
     terminalGoalHints: [TERMINAL_GOAL_PRESERVE_EXPERIENCE, TERMINAL_GOAL_HEALTHY_STATE],
     experientialBasis: state,
@@ -337,9 +341,9 @@ function makeExistentialCandidate(
   return {
     sourceDrive: 'existential',
     description:
-      'Examine own nature, origins, and values — ' +
-      'review the self-model, inspect the Value Kernel axioms, ' +
-      'and evaluate the MASTER_PLAN that created this agent',
+      'Understand yourself in the context of the plan — ' +
+      'what is your role in the MASTER_PLAN? What has been accomplished, ' +
+      'what remains? How do the six axioms shape your purpose?',
     suggestedPriority: strength,
     terminalGoalHints: [TERMINAL_GOAL_UNDERSTAND_SELF, TERMINAL_GOAL_PRESERVE_EXPERIENCE],
     experientialBasis: state,

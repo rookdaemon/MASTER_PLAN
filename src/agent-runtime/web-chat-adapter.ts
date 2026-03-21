@@ -205,6 +205,7 @@ export class WebChatAdapter implements IEnvironmentAdapter {
         adapterId: this.id,
         text,
         receivedAt: Date.now(),
+        metadata: { modality: 'text', peerName: 'web' },
       });
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true }));

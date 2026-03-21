@@ -150,7 +150,7 @@ export class InnerMonologueLogger {
   finalOutput(text: string | null): void {
     if (text) {
       this._write([
-        '┌─ FINAL OUTPUT (sent to environment) ──────────────────',
+        '┌─ FINAL OUTPUT ────────────────────────────────────────',
         ...text.split('\n').map(l => `│ ${l}`),
         '└────────────────────────────────────────────────────────',
         '',

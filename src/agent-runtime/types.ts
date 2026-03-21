@@ -68,6 +68,8 @@ export interface AgentOutput {
   payload?: Record<string, unknown>;
   /** When set, only the adapter with this id receives the output. */
   targetAdapterId?: string;
+  /** When set, Agora adapter sends only to these peers (by name). */
+  targetPeers?: string[];
 }
 
 /** Configuration for AgentLoop startup. */

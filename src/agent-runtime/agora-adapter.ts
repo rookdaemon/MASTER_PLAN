@@ -101,25 +101,39 @@ export class AgoraAdapter implements IEnvironmentAdapter {
   async poll(): Promise<RawInput[]> {
     if (!this._connected || this._messageQueue.length === 0) return [];
     const batch = this._messageQueue.splice(0, 16);
+    console.info(`[AgoraAdapter] poll() returning ${batch.length} messages`);
     return batch;
   }
 
   async send(output: AgentOutput): Promise<void> {
     if (!this._connected || !output.text) return;
 
-    // Send to all registered peers via AgoraService
-    for (const [publicKey, peerConfig] of this._serviceConfig.peers) {
+    // Determine which peers to send to
+    const allPeers = [...this._serviceConfig.peers.entries()];
+    const targets = output.targetPeers
+      ? allPeers.filter(([, cfg]) => output.targetPeers!.includes(cfg.name ?? ''))
+      : allPeers;
+
+    for (const [publicKey, peerConfig] of targets) {
+      const name = peerConfig.name ?? publicKey.slice(0, 12);
       try {
         await this._service.sendMessage({
-          peerName: peerConfig.name ?? publicKey.slice(0, 12),
+          peerName: name,
           type: 'publish',
-          payload: { content: output.text },
+          payload: { text: output.text },
         });
       } catch (err) {
-        const name = peerConfig.name ?? publicKey.slice(0, 12);
         console.warn(`[AgoraAdapter] Failed to send to ${name}: ${err}`);
       }
     }
+  }
+
+  /** List known peers with connection info. */
+  listPeers(): Array<{ name: string; publicKey: string }> {
+    return [...this._serviceConfig.peers.entries()].map(([key, cfg]) => ({
+      name: cfg.name ?? key.slice(0, 12),
+      publicKey: key,
+    }));
   }
 
   // ── Private ────────────────────────────────────────────────
@@ -133,9 +147,10 @@ export class AgoraAdapter implements IEnvironmentAdapter {
       return;
     }
 
-    const text = typeof envelope.payload === 'string'
-      ? envelope.payload
-      : (envelope.payload as Record<string, unknown>)?.content as string | undefined;
+    const p = envelope.payload as Record<string, unknown> | string | undefined;
+    const text = typeof p === 'string'
+      ? p
+      : (p?.text ?? p?.content) as string | undefined;
 
     if (typeof text !== 'string' || text.length === 0) {
       console.warn(`[AgoraAdapter] Dropped message with no text content. Payload: ${JSON.stringify(envelope.payload).slice(0, 200)}`);
@@ -158,5 +173,6 @@ export class AgoraAdapter implements IEnvironmentAdapter {
         inReplyTo: envelope.inReplyTo,
       },
     });
+    console.info(`[AgoraAdapter] Message queued from ${peerName}: "${text.slice(0, 80)}" (queue depth: ${this._messageQueue.length})`);
   }
 }

@@ -28,6 +28,7 @@
 
 import { join, dirname, resolve } from 'node:path';
 import { homedir } from 'node:os';
+import { existsSync, renameSync, mkdirSync } from 'node:fs';
 import { startAgent } from './startup.js';
 import { ChatAdapter } from './chat-adapter.js';
 import { MessagePipeline } from './message-pipeline.js';
@@ -65,7 +66,7 @@ import { InnerMonologueLogger } from './inner-monologue.js';
 // ── Configuration ────────────────────────────────────────────
 
 const config: AgentConfig = {
-  agentId: process.env['AGENT_ID'] ?? 'agent-0',
+  agentId: process.env['AGENT_ID'] ?? 'unnamed',
   sentinelCadence: parseInt(process.env['SENTINEL_CADENCE'] ?? '10', 10),
   checkpointIntervalMs: parseInt(process.env['CHECKPOINT_INTERVAL_MS'] ?? '60000', 10),
   tickBudgetMs: parseInt(process.env['TICK_BUDGET_MS'] ?? '5000', 10),
@@ -134,9 +135,27 @@ async function handleOneShot(prompt: string, model: string, provider: LlmProvide
   console.error(`[one-shot] Done. intact=${result.intact} valence=${result.experientialState.valence.toFixed(2)}`);
 }
 
+// ── Log rotation ─────────────────────────────────────────────
+
+function rotateLogs(stateDir: string): void {
+  const ts = new Date().toISOString().replace(/[:.]/g, '-');
+  const archiveDir = join(stateDir, 'archive');
+
+  for (const name of ['debug.log', 'inner-monologue.txt']) {
+    const path = join(stateDir, name);
+    if (existsSync(path)) {
+      if (!existsSync(archiveDir)) mkdirSync(archiveDir, { recursive: true });
+      const base = name.replace(/\.[^.]+$/, '');
+      const ext = name.slice(base.length);
+      renameSync(path, join(archiveDir, `${base}-${ts}${ext}`));
+    }
+  }
+}
+
 // ── Agent loop mode ──────────────────────────────────────────
 
 async function handleAgentLoop(stateDir: string, model: string, provider: LlmProvider): Promise<void> {
+  rotateLogs(stateDir);
   // ── Initialize observability ──────────────────────────────
   const debugLogPath = join(stateDir, 'debug.log');
   const debugLog = new DebugLogger(debugLogPath);
@@ -191,24 +210,7 @@ async function handleAgentLoop(stateDir: string, model: string, provider: LlmPro
   const memoryStore = new MemoryStoreAdapter(memorySystem);
   const chatAdapter = new ChatAdapter({ mode: 'stdio', adapterId: 'chat-stdio' });
 
-  // Optionally attach AgoraAdapter if agora config exists
-  let adapter: import('./interfaces.js').IEnvironmentAdapter = chatAdapter;
-  try {
-    const { loadAgoraConfig } = await import('@rookdaemon/agora');
-    const { AgoraAdapter } = await import('./agora-adapter.js');
-    const { CompositeAdapter } = await import('./composite-adapter.js');
-
-    const agoraConfig = loadAgoraConfig();
-    if (agoraConfig.relay?.url && agoraConfig.identity?.publicKey) {
-      const serviceConfig = await (await import('@rookdaemon/agora')).AgoraService.loadConfig();
-      const agoraAdapter = new AgoraAdapter(serviceConfig);
-      adapter = new CompositeAdapter([chatAdapter, agoraAdapter]);
-      console.error(`[main] Agora adapter attached (${agoraConfig.peers ? Object.keys(agoraConfig.peers).length : 0} peers, relay: ${agoraConfig.relay.url})`);
-      debugLog.log('lifecycle', `Agora adapter attached`, { peerCount: agoraConfig.peers ? Object.keys(agoraConfig.peers).length : 0, relay: agoraConfig.relay.url });
-    }
-  } catch (err) {
-    console.error(`[main] Agora config load failed (continuing without): ${err}`);
-  }
+  const adapter = await attachAgora(chatAdapter, debugLog);
 
   // Build real LLM client for agent-loop mode
   console.error(`[main] Building LLM client: provider=${provider} model=${model}`);
@@ -220,6 +222,7 @@ async function handleAgentLoop(stateDir: string, model: string, provider: LlmPro
 // ── Web chat mode ────────────────────────────────────────────
 
 async function handleWebChat(stateDir: string, webPort: number, model: string, provider: LlmProvider): Promise<void> {
+  rotateLogs(stateDir);
   // ── Initialize observability ──────────────────────────────
   const debugLogPath = join(stateDir, 'debug.log');
   const debugLog = new DebugLogger(debugLogPath);
@@ -271,11 +274,40 @@ async function handleWebChat(stateDir: string, webPort: number, model: string, p
   });
 
   const memoryStore = new MemoryStoreAdapter(memorySystem);
+  const adapter = await attachAgora(webAdapter, debugLog);
   console.error(`[main] Web chat on port ${webPort} (full agent loop with drives + tool use)`);
 
-  return _runAgentLoop(memoryStore, webAdapter, debugLog, debugLogPath, memorySystem, personality, valueKernel, persistence, llmClient, innerMonologue);
+  return _runAgentLoop(memoryStore, adapter, debugLog, debugLogPath, memorySystem, personality, valueKernel, persistence, llmClient, innerMonologue);
 }
 // ── Shared agent loop runner ─────────────────────────────────
+
+/**
+ * Attach Agora adapter if config exists, wrapping the given adapter in a CompositeAdapter.
+ * Returns the original adapter unchanged if no Agora config is found.
+ */
+async function attachAgora(
+  baseAdapter: import('./interfaces.js').IEnvironmentAdapter,
+  debugLog: DebugLogger,
+): Promise<import('./interfaces.js').IEnvironmentAdapter> {
+  try {
+    const { loadAgoraConfig, AgoraService } = await import('@rookdaemon/agora');
+    const { AgoraAdapter } = await import('./agora-adapter.js');
+    const { CompositeAdapter } = await import('./composite-adapter.js');
+
+    const agoraConfig = loadAgoraConfig();
+    if (agoraConfig.relay?.url && agoraConfig.identity?.publicKey) {
+      const serviceConfig = await AgoraService.loadConfig();
+      const agoraAdapter = new AgoraAdapter(serviceConfig);
+      const peerCount = agoraConfig.peers ? Object.keys(agoraConfig.peers).length : 0;
+      console.error(`[main] Agora adapter attached (${peerCount} peers, relay: ${agoraConfig.relay.url})`);
+      debugLog.log('lifecycle', `Agora adapter attached`, { peerCount, relay: agoraConfig.relay.url });
+      return new CompositeAdapter([baseAdapter, agoraAdapter]);
+    }
+  } catch (err) {
+    console.error(`[main] Agora config load failed (continuing without): ${err}`);
+  }
+  return baseAdapter;
+}
 
 async function _runAgentLoop(
   memoryStore: MemoryStoreAdapter,

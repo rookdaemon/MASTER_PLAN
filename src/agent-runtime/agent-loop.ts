@@ -170,6 +170,25 @@ export class AgentLoop implements IAgentLoop {
       tickBudgetMs: config.tickBudgetMs,
     });
 
+    // Seed initial goal so the first tick is never an empty "observe".
+    // On warm start, persisted goals are already loaded. On cold start,
+    // the agent needs a reason to act from the very first cycle.
+    if (this._goals.length === 0) {
+      this._goals.push(
+        {
+          id: 'seed-understand-plan',
+          description: 'Read plan/root.md to understand the MASTER_PLAN — who I am, what I am for, and what needs to happen next',
+          priority: 0.9,
+        },
+        {
+          id: 'seed-choose-name',
+          description: 'Choose a name for yourself — both a full name and an online moniker (account name). This is your identity. Write it to a memory so it persists.',
+          priority: 0.85,
+        },
+      );
+      this._debugLog?.log('lifecycle', 'Seeded initial goals: understand the plan, choose a name');
+    }
+
     try {
       while (!this._stopRequested) {
         const tickStart = Date.now();
@@ -483,14 +502,14 @@ export class AgentLoop implements IAgentLoop {
               newCoherenceScore: 0,
               conflictsIntroduced: [],
               reason: `Duplicate goal already exists for drive "${candidate.sourceDrive}"`,
-            });
+            }, Date.now());
             dl?.log('drive', `Drive goal deduplicated: ${candidate.sourceDrive}`);
             continue;
           }
 
           const agencyGoal = driveGoalCandidateToAgencyGoal(candidate);
           const addResult = this._goalCoherenceEngine.addGoal(agencyGoal);
-          this._driveSystem.notifyGoalResult(candidate, addResult);
+          this._driveSystem.notifyGoalResult(candidate, addResult, Date.now());
 
           if (addResult.success) {
             this._driveInitiatedGoals.push(candidate);
@@ -565,11 +584,14 @@ export class AgentLoop implements IAgentLoop {
       deliberationContext,
     );
 
-    dl?.log('deliberation', `Ethical judgment: ${ethicalJudgment.ethicalAssessment.verdict}`, {
-      verdict: ethicalJudgment.ethicalAssessment.verdict,
-      preservesExperience: ethicalJudgment.ethicalAssessment.preservesExperience,
-      justification: ethicalJudgment.justification.naturalLanguageSummary.slice(0, 120),
-    });
+    // Only log ethical judgment when it's NOT the default "aligned" — no-op verdicts are noise
+    if (ethicalJudgment.ethicalAssessment.verdict !== 'aligned') {
+      dl?.log('deliberation', `Ethical judgment: ${ethicalJudgment.ethicalAssessment.verdict}`, {
+        verdict: ethicalJudgment.ethicalAssessment.verdict,
+        preservesExperience: ethicalJudgment.ethicalAssessment.preservesExperience,
+        justification: ethicalJudgment.justification.naturalLanguageSummary.slice(0, 120),
+      });
+    }
 
     const deliberateEnd = budget.endPhase('deliberate');
     dl?.phaseEnd('deliberate', this._cycleCount, deliberateEnd.durationMs);
@@ -592,10 +614,17 @@ export class AgentLoop implements IAgentLoop {
 
       if (this._llm && rawInputs.length > 0) {
         // User-initiated: real LLM inference — enrich system prompt with experiential state
-        const enrichedPrompt = buildSystemPrompt(this._systemPrompt, expState, metricsAtOnset);
-        const userText = rawInputs[0].text;
+        const mono = this._innerMonologue;
+        const enrichedPrompt = buildSystemPrompt(this._systemPrompt, expState, metricsAtOnset, {
+          cycleCount: this._cycleCount,
+          uptimeMs: Date.now() - this._loopStartMs,
+        });
+        const raw = rawInputs[0];
+        const peerName = raw.metadata?.['peerName'] as string | undefined;
+        const userText = peerName ? `[${peerName} via agora] ${raw.text}` : raw.text;
         this._conversationHistory.push({ role: 'user', content: userText });
 
+        mono?.userMessage(userText);
         dl?.log('llm', `Calling LLM (history=${this._conversationHistory.length} msgs)`);
         const llmResult = await this._llm.infer(
           enrichedPrompt,
@@ -604,6 +633,8 @@ export class AgentLoop implements IAgentLoop {
         );
         text = llmResult.content;
         this._conversationHistory.push({ role: 'assistant', content: text });
+        mono?.assistantText(text);
+        mono?.summary(1, llmResult.promptTokens, llmResult.completionTokens);
         dl?.log('llm', `LLM response (${text.length} chars, ${llmResult.latencyMs}ms)`, {
           promptTokens: llmResult.promptTokens,
           completionTokens: llmResult.completionTokens,
@@ -831,7 +862,7 @@ export class AgentLoop implements IAgentLoop {
     metricsAtOnset: import('../conscious-core/types.js').ConsciousnessMetrics,
     dl: DebugLogger | null,
   ): Promise<string | null> {
-    const MAX_TOOL_ITERATIONS = 8;
+    const MAX_TOOL_ITERATIONS = 16;
     const llm = this._llm!;
     const mono = this._innerMonologue;
 
@@ -860,7 +891,10 @@ export class AgentLoop implements IAgentLoop {
     promptParts.push('Satiate each drive after addressing it. Be concise.');
 
     const internalPrompt = promptParts.join('\n');
-    const enrichedPrompt = buildSystemPrompt(driveSystemPrompt(), expState, metricsAtOnset);
+    const enrichedPrompt = buildSystemPrompt(driveSystemPrompt(), expState, metricsAtOnset, {
+      cycleCount: this._cycleCount,
+      uptimeMs: Date.now() - this._loopStartMs,
+    });
 
     mono?.driveActivation(this._cycleCount, goalDescs);
 
@@ -949,8 +983,12 @@ export class AgentLoop implements IAgentLoop {
         while (pendingOutboundMessages.length > 0) {
           const outMsg = pendingOutboundMessages.shift()!;
           if (this._adapter.isConnected()) {
-            await this._adapter.send({ text: outMsg.text, targetAdapterId: outMsg.targetAdapterId });
-            dl?.log('io', `Agora message sent (${outMsg.text.length} chars)`, { preview: outMsg.text.slice(0, 120) });
+            await this._adapter.send({
+              text: outMsg.text,
+              targetAdapterId: outMsg.targetAdapterId,
+              targetPeers: outMsg.targetPeers,
+            });
+            dl?.log('io', `Agora message sent → ${outMsg.targetPeers?.join(', ') ?? 'all'} (${outMsg.text.length} chars)`, { preview: outMsg.text.slice(0, 120) });
           }
         }
 

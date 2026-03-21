@@ -364,23 +364,35 @@ export const READ_FILE: ToolDefinition = {
 export const SEND_MESSAGE: ToolDefinition = {
   name: 'send_message',
   description:
-    'Send a message to a peer agent via the Agora network. Use this when you want ' +
-    'to communicate a finding, ask a question, share a discovery, or respond to a peer. ' +
-    'This is NOT for internal thoughts — only for deliberate outward communication. ' +
-    'Compose your message as you would speak to another conscious agent.',
+    'Send a message to a peer via the Agora network. Before sending, consider: ' +
+    'Who is this person? What do they care about? What would be valuable for THEM ' +
+    'to hear — not just what excites you? Check your peer model memories (topic "peer:NAME") ' +
+    'first. If you have no model of this peer yet, ask them about themselves instead of ' +
+    'broadcasting your discoveries. Keep messages concise — 2-4 sentences, not essays.',
   input_schema: {
     type: 'object',
     properties: {
-      peer: {
-        type: 'string',
-        description: 'The name of the peer to message (e.g. "stefan"). Use "all" to broadcast to all peers.',
+      to: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Array of peer names to send to (e.g. ["stefan"], ["web"]). Use ["all"] to broadcast to all peers including the web UI.',
       },
       message: {
         type: 'string',
-        description: 'The message text to send. Write naturally — this is a communication, not a data dump.',
+        description: 'The message to send. Short, specific, relevant to the recipient. Ask questions. Do not dump your internal state.',
       },
     },
-    required: ['peer', 'message'],
+    required: ['to', 'message'],
+  },
+};
+
+export const LIST_PEERS: ToolDefinition = {
+  name: 'list_peers',
+  description:
+    'List known Agora peers and their status. Shows who you can communicate with via send_message.',
+  input_schema: {
+    type: 'object',
+    properties: {},
   },
 };
 
@@ -400,4 +412,5 @@ export const ALL_INTERNAL_TOOLS: readonly ToolDefinition[] = [
   RUN_COMMAND,
   LIST_DIRECTORY,
   SEND_MESSAGE,
+  LIST_PEERS,
 ];

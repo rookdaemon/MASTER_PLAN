@@ -58,15 +58,36 @@ const TRAIT_MAX_DELTA = 0.05;
 const FILE_CACHE_STALE_MS = 60 * 60 * 1000; // 1 hour — re-read files older than this
 const RUN_COMMAND_TIMEOUT_MS = 10_000;
 const RUN_COMMAND_MAX_OUTPUT = 4096; // 4KB cap
-const COMMAND_ALLOWLIST = [
-  'grep', 'find', 'wc', 'cat', 'head', 'tail',
-  'git', 'npx', 'ls', 'file', 'stat', 'tree',
-];
-const COMMAND_DENYLIST_ARGS = [
-  'rm ', 'rm\t', 'sudo', 'chmod', 'chown', 'mkfs',
-  'curl', 'wget', 'nc ', 'ssh', 'scp', 'rsync',
-  'npm install', 'npm publish', 'yarn add',
-  '> src/', '>> src/', 'tee src/',
+/**
+ * Command policy: ordered list of regex rules. First match wins.
+ * 'allow' permits execution, 'deny' blocks with the pattern shown to the agent.
+ * If no rule matches, the command is denied by default.
+ */
+const COMMAND_POLICY: Array<{ pattern: RegExp; action: 'allow' | 'deny'; reason?: string }> = [
+  // ── Deny dangerous operations first ──────────────────────
+  { pattern: /\brm\b/, action: 'deny', reason: 'destructive file removal' },
+  { pattern: /\bsudo\b/, action: 'deny', reason: 'privilege escalation' },
+  { pattern: /\b(chmod|chown|mkfs)\b/, action: 'deny', reason: 'filesystem modification' },
+  { pattern: /\b(curl|wget|nc|ssh|scp|rsync)\b/, action: 'deny', reason: 'network access' },
+  { pattern: /\bnpm\s+(install|publish|uninstall)\b/, action: 'deny', reason: 'package management' },
+  { pattern: /\byarn\s+add\b/, action: 'deny', reason: 'package management' },
+  { pattern: />\s*src\/|>>\s*src\/|\btee\s+src\//, action: 'deny', reason: 'writing to source tree via shell' },
+  { pattern: /\|\s*(bash|sh|zsh|node|python)\b/, action: 'deny', reason: 'piping to interpreter' },
+  // Prevent self-observation feedback loops
+  { pattern: /\.master-plan\/state|debug\.log|inner-monologue/, action: 'deny', reason: 'reading own logs' },
+
+  // ── Allow useful read-only / analysis commands ───────────
+  { pattern: /^(wc|ls|tree)\b/, action: 'allow' },
+  { pattern: /^git\s+(log|diff|show|status|blame|shortlog|rev-parse)\b/, action: 'allow' },
+  { pattern: /^git\b/, action: 'deny', reason: 'only read-only git commands (log, diff, show, status, blame) are permitted' },
+  { pattern: /^(grep|rg)\b/, action: 'allow' },
+  { pattern: /^(find|fd)\b/, action: 'allow' },
+  { pattern: /^(head|tail|cat)\b/, action: 'allow' },
+  { pattern: /^(sort|uniq|cut|tr|awk|sed)\b/, action: 'allow' },
+  { pattern: /^(echo|printf)\b/, action: 'allow' },
+  { pattern: /^(date|whoami|hostname|uname)\b/, action: 'allow' },
+  { pattern: /^npx\s+tsc\b/, action: 'allow' },
+  { pattern: /^npx\s+vitest\b/, action: 'allow' },
 ];
 
 const VALID_DRIVE_TYPES: readonly string[] = [
@@ -108,8 +129,10 @@ export function executeToolCall(
         return handleListDirectory(call.input, deps);
       case 'send_message':
         return handleSendMessage(call.input, deps);
+      case 'list_peers':
+        return handleListPeers(deps);
       default:
-        return error(`Unknown tool "${call.name}". Available tools: resource_read, resource_create, resource_update, resource_delete, resource_list, resource_search, introspect, reflect, read_file, send_message`);
+        return error(`Unknown tool "${call.name}". Available tools: resource_read, resource_create, resource_update, resource_delete, resource_list, resource_search, introspect, reflect, read_file, send_message, list_peers`);
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -786,27 +809,32 @@ function handleRunCommand(
     return error('run_command requires a non-empty "command" string.');
   }
 
-  // Extract the base command (first word)
-  const baseCmd = command.trim().split(/\s+/)[0].replace(/^.*\//, ''); // strip path prefix
-
-  // Allowlist check
-  if (!COMMAND_ALLOWLIST.includes(baseCmd)) {
-    return error(
-      `Command "${baseCmd}" is not in the allowlist. ` +
-      `Permitted commands: ${COMMAND_ALLOWLIST.join(', ')}`,
-    );
-  }
-
-  // Denylist check on full command string
-  for (const denied of COMMAND_DENYLIST_ARGS) {
-    if (command.includes(denied)) {
-      return error(`Command contains denied pattern "${denied.trim()}". This operation is not permitted for safety.`);
+  // Policy check: first matching rule wins
+  const trimmed = command.trim();
+  let allowed = false;
+  for (const rule of COMMAND_POLICY) {
+    if (rule.pattern.test(trimmed)) {
+      if (rule.action === 'deny') {
+        const allowPatterns = COMMAND_POLICY
+          .filter(r => r.action === 'allow')
+          .map(r => r.pattern.source);
+        return error(
+          `Command denied: ${rule.reason ?? rule.pattern.source}. ` +
+          `Allowed patterns: ${allowPatterns.join(' | ')}`,
+        );
+      }
+      allowed = true;
+      break;
     }
   }
-
-  // Additional safety: block piping to network or destructive commands
-  if (/\|\s*(curl|wget|nc|ssh|bash|sh|zsh)\b/.test(command)) {
-    return error('Piping to network or shell commands is not permitted.');
+  if (!allowed) {
+    const allowPatterns = COMMAND_POLICY
+      .filter(r => r.action === 'allow')
+      .map(r => r.pattern.source);
+    return error(
+      `Command "${trimmed.split(/\s+/)[0]}" did not match any allowed pattern. ` +
+      `Allowed patterns: ${allowPatterns.join(' | ')}`,
+    );
   }
 
   try {
@@ -979,30 +1007,75 @@ function handleReflect(
  * Queued outbound messages. The agent loop drains this after each tool execution.
  * This avoids making the tool executor async while still enabling communication.
  */
-export const pendingOutboundMessages: Array<{ targetAdapterId: string; text: string }> = [];
+export const pendingOutboundMessages: Array<{
+  targetAdapterId: string;
+  targetPeers?: string[];
+  text: string;
+}> = [];
 
 function handleSendMessage(
   input: Record<string, unknown>,
   deps: ToolExecutorDeps,
 ): ToolCallResult {
-  const peer = input['peer'] as string | undefined;
+  const to = input['to'] as string[] | undefined;
   const message = input['message'] as string | undefined;
 
-  if (!peer || typeof peer !== 'string') {
-    return error('send_message requires a "peer" name (e.g. "stefan") or "all".');
+  if (!Array.isArray(to) || to.length === 0) {
+    return error('send_message requires a "to" array of peer names (e.g. ["stefan"]).');
   }
   if (!message || typeof message !== 'string' || message.trim().length === 0) {
     return error('send_message requires a non-empty "message" string.');
   }
 
   if (!deps.adapter || !deps.adapter.isConnected()) {
-    return error('Agora adapter is not connected. Cannot send messages to peers.');
+    return error('No adapter connected. Cannot send messages.');
   }
 
-  pendingOutboundMessages.push({
-    targetAdapterId: 'agora',
-    text: message.trim(),
-  });
+  const text = message.trim();
+  const isAll = to.length === 1 && to[0] === 'all';
 
-  return ok({ sent: true, peer, messageLength: message.trim().length });
+  // Split recipients: 'web' goes to the web-chat adapter, others go to agora
+  const webRecipients = to.filter(p => p === 'web');
+  const agoraRecipients = to.filter(p => p !== 'web' && p !== 'all');
+
+  if (webRecipients.length > 0 || isAll) {
+    pendingOutboundMessages.push({ targetAdapterId: 'web-chat', text });
+  }
+  if (agoraRecipients.length > 0 || isAll) {
+    pendingOutboundMessages.push({
+      targetAdapterId: 'agora',
+      targetPeers: isAll ? undefined : agoraRecipients,
+      text,
+    });
+  }
+
+  return ok({ sent: true, to, messageLength: text.length });
+}
+
+// ── list_peers ───────────────────────────────────────────────────
+
+function handleListPeers(deps: ToolExecutorDeps): ToolCallResult {
+  if (!deps.adapter) {
+    return ok({ peers: [], connected: false, note: 'No adapter available' });
+  }
+
+  // Try to call listPeers if the adapter (or a child adapter) supports it
+  const adapter = deps.adapter as unknown as Record<string, unknown>;
+  if (typeof adapter['listPeers'] === 'function') {
+    const peers = (adapter['listPeers'] as () => Array<{ name: string; publicKey: string }>)();
+    return ok({ peers, connected: deps.adapter.isConnected() });
+  }
+
+  // CompositeAdapter: search children for an agora adapter
+  const adapters = (adapter['_adapters'] as Array<Record<string, unknown>> | undefined);
+  if (Array.isArray(adapters)) {
+    for (const child of adapters) {
+      if (typeof child['listPeers'] === 'function') {
+        const peers = (child['listPeers'] as () => Array<{ name: string; publicKey: string }>)();
+        return ok({ peers, connected: true });
+      }
+    }
+  }
+
+  return ok({ peers: [{ name: 'web', note: 'Web UI chat' }], connected: deps.adapter.isConnected() });
 }

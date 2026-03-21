@@ -82,7 +82,7 @@ export function assembleDriveContext(opts: {
     currentCognitiveLoad: opts.tickBudgetMs > 0
       ? Math.min(opts.phaseElapsedMs / opts.tickBudgetMs, 1)
       : 0.3,
-    currentNovelty: opts.hasRealInput ? 0.6 : 0.1,
+    currentNovelty: opts.hasRealInput ? 0.7 : 0.4,
     selfModelCoherence: opts.metrics.selfModelCoherence,
     personality: opts.personality,
     now: opts.now,
