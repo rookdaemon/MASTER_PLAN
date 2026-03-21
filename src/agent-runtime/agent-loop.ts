@@ -1025,6 +1025,20 @@ export class AgentLoop implements IAgentLoop {
               targetPeers: outMsg.targetPeers,
             });
             dl?.log('io', `Agora message sent → ${outMsg.targetPeers?.join(', ') ?? 'all'} (${outMsg.text.length} chars)`, { preview: outMsg.text.slice(0, 120) });
+
+            // Track sent messages in per-peer conversation history
+            // so the LLM sees what it already said to each peer
+            if (outMsg.targetPeers) {
+              for (const peer of outMsg.targetPeers) {
+                if (!this._peerConversationHistories.has(peer)) {
+                  this._peerConversationHistories.set(peer, []);
+                }
+                this._peerConversationHistories.get(peer)!.push({
+                  role: 'assistant',
+                  content: `[sent to ${peer}] ${outMsg.text}`,
+                });
+              }
+            }
           }
         }
 
