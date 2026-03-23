@@ -76,6 +76,9 @@ export class AgentLoop implements IAgentLoop {
   private _lastCheckpointMs = 0;
   private _lastExperientialState: ExperientialState | null = null;
 
+  // ── Pending peer message queue ─────────────────────────────
+  private _pendingPeerMessages: import('./types.js').RawInput[] = [];
+
   // ── Configurable agent context ───────────────────────────────
   private _config!: AgentConfig;
   private _goals: Goal[] = [];
@@ -449,7 +452,19 @@ export class AgentLoop implements IAgentLoop {
     budget.startPhase('perceive');
     dl?.phaseStart('perceive', this._cycleCount);
 
-    const rawInputs = await this._adapter.poll();
+    const allInputs = await this._adapter.poll();
+    // Queue peer messages for sequential reply; process non-peer (web/stdio) immediately
+    for (const inp of allInputs) {
+      const isPeer = inp.adapterId === 'agora' || !!inp.metadata?.['peerName'];
+      if (isPeer) {
+        this._pendingPeerMessages.push(inp);
+      }
+    }
+    // Primary input: first non-peer input, or shift one from the peer queue
+    const nonPeerInput = allInputs.find(inp => inp.adapterId !== 'agora' && !inp.metadata?.['peerName']);
+    const rawInputs = nonPeerInput
+      ? [nonPeerInput]
+      : (this._pendingPeerMessages.length > 0 ? [this._pendingPeerMessages.shift()!] : []);
     let primaryPercept: Percept | null = null;
     let expState: ExperientialState;
 
@@ -720,8 +735,14 @@ export class AgentLoop implements IAgentLoop {
         let contextPrefix = '';
         if (peerName && this._chatLog) {
           const history = this._chatLog.formatForPrompt(peerName, 10);
+          contextPrefix = `\n## REPLY TO: ${peerName}\nYou are replying to a message from **${peerName}**. Your response will be sent ONLY to ${peerName}. Do NOT address other peers in this response.\n`;
           if (history) {
-            contextPrefix = `\n## Recent conversation with ${peerName} (for continuity — do NOT repeat yourself):\n${history}\n`;
+            contextPrefix += `\n### Recent conversation with ${peerName} (for continuity — do NOT repeat yourself):\n${history}\n`;
+          }
+          // Show pending queue size so agent knows others are waiting
+          if (this._pendingPeerMessages.length > 0) {
+            const waiting = this._pendingPeerMessages.map(m => m.metadata?.['peerName'] ?? 'unknown');
+            contextPrefix += `\n_${waiting.length} other peer message(s) queued: ${[...new Set(waiting)].join(', ')}_\n`;
           }
         }
 
