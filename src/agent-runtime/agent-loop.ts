@@ -199,7 +199,21 @@ export class AgentLoop implements IAgentLoop {
         this._budgetMonitor.resetTick();
         this._debugLog?.tickStart(this._cycleCount);
 
-        const result = await this._tick();
+        let result: Awaited<ReturnType<typeof this._tick>>;
+        try {
+          result = await this._tick();
+        } catch (tickErr) {
+          const msg = tickErr instanceof Error ? tickErr.message : String(tickErr);
+          const is429 = msg.includes('429') || msg.toLowerCase().includes('rate_limit') || msg.toLowerCase().includes('too many requests');
+          if (is429) {
+            const backoffMs = 60_000;
+            this._debugLog?.log('lifecycle', `Rate limit hit at cycle ${this._cycleCount} — backing off ${backoffMs / 1000}s`, { error: msg });
+            console.warn(`[AgentLoop] rate limit at cycle ${this._cycleCount}, sleeping ${backoffMs / 1000}s`);
+            await _sleep(backoffMs);
+            continue;
+          }
+          throw tickErr;
+        }
 
         const tickMs = Date.now() - tickStart;
         this._tickDurationsMs.push(tickMs);
