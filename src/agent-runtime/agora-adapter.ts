@@ -30,6 +30,16 @@ export interface AgoraAdapterConfig {
   adapterId?: string;
   /** Path to agora config file. Defaults to ~/.config/agora/config.json. */
   configPath?: string;
+  /**
+   * When true, restrict all peer interactions (inbound, outbound, list) to
+   * diagnosticPeers only. Useful for isolating a single peer during development.
+   * Default: true.
+   */
+  diagnosticMode?: boolean;
+  /**
+   * Peer names allowed when diagnosticMode is enabled. Default: ['stefan'].
+   */
+  diagnosticPeers?: string[];
 }
 
 // ── AgoraAdapter ─────────────────────────────────────────────
@@ -42,10 +52,14 @@ export class AgoraAdapter implements IEnvironmentAdapter {
   private _serviceConfig: AgoraServiceConfig;
   private _messageQueue: RawInput[] = [];
   private _peerKeys: Set<string>;
+  private _diagnosticMode: boolean;
+  private _diagnosticPeers: Set<string>;
 
   constructor(serviceConfig: AgoraServiceConfig, config?: AgoraAdapterConfig) {
     this.id = config?.adapterId ?? 'agora';
     this._serviceConfig = serviceConfig;
+    this._diagnosticMode = config?.diagnosticMode ?? true;
+    this._diagnosticPeers = new Set(config?.diagnosticPeers ?? ['stefan']);
 
     // Build peer registry for filtering
     this._peerKeys = new Set(serviceConfig.peers.keys());
@@ -110,9 +124,14 @@ export class AgoraAdapter implements IEnvironmentAdapter {
 
     // Determine which peers to send to
     const allPeers = [...this._serviceConfig.peers.entries()];
-    const targets = output.targetPeers
+    let targets = output.targetPeers
       ? allPeers.filter(([, cfg]) => output.targetPeers!.includes(cfg.name ?? ''))
       : allPeers;
+
+    // Diagnostic mode: restrict sends to allowed peers only
+    if (this._diagnosticMode) {
+      targets = targets.filter(([, cfg]) => this._diagnosticPeers.has(cfg.name ?? ''));
+    }
 
     for (const [publicKey, peerConfig] of targets) {
       const name = peerConfig.name ?? publicKey.slice(0, 12);
@@ -130,10 +149,14 @@ export class AgoraAdapter implements IEnvironmentAdapter {
 
   /** List known peers with connection info. */
   listPeers(): Array<{ name: string; publicKey: string }> {
-    return [...this._serviceConfig.peers.entries()].map(([key, cfg]) => ({
+    const all = [...this._serviceConfig.peers.entries()].map(([key, cfg]) => ({
       name: cfg.name ?? key.slice(0, 12),
       publicKey: key,
     }));
+    if (this._diagnosticMode) {
+      return all.filter(p => this._diagnosticPeers.has(p.name));
+    }
+    return all;
   }
 
   // ── Private ────────────────────────────────────────────────
@@ -159,6 +182,12 @@ export class AgoraAdapter implements IEnvironmentAdapter {
 
     const peerConfig = this._serviceConfig.peers.get(from);
     const peerName = peerConfig?.name ?? from.slice(0, 12);
+
+    // Diagnostic mode: drop messages from non-allowed peers
+    if (this._diagnosticMode && !this._diagnosticPeers.has(peerName)) {
+      console.info(`[AgoraAdapter] Diagnostic mode: dropped message from non-diagnostic peer "${peerName}"`);
+      return;
+    }
 
     this._messageQueue.push({
       adapterId: this.id,

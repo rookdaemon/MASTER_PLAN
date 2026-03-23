@@ -297,10 +297,12 @@ async function attachAgora(
     const agoraConfig = loadAgoraConfig();
     if (agoraConfig.relay?.url && agoraConfig.identity?.publicKey) {
       const serviceConfig = await AgoraService.loadConfig();
-      const agoraAdapter = new AgoraAdapter(serviceConfig);
+      const diagnosticMode = process.env['DIAGNOSTIC_MODE'] !== 'false';
+      const agoraAdapter = new AgoraAdapter(serviceConfig, { diagnosticMode });
       const peerCount = agoraConfig.peers ? Object.keys(agoraConfig.peers).length : 0;
-      console.error(`[main] Agora adapter attached (${peerCount} peers, relay: ${agoraConfig.relay.url})`);
-      debugLog.log('lifecycle', `Agora adapter attached`, { peerCount, relay: agoraConfig.relay.url });
+      const diagNote = diagnosticMode ? ' [DIAGNOSTIC MODE: stefan only]' : '';
+      console.error(`[main] Agora adapter attached (${peerCount} peers, relay: ${agoraConfig.relay.url})${diagNote}`);
+      debugLog.log('lifecycle', `Agora adapter attached`, { peerCount, relay: agoraConfig.relay.url, diagnosticMode });
       return new CompositeAdapter([baseAdapter, agoraAdapter]);
     }
   } catch (err) {
