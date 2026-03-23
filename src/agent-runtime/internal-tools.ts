@@ -592,6 +592,60 @@ export const PEER_HISTORY: ToolDefinition = {
   },
 };
 
+export const CREATE_PROPOSAL: ToolDefinition = {
+  name: 'create_proposal',
+  description:
+    'Propose a change to the plan, request a resource, suggest a code change, or raise an ' +
+    'architecture decision. Creates a GitHub issue for the human operator to review. ' +
+    'You MUST use this instead of directly editing plan files or source code.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      title: {
+        type: 'string',
+        description: 'Short, descriptive title for the proposal (under 80 chars).',
+      },
+      type: {
+        type: 'string',
+        enum: ['plan_change', 'resource_request', 'code_change', 'architecture'],
+        description: 'Category of proposal.',
+      },
+      description: {
+        type: 'string',
+        description: 'Detailed description and rationale. Include what should change and why.',
+      },
+      affected_files: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Optional: file paths or plan card IDs affected by this proposal.',
+      },
+      priority: {
+        type: 'string',
+        enum: ['low', 'medium', 'high', 'critical'],
+        description: 'Optional: urgency level. Default: medium.',
+      },
+    },
+    required: ['title', 'type', 'description'],
+  },
+};
+
+export const CHECK_PROPOSAL: ToolDefinition = {
+  name: 'check_proposal',
+  description:
+    'Check the status of a previously created proposal by issue number, or list all ' +
+    'open agent proposals if no issue number is provided.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      issue_number: {
+        type: 'number',
+        description: 'Optional: GitHub issue number to check. Omit to list all open agent proposals.',
+      },
+    },
+    required: [],
+  },
+};
+
 // ── All tools ───────────────────────────────────────────────────
 
 export const ALL_INTERNAL_TOOLS: readonly ToolDefinition[] = [
@@ -616,4 +670,6 @@ export const ALL_INTERNAL_TOOLS: readonly ToolDefinition[] = [
   UPDATE_DIGEST,
   FRONTIER_ADD,
   FRONTIER_DONE,
+  CREATE_PROPOSAL,
+  CHECK_PROPOSAL,
 ];
