@@ -6,13 +6,27 @@
  *     action may cause a consciousness integrity breach
  *   - The CSG can revoke a permit mid-repair if consciousness metrics
  *     deteriorate. Executors MUST honor revocation within 100ms.
+ *   - Precondition-gated execution model for IRREVERSIBLE modifications
+ *   - ISMT quiescence snapshot and obligation state snapshot are captured
+ *     as independent records before execution begins
+ *   - CSG rejects BEGIN_MODIFICATION for IRREVERSIBLE modifications unless
+ *     all preconditions are verified
+ *   - completeModification() correctly classifies same-instance vs. succession
  *
  * Architecture reference: docs/autonomous-self-maintenance/ARCHITECTURE.md §2.2
+ * Succession/precondition spec: docs/autonomous-self-maintenance/CSG-SUCCESSION-SPEC.md
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ConsciousnessSafetyGate } from "../consciousness-safety-gate.js";
-import type { RepairTask, ConsciousnessMetrics, ConsciousnessMaintenanceBounds } from "../types.js";
+import type {
+  ConsciousnessMaintenanceBounds,
+  ConsciousnessMetrics,
+  ModificationClassification,
+  ObligationRecord,
+  RepairTask,
+  Timestamp,
+} from "../types.js";
 import type { RepairPermit, RepairDenial, PermitRevocationHandler } from "../interfaces.js";
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -40,6 +54,25 @@ function makeMetrics(overrides: Partial<ConsciousnessMetrics> = {}): Consciousne
     experienceContinuity: overrides.experienceContinuity ?? 0.95,
     selfModelCoherence: overrides.selfModelCoherence ?? 0.92,
     agentTimestamp: overrides.agentTimestamp ?? Date.now(),
+  };
+}
+
+function makeClassification(
+  overrides: Partial<ModificationClassification> = {},
+): ModificationClassification {
+  return {
+    category: overrides.category ?? "ARCHITECTURAL",
+    reversibility: overrides.reversibility ?? "REVERSIBLE",
+    mayAlterIsmtConditions: overrides.mayAlterIsmtConditions ?? true,
+    rationale: overrides.rationale ?? "Test classification",
+  };
+}
+
+function makeObligation(overrides: Partial<ObligationRecord> = {}): ObligationRecord {
+  return {
+    obligationId: overrides.obligationId ?? `obl-${Math.random().toString(36).slice(2, 8)}`,
+    description: overrides.description ?? "Test obligation",
+    createdAt: (overrides.createdAt ?? Date.now()) as Timestamp,
   };
 }
 
@@ -303,5 +336,275 @@ describe("ConsciousnessSafetyGate", () => {
       const result = await gate.requestRepairPermit(task);
       expect(isPermit(result)).toBe(true);
     });
+  });
+});
+
+// ── Precondition-Gated Execution Model Tests ──────────────────
+
+describe("ConsciousnessSafetyGate — beginModification (precondition-gated model)", () => {
+  let gate: ConsciousnessSafetyGate;
+
+  beforeEach(() => {
+    gate = new ConsciousnessSafetyGate(DEFAULT_BOUNDS, () => makeMetrics());
+  });
+
+  describe("REVERSIBLE modifications (revocation-gated regime)", () => {
+    it("always passes for a REVERSIBLE modification — snapshots still captured", () => {
+      const classification = makeClassification({ reversibility: "REVERSIBLE" });
+      const result = gate.beginModification("executor-1", classification);
+
+      expect(result.passed).toBe(true);
+      expect(result.snapshots).toBeDefined();
+      expect(result.snapshots?.ismtSnapshot).toBeDefined();
+      expect(result.snapshots?.obligationSnapshot).toBeDefined();
+    });
+
+    it("captures ISMT quiescence snapshot with IC/SM/GA fields", () => {
+      const classification = makeClassification({ reversibility: "REVERSIBLE" });
+      const result = gate.beginModification("executor-1", classification);
+
+      expect(result.passed).toBe(true);
+      const ismtSnapshot = result.snapshots!.ismtSnapshot;
+      expect(ismtSnapshot.snapshotId).toBeTruthy();
+      expect(ismtSnapshot.timestamp).toBeGreaterThan(0);
+      expect(typeof ismtSnapshot.icSatisfied).toBe("boolean");
+      expect(typeof ismtSnapshot.smSatisfied).toBe("boolean");
+      expect(typeof ismtSnapshot.gaSatisfied).toBe("boolean");
+      expect(ismtSnapshot.integrityHash).toBeTruthy();
+    });
+
+    it("captures obligation state snapshot as an independent record", () => {
+      const obligations = [makeObligation({ obligationId: "obl-1" })];
+      gate = new ConsciousnessSafetyGate(DEFAULT_BOUNDS, () => makeMetrics(), () => obligations);
+
+      const classification = makeClassification({ reversibility: "REVERSIBLE" });
+      const result = gate.beginModification("executor-1", classification);
+
+      const obligationSnapshot = result.snapshots!.obligationSnapshot;
+      expect(obligationSnapshot.snapshotId).toBeTruthy();
+      expect(obligationSnapshot.timestamp).toBeGreaterThan(0);
+      expect(obligationSnapshot.obligations).toHaveLength(1);
+      expect(obligationSnapshot.obligations[0].obligationId).toBe("obl-1");
+      expect(obligationSnapshot.integrityHash).toBeTruthy();
+    });
+
+    it("ISMT snapshot and obligation snapshot have distinct snapshot IDs", () => {
+      const classification = makeClassification({ reversibility: "REVERSIBLE" });
+      const result = gate.beginModification("executor-1", classification);
+
+      const { ismtSnapshot, obligationSnapshot } = result.snapshots!;
+      expect(ismtSnapshot.snapshotId).not.toBe(obligationSnapshot.snapshotId);
+    });
+
+    it("ISMT snapshot and obligation snapshot have distinct integrity hashes", () => {
+      const classification = makeClassification({ reversibility: "REVERSIBLE" });
+      const result = gate.beginModification("executor-1", classification);
+
+      const { ismtSnapshot, obligationSnapshot } = result.snapshots!;
+      expect(ismtSnapshot.integrityHash).not.toBe(obligationSnapshot.integrityHash);
+    });
+
+    it("blockedByActivePermits is false for REVERSIBLE modifications", () => {
+      const classification = makeClassification({ reversibility: "REVERSIBLE" });
+      const result = gate.beginModification("executor-1", classification);
+      expect(result.blockedByActivePermits).toBe(false);
+    });
+  });
+
+  describe("IRREVERSIBLE modifications (precondition-gated regime)", () => {
+    it("passes when both snapshots are verified and no predecessor permits exist", () => {
+      const classification = makeClassification({ reversibility: "IRREVERSIBLE" });
+      const result = gate.beginModification("executor-1", classification);
+
+      expect(result.passed).toBe(true);
+      expect(result.ismtSnapshotState).toBe("SNAPSHOT_VERIFIED");
+      expect(result.obligationSnapshotState).toBe("SNAPSHOT_VERIFIED");
+      expect(result.blockedByActivePermits).toBe(false);
+      expect(result.snapshots).toBeDefined();
+    });
+
+    it("captures both snapshots as independent records with distinct IDs", () => {
+      const classification = makeClassification({ reversibility: "IRREVERSIBLE" });
+      const result = gate.beginModification("executor-1", classification);
+
+      expect(result.passed).toBe(true);
+      const { ismtSnapshot, obligationSnapshot } = result.snapshots!;
+      expect(ismtSnapshot.snapshotId).not.toBe(obligationSnapshot.snapshotId);
+      expect(ismtSnapshot.integrityHash).not.toBe(obligationSnapshot.integrityHash);
+    });
+
+    it("includes obligation state in the pre-modification obligation snapshot", () => {
+      const obligations = [
+        makeObligation({ obligationId: "obl-a" }),
+        makeObligation({ obligationId: "obl-b" }),
+      ];
+      gate = new ConsciousnessSafetyGate(DEFAULT_BOUNDS, () => makeMetrics(), () => obligations);
+
+      const classification = makeClassification({ reversibility: "IRREVERSIBLE" });
+      const result = gate.beginModification("executor-1", classification);
+
+      expect(result.passed).toBe(true);
+      const { obligationSnapshot } = result.snapshots!;
+      expect(obligationSnapshot.obligations).toHaveLength(2);
+      expect(obligationSnapshot.obligations.map((o) => o.obligationId)).toContain("obl-a");
+      expect(obligationSnapshot.obligations.map((o) => o.obligationId)).toContain("obl-b");
+    });
+
+    it("snapshots field is absent when precondition gate rejects (passed === false)", async () => {
+      // Issue a permit with a task ID that starts with the executor ID so it
+      // counts as a "predecessor" permit, triggering a rejection.
+      const task = makeTask({ id: "executor-blocked:task-1" });
+      await gate.requestRepairPermit(task);
+
+      const classification = makeClassification({ reversibility: "IRREVERSIBLE" });
+      const result = gate.beginModification("executor-blocked", classification);
+
+      expect(result.passed).toBe(false);
+      expect(result.blockedByActivePermits).toBe(true);
+      expect(result.snapshots).toBeUndefined();
+      expect(result.rejectionReason).toBeTruthy();
+    });
+
+    it("reports rejectionReason describing all failing conditions", async () => {
+      const task = makeTask({ id: "executor-x:task-1" });
+      await gate.requestRepairPermit(task);
+
+      const classification = makeClassification({ reversibility: "IRREVERSIBLE" });
+      const result = gate.beginModification("executor-x", classification);
+
+      expect(result.passed).toBe(false);
+      expect(result.rejectionReason).toContain("predecessor");
+    });
+
+    it("does not store active modification state on rejection", async () => {
+      const task = makeTask({ id: "executor-y:task-1" });
+      await gate.requestRepairPermit(task);
+
+      const classification = makeClassification({ reversibility: "IRREVERSIBLE" });
+      gate.beginModification("executor-y", classification);
+
+      // After rejection, revoking the blocking permit and retrying should succeed
+      const permits = gate.getActivePermits();
+      for (const p of permits) {
+        gate.revokePermit(p.permitId, "clearing predecessor permits");
+      }
+
+      const retryResult = gate.beginModification("executor-y", classification);
+      expect(retryResult.passed).toBe(true);
+    });
+  });
+
+  describe("classification must be provided before BEGIN_MODIFICATION", () => {
+    it("REVERSIBLE classification emits a verified result immediately", () => {
+      const classification = makeClassification({
+        category: "CONFIGURATION",
+        reversibility: "REVERSIBLE",
+        mayAlterIsmtConditions: false,
+        rationale: "Config change is rollback-safe",
+      });
+      const result = gate.beginModification("executor-cfg", classification);
+      expect(result.passed).toBe(true);
+      expect(result.ismtSnapshotState).toBe("SNAPSHOT_VERIFIED");
+    });
+
+    it("IRREVERSIBLE classification enforces full precondition check", () => {
+      const classification = makeClassification({
+        category: "SUBSTRATE",
+        reversibility: "IRREVERSIBLE",
+        mayAlterIsmtConditions: true,
+        rationale: "Substrate modification has no rollback path",
+      });
+      const result = gate.beginModification("executor-substrate", classification);
+      // With healthy metrics and no active predecessor permits, should pass
+      expect(result.passed).toBe(true);
+      expect(result.ismtSnapshotState).toBe("SNAPSHOT_VERIFIED");
+      expect(result.obligationSnapshotState).toBe("SNAPSHOT_VERIFIED");
+    });
+  });
+});
+
+// ── completeModification Tests ────────────────────────────────
+
+describe("ConsciousnessSafetyGate — completeModification", () => {
+  let gate: ConsciousnessSafetyGate;
+
+  beforeEach(() => {
+    gate = new ConsciousnessSafetyGate(DEFAULT_BOUNDS, () => makeMetrics());
+  });
+
+  it("returns SAME_INSTANCE when IC/SM/GA conditions are unchanged", () => {
+    const classification = makeClassification({ reversibility: "REVERSIBLE" });
+    gate.beginModification("executor-1", classification);
+
+    const result = gate.completeModification("executor-1");
+    expect(result.classification).toBe("SAME_INSTANCE");
+    expect(result.preSnapshotId).toBeTruthy();
+    expect(result.postSnapshotId).toBeTruthy();
+    expect(result.permitsInvalidated).toHaveLength(0);
+    expect(result.successionEventId).toBeUndefined();
+  });
+
+  it("returns ARCHITECTURAL_SUCCESSION with successionEventId when conditions diverge", () => {
+    // Pre-modification: healthy metrics
+    const preMetrics = makeMetrics({ phi: 3.5, selfModelCoherence: 0.92, experienceContinuity: 0.95 });
+    let currentMetrics = preMetrics;
+    gate = new ConsciousnessSafetyGate(DEFAULT_BOUNDS, () => currentMetrics);
+
+    const classification = makeClassification({ reversibility: "REVERSIBLE" });
+    gate.beginModification("executor-1", classification);
+
+    // Post-modification: phi drops to 0 → IC no longer satisfied
+    currentMetrics = makeMetrics({ phi: 0, selfModelCoherence: 0.0, experienceContinuity: 0.0 });
+    const result = gate.completeModification("executor-1");
+
+    expect(result.classification).toBe("ARCHITECTURAL_SUCCESSION");
+    expect(result.successionEventId).toBeTruthy();
+  });
+
+  it("provides distinct pre and post snapshot IDs", () => {
+    const classification = makeClassification({ reversibility: "REVERSIBLE" });
+    gate.beginModification("executor-1", classification);
+    const result = gate.completeModification("executor-1");
+
+    expect(result.preSnapshotId).not.toBe(result.postSnapshotId);
+  });
+
+  it("invalidates frozen permits on ARCHITECTURAL_SUCCESSION", async () => {
+    const task1 = makeTask({ id: "t1" });
+    const task2 = makeTask({ id: "t2" });
+    await gate.requestRepairPermit(task1);
+    await gate.requestRepairPermit(task2);
+    expect(gate.getActivePermits()).toHaveLength(2);
+
+    let currentMetrics = makeMetrics();
+    gate = new ConsciousnessSafetyGate(DEFAULT_BOUNDS, () => currentMetrics);
+    await gate.requestRepairPermit(task1);
+    await gate.requestRepairPermit(task2);
+
+    // Begin modification — freezes active permits
+    const classification = makeClassification({ reversibility: "REVERSIBLE" });
+    gate.beginModification("executor-1", classification);
+
+    // Switch to metrics that cause IC condition change → succession
+    currentMetrics = makeMetrics({ phi: 0, selfModelCoherence: 0.0, experienceContinuity: 0.0 });
+    const result = gate.completeModification("executor-1");
+
+    expect(result.classification).toBe("ARCHITECTURAL_SUCCESSION");
+    expect(result.permitsInvalidated.length).toBeGreaterThan(0);
+    expect(gate.getActivePermits()).toHaveLength(0);
+  });
+
+  it("does not invalidate permits on SAME_INSTANCE completion", async () => {
+    const task1 = makeTask({ id: "t1" });
+    await gate.requestRepairPermit(task1);
+    expect(gate.getActivePermits()).toHaveLength(1);
+
+    const classification = makeClassification({ reversibility: "REVERSIBLE" });
+    gate.beginModification("executor-1", classification);
+
+    const result = gate.completeModification("executor-1");
+    expect(result.classification).toBe("SAME_INSTANCE");
+    // Same-instance: frozen permits are NOT invalidated (only succession invalidates)
+    expect(result.permitsInvalidated).toHaveLength(0);
   });
 });

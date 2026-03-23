@@ -17,19 +17,33 @@ import type {
   ConsciousnessMaintenanceBounds,
   ConsumableResource,
   DepletionForecast,
+  ExecutorId,
   FaultSeverity,
+  ForwardRecoveryResult,
   HardwareDiagnosticReading,
   HardwareHealthSnapshot,
   IntegrityCheckResult,
   InventoryStatus,
+  ModificationClassification,
+  PermitId,
+  PreconditionSnapshots,
+  PreconditionVerificationResult,
   PriorityScore,
   PriorityWeights,
   RepairPart,
   RepairResult,
   RepairTask,
   RepairType,
+  ResourceId,
+  SnapshotId,
   SoftwareDiagnosticFinding,
   SoftwareHealthSnapshot,
+  SuccessionEvaluationResult,
+  SupervisorRollbackResult,
+  TerminationReason,
+  TerminationResult,
+  ExecutorStatus,
+  TokenValidationResult,
   WearPrediction,
   Duration,
   Timestamp,
@@ -296,6 +310,19 @@ export interface IRepairPriorityScheduler {
  * for consciousness safety BEFORE execution. No repair may proceed
  * without CSG approval.
  *
+ * Two execution regimes:
+ *
+ *   Revocation-gated (REVERSIBLE modifications):
+ *     Execute → block/rollback on failure.  Recovery is bounded.
+ *
+ *   Precondition-gated (IRREVERSIBLE modifications):
+ *     Verify preconditions → then permit → execute.
+ *     Recovery is forward-only (initiateForwardRecovery()).
+ *     The CSG rejects BEGIN_MODIFICATION unless both the ISMT
+ *     quiescence snapshot and the obligation state snapshot have
+ *     been captured and independently verified, and no active
+ *     permits from a predecessor executor remain.
+ *
  * Invariant: The CSG can revoke a permit mid-repair if consciousness
  * metrics deteriorate. Executors MUST honor revocation within 100ms.
  */
@@ -317,6 +344,38 @@ export interface IConsciousnessSafetyGate {
 
   /** Set the consciousness maintenance bounds */
   setBounds(bounds: ConsciousnessMaintenanceBounds): void;
+
+  /**
+   * Signal the start of a modification.
+   *
+   * For REVERSIBLE modifications (revocation-gated regime):
+   *   Freezes active permits and captures the ISMT quiescence snapshot.
+   *   Returns a result with passed === true after snapshot capture.
+   *
+   * For IRREVERSIBLE modifications (precondition-gated regime):
+   *   Verifies that BOTH the ISMT quiescence snapshot AND the
+   *   obligation state snapshot have been captured and independently
+   *   verified, and that no active permits from a predecessor executor
+   *   remain.  Returns a result with passed === false if any condition
+   *   is unmet — the modification MUST NOT proceed in that case.
+   *
+   * Classification MUST be provided by the caller before this method
+   * is invoked; it cannot be assigned after BEGIN_MODIFICATION.
+   */
+  beginModification(
+    executorId: ExecutorId,
+    classification: ModificationClassification,
+  ): PreconditionVerificationResult;
+
+  /**
+   * Signal the completion of a modification after the system reaches
+   * a quiescent state.
+   *
+   * Captures the post-modification ISMT snapshot and evaluates the
+   * pre/post pair to classify the modification as same-instance
+   * re-evaluation or architectural succession.
+   */
+  completeModification(executorId: ExecutorId): SuccessionEvaluationResult;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -440,3 +499,107 @@ export interface IRepairInventoryManager {
   /** Get the overall inventory status */
   getInventoryStatus(): InventoryStatus;
 }
+
+// ══════════════════════════════════════════════════════════════════
+// ENFORCEMENT LAYER INTERFACES
+// ══════════════════════════════════════════════════════════════════
+
+/**
+ * Resource Gate (RG)
+ *
+ * Sits below the executor access layer.  All resource access by
+ * executors requires a valid, non-revoked permit token presented
+ * to this gate.  Revocation invalidates the token at the resource
+ * layer — the executor's operations are refused, not merely notified.
+ *
+ * The CSG MUST call invalidateToken() on all resource gates before
+ * returning from revokePermit().
+ *
+ * Architecture reference: docs/autonomous-self-maintenance/CSG-SUCCESSION-SPEC.md §1.1
+ */
+export interface IResourceGate {
+  /**
+   * Validate that the given permit token is currently authorised to
+   * access the given resource.  Returns valid === false if the token
+   * has been revoked or has expired.
+   */
+  validateToken(permitId: PermitId, resourceId: ResourceId): TokenValidationResult;
+
+  /**
+   * Invalidate all resource access for a permit.  Called by the CSG
+   * immediately on revocation — must complete synchronously so that
+   * the executor's next resource access is refused.
+   */
+  invalidateToken(permitId: PermitId): void;
+}
+
+/**
+ * Repair Supervisor
+ *
+ * Owns executor lifecycle (start, terminate, rollback, forward-recovery).
+ * Authority for executor termination sits outside the CSG — the CSG's
+ * compliance problem cannot be solved from within the gate.
+ *
+ * Division of responsibility:
+ *   CSG: owns permit state, token lifecycle, and revocation decisions.
+ *   Supervisor: owns executor lifecycle.
+ *   CSG calls Supervisor when revocation must be enforced beyond
+ *     coordination signals.
+ *
+ * Architecture reference: docs/autonomous-self-maintenance/CSG-SUCCESSION-SPEC.md §1.4
+ */
+export interface IRepairSupervisor {
+  /**
+   * Terminate an executor that has not entered safe state within the
+   * deadline after permit revocation.  Called by the CSG.
+   */
+  terminateExecutor(
+    executorId: ExecutorId,
+    reason: TerminationReason,
+  ): TerminationResult;
+
+  /**
+   * Initiate rollback to a named snapshot.  Valid only for REVERSIBLE
+   * modifications.  MUST NOT be called for IRREVERSIBLE modifications —
+   * use initiateForwardRecovery() instead.  Calling this method when no
+   * verified rollback target exists silently creates a recovery path
+   * that cannot succeed.
+   */
+  initiateRollback(
+    executorId: ExecutorId,
+    targetSnapshot: SnapshotId,
+  ): SupervisorRollbackResult;
+
+  /**
+   * Initiate forward-recovery-to-safe-state for an IRREVERSIBLE
+   * modification failure path.  This is the ONLY valid recovery route
+   * for irreversible modifications — rollback is not available.
+   *
+   * The preconditionSnapshots captured before execution began are
+   * provided as the reference baseline.  The supervisor determines the
+   * ForwardRecoveryOutcome:
+   *
+   *   PRE_MODIFICATION_EQUIVALENT — obligation ground resets to the
+   *     conditions captured in preconditionSnapshots.obligationSnapshot.
+   *     No succession event is needed.
+   *
+   *   NOVEL_SAFE_STATE — the entity has reached a genuinely new causal
+   *     position.  The supervisor MUST trigger an emergency succession
+   *     evaluation using the pre-modification obligation snapshot as the
+   *     reference baseline (the result appears in
+   *     ForwardRecoveryResult.emergencySuccessionEvaluation).  A
+   *     NOVEL_SAFE_STATE result without an emergencySuccessionEvaluation
+   *     is a spec violation.
+   */
+  initiateForwardRecovery(
+    executorId: ExecutorId,
+    preconditionSnapshots: PreconditionSnapshots,
+  ): Promise<ForwardRecoveryResult>;
+
+  /**
+   * Query the current lifecycle status of an executor.
+   * Used by the CSG to verify that revocation has been honoured.
+   */
+  getExecutorStatus(executorId: ExecutorId): ExecutorStatus;
+}
+

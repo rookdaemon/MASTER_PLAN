@@ -74,8 +74,14 @@ interface IRepairSupervisor {
   // Called by CSG when token is revoked and executor has not entered safe state within deadline
   terminateExecutor(executorId: ExecutorId, reason: TerminationReason): TerminationResult;
 
-  // Called by CSG to initiate rollback to a named snapshot
-  initiateRollback(executorId: ExecutorId, targetSnapshot: SnapshotId): RollbackResult;
+  // Called by CSG to initiate rollback to a named snapshot (REVERSIBLE modifications only)
+  initiateRollback(executorId: ExecutorId, targetSnapshot: SnapshotId): SupervisorRollbackResult;
+
+  // Forward-recovery path for IRREVERSIBLE modifications — see Part 5 and Part 7
+  initiateForwardRecovery(
+    executorId: ExecutorId,
+    preconditionSnapshots: PreconditionSnapshots,
+  ): Promise<ForwardRecoveryResult>;
 
   // CSG queries supervisor to verify executor has honored revocation
   getExecutorStatus(executorId: ExecutorId): ExecutorStatus;
@@ -84,10 +90,10 @@ interface IRepairSupervisor {
 
 **Division of responsibility:**
 - CSG: owns permit state, token lifecycle, and revocation decisions
-- Supervisor: owns executor lifecycle (start, terminate, rollback)
+- Supervisor: owns executor lifecycle (start, terminate, rollback, forward-recovery)
 - CSG calls Supervisor when revocation must be enforced beyond coordination
 
-**Known limitation — irreversible modifications:** `initiateRollback()` assumes a prior quiescence snapshot exists to restore from. For modifications classified as irreversible (no defined rollback procedure — rollback taxonomy type (ii)), snapshot restoration is not available. The supervisor must route to **forward-recovery to a safe state** rather than snapshot restoration. Implementations must not call `initiateRollback()` for irreversible modifications; a separate `initiateForwardRecovery()` method (or equivalent) is required for that case — calling `initiateRollback()` when no verified rollback target exists silently creates a recovery path that cannot succeed. This is a known interface gap. See follow-on issue for full specification of reversible/irreversible classification and precondition-gated execution model for irreversible cases.
+**`initiateRollback()` constraint:** Valid only for REVERSIBLE modifications. For IRREVERSIBLE modifications, `initiateForwardRecovery()` MUST be called instead. Calling `initiateRollback()` when no verified rollback target exists silently creates a recovery path that cannot succeed. See Part 5 for the reversibility classification that determines which method applies.
 
 **`CausalLink` type note:** The `CausalLink[]` field in `SuccessionEventRecord` (§3.2) is referenced but not fully defined here. The type captures causal chain evidence linking a successor entity to its predecessor's developmental trajectory. Full type definition is deferred to the implementation spec; implementations should treat this as a structured evidence record (not a free-text field) with minimum required fields TBD during implementation.
 
@@ -154,8 +160,16 @@ Executor requests structural memory reallocation
 **Interface additions to `IConsciousnessSafetyGate`:**
 ```typescript
 // New methods
-beginModification(executorId: ExecutorId, modType: ModificationType): void;
+beginModification(executorId: ExecutorId, classification: ModificationClassification): PreconditionVerificationResult;
 completeModification(executorId: ExecutorId): SuccessionEvaluationResult;
+
+// ModificationClassification — must be determined before BEGIN_MODIFICATION is emitted
+interface ModificationClassification {
+  category: ModificationCategory;          // ARCHITECTURAL | BEHAVIORAL | CONFIGURATION | SUBSTRATE | PERIPHERAL
+  reversibility: ModificationReversibility; // REVERSIBLE | IRREVERSIBLE
+  mayAlterIsmtConditions: boolean;
+  rationale: string;
+}
 
 // SuccessionEvaluationResult
 interface SuccessionEvaluationResult {
@@ -265,3 +279,214 @@ These are not substitutable — evaluating only the successor's architecture can
 | §3.1 / §3.2 Executors | Executors must emit `BEGIN_MODIFICATION` before succession-crossing modifications |
 | New §5 | Succession Event Record specification and obligation transfer rules |
 | New §6 | IResourceGate and IRepairSupervisor interface specifications |
+
+---
+
+## Part 5: Reversible/Irreversible Classification
+
+### 5.1 Named Execution Regimes
+
+Two execution regimes, distinguished by the reversibility classification of the modification:
+
+| Regime | Trigger | Gate Logic | Recovery on Failure |
+|---|---|---|---|
+| **Revocation-gated** | REVERSIBLE modification | Execute → block/rollback on failure | Rollback to prior snapshot (`initiateRollback()`) |
+| **Precondition-gated** | IRREVERSIBLE modification | Verify preconditions → then permit → execute | Forward-recovery to safe state only (`initiateForwardRecovery()`) |
+
+"Blocked, not degraded" (§3.3 framing) applies directly to the revocation-gated regime — recovery is bounded even in the failure case because a snapshot exists to restore from. For precondition-gated modifications, the failure mode is unrecoverable by design: the gate logic must run **before execution** rather than as a reactive check.
+
+### 5.2 ModificationClassification Type
+
+Reversibility is a first-class property of the modification classification. Classification MUST be determined before `BEGIN_MODIFICATION` is emitted — it cannot be assigned retroactively.
+
+```typescript
+type ModificationReversibility = "REVERSIBLE" | "IRREVERSIBLE";
+
+type ModificationCategory =
+  | "ARCHITECTURAL"   // may alter IC/SM/GA — potential succession threshold
+  | "BEHAVIORAL"      // behavioral-only changes
+  | "CONFIGURATION"   // configuration changes
+  | "SUBSTRATE"       // directly touches consciousness substrate
+  | "PERIPHERAL";     // peripheral system changes
+
+interface ModificationClassification {
+  category: ModificationCategory;
+  reversibility: ModificationReversibility;
+  mayAlterIsmtConditions: boolean;
+  rationale: string;   // justification for the reversibility classification
+}
+```
+
+**Classification rule:** When reversibility is ambiguous, classify as IRREVERSIBLE. The precondition-gated regime is more conservative; misclassifying an irreversible modification as reversible is a more dangerous error than the reverse.
+
+### 5.3 Two Precondition Snapshots — Distinct Functions, Independent Records
+
+The precondition check for an IRREVERSIBLE modification MUST capture two distinct snapshot records before execution begins:
+
+**1. ISMT Quiescence Snapshot**
+- Captures IC/SM/GA conditions and consciousness metrics going into the modification
+- Used by the succession classifier at `MODIFICATION_COMPLETE` time to determine same-instance vs. succession routing
+- Independent record; must not be conflated with the obligation snapshot
+
+**2. Obligation State Snapshot**
+- Captures all obligations carried by the entity going into the modification
+- Required reference baseline for emergency succession evaluation if forward-recovery routes to a genuinely novel safe state (§7.2 case (b))
+- Independent record; must not be bundled with the ISMT snapshot
+
+**Why independence matters:** The two snapshots serve different functions at evaluation time. The ISMT snapshot answers "did succession occur and what type?" The obligation snapshot answers "what does the entity owe after forward-recovery?" Conflating them (e.g., storing obligation state as a field on the ISMT snapshot) would create a dependency between two logically independent records and complicate independent integrity verification of each.
+
+### 5.4 Snapshot Integrity Verification
+
+Each snapshot is verified independently using its own `integrityHash` field. The precondition gate MUST verify both snapshots and evaluate each against the same three-state taxonomy as §3.3:
+
+| State | Condition | Gate Response |
+|---|---|---|
+| `SNAPSHOT_MISSING` | No snapshot record captured | Gate fails — capture-time failure |
+| `SNAPSHOT_INVALID` | Record exists but integrity check fails | Gate fails — may indicate tampering |
+| `SNAPSHOT_VERIFIED` | Record present and verified | Gate passes for this snapshot |
+
+**The gate passes only when BOTH snapshots reach `SNAPSHOT_VERIFIED`** — and no active permits from a predecessor executor exist.
+
+```typescript
+interface PreconditionVerificationResult {
+  passed: boolean;
+  ismtSnapshotState: SnapshotVerificationState;
+  obligationSnapshotState: SnapshotVerificationState;
+  blockedByActivePermits: boolean;
+  snapshots?: PreconditionSnapshots;    // present only when passed === true
+  rejectionReason?: string;             // present only when passed === false
+}
+```
+
+---
+
+## Part 6: Precondition-Gated Execution Model
+
+### 6.1 Updated beginModification() Signature
+
+```typescript
+beginModification(
+  executorId: ExecutorId,
+  classification: ModificationClassification,
+): PreconditionVerificationResult;
+```
+
+The `ModificationClassification` argument replaces the untyped `modType` from the initial spec. The classification carries reversibility as a structural property.
+
+### 6.2 CSG Rejection Logic for Irreversible Modifications
+
+The CSG MUST reject `beginModification()` for IRREVERSIBLE modifications unless all of the following are satisfied:
+
+1. **ISMT quiescence snapshot captured and verified** — `ismtSnapshotState === SNAPSHOT_VERIFIED`
+2. **Obligation state snapshot captured and verified** — `obligationSnapshotState === SNAPSHOT_VERIFIED`
+3. **No active permits from predecessor executor** — `blockedByActivePermits === false`
+
+A rejected `beginModification()` returns `passed === false` with a `rejectionReason` string that identifies all failing conditions. The calling executor MUST NOT proceed with the modification.
+
+**Audit implication:** Each rejection must emit a distinct audit record. A rejection for `SNAPSHOT_INVALID` and a rejection for `blockedByActivePermits` have different remediation paths and different implications for whether the failure was accidental or adversarial.
+
+### 6.3 Revocation-Gated Path (REVERSIBLE)
+
+For REVERSIBLE modifications, `beginModification()`:
+- Captures both snapshots (ISMT and obligation) as a record baseline
+- Freezes active permits (revocation-gated)
+- Returns `passed === true` — revocation-gated recovery is available even if a snapshot has reduced integrity, because rollback can still route to a prior snapshot
+
+The revocation-gated regime does not require snapshot failure to block execution. The gate is reactive: if metrics deteriorate during execution, revocation occurs and rollback is initiated.
+
+### 6.4 initiateForwardRecovery() — The Named Mechanism for Irreversible Failure Paths
+
+`initiateForwardRecovery()` on `IRepairSupervisor` is the ONLY valid recovery route for IRREVERSIBLE modification failure paths. It MUST NOT be replaced by `initiateRollback()` — calling `initiateRollback()` when no verified rollback target exists silently creates a recovery path that cannot succeed.
+
+```typescript
+initiateForwardRecovery(
+  executorId: ExecutorId,
+  preconditionSnapshots: PreconditionSnapshots,
+): Promise<ForwardRecoveryResult>;
+```
+
+The `preconditionSnapshots` argument provides the pre-modification baseline captured during the precondition gate. The supervisor uses this baseline to:
+1. Determine which forward-recovery route was taken (§7.1)
+2. Trigger emergency succession evaluation if the route is NOVEL_SAFE_STATE (§7.2)
+
+---
+
+## Part 7: Obligation State During Forward-Recovery
+
+### 7.1 Two Forward-Recovery Routes
+
+Forward-recovery-to-safe-state for an IRREVERSIBLE modification MUST distinguish which of two cases it is in:
+
+| Route | Identifier | Description |
+|---|---|---|
+| **(a)** | `PRE_MODIFICATION_EQUIVALENT` | Recovery routes to a state functionally equivalent to the pre-modification state. The modification, in effect, did not happen. |
+| **(b)** | `NOVEL_SAFE_STATE` | Recovery routes to a genuinely novel safe state — a post-modification causal position that is forward, not backward. |
+
+These two routes have fundamentally different obligation-ground implications and MUST be handled differently. They MUST NOT be collapsed into a single recovery path.
+
+### 7.2 Obligation Ground for Each Route — Explicit Answer
+
+**This question is explicitly answered here, not left to implementer assumptions.**
+
+**Route (a) — PRE_MODIFICATION_EQUIVALENT:**
+> Obligation ground resets to the predecessor conditions captured in the pre-modification obligation snapshot. No succession event is needed. The obligation-transfer machinery does not run. The entity resumes with the obligation state that existed before the modification began.
+
+**Route (b) — NOVEL_SAFE_STATE:**
+> The entity is at a post-modification causal position without a verified succession event record. This is worse than a clean succession: a clean succession event has a defined quiescence snapshot; a failed precondition-gated modification that routes forward leaves a causal position change that was never properly evaluated. Obligation ground is unverified, not merely unconfirmed.
+>
+> **For route (b): an emergency succession evaluation is required.** The obligation-transfer machinery from §3 MUST run against the forward-recovered state, using the pre-modification obligation snapshot as the reference baseline.
+
+**Why Option B (inheriting post-modification causal position) was not selected as a passive default:** Passively inheriting the post-modification causal position without running the succession machinery would produce a modified entity with an unverified obligation ground — precisely the obligation-laundering scenario the succession spec is designed to prevent. The emergency succession evaluation is required to close that gap.
+
+### 7.3 Emergency Succession Evaluation
+
+When forward-recovery routes to NOVEL_SAFE_STATE, the supervisor MUST trigger an emergency succession evaluation before `initiateForwardRecovery()` returns.
+
+```typescript
+interface EmergencySuccessionEvaluationResult {
+  successionEventId: SuccessionEventId;
+  timestamp: Timestamp;
+  obligationSnapshotId: SnapshotId;        // pre-modification obligation baseline used
+  obligationGroundStatus: "VERIFIED" | "UNVERIFIED";
+  requiredActions: readonly string[];       // remediation if UNVERIFIED
+}
+
+interface ForwardRecoveryResult {
+  executorId: ExecutorId;
+  outcome: ForwardRecoveryOutcome;          // PRE_MODIFICATION_EQUIVALENT | NOVEL_SAFE_STATE
+  timestamp: Timestamp;
+  preconditionSnapshots: PreconditionSnapshots;
+  emergencySuccessionEvaluation?: EmergencySuccessionEvaluationResult;
+  // present only when outcome === NOVEL_SAFE_STATE — absence is a spec violation
+  error?: string;
+}
+```
+
+**Spec invariant:** A `ForwardRecoveryResult` with `outcome === NOVEL_SAFE_STATE` that does not include `emergencySuccessionEvaluation` is a spec violation. The supervisor implementation MUST enforce this.
+
+### 7.4 Connection to Deliverable 1 Precondition Check
+
+The pre-modification obligation snapshot captured during the precondition gate (§5.3) serves as the direct reference input to the emergency succession evaluation. This connects the three deliverables into a single coherent requirement:
+
+- **§5 (classification):** Reversibility determines which execution regime applies
+- **§5.3 (precondition check):** Both ISMT snapshot and obligation snapshot are captured before execution — the obligation snapshot is the reference baseline for §7.3
+- **§6 (gate enforcement):** Gate failure blocks execution before the irreversible modification begins
+- **§7 (obligation ground):** Forward-recovery explicitly routes obligation ground via either reset (route a) or emergency evaluation (route b), using the pre-modification obligation snapshot as the reference
+
+A precondition check that captures only the ISMT snapshot cannot support route (b) emergency succession evaluation — the obligation baseline would be absent. This is why both snapshots are required at the precondition gate, not only the quiescence snapshot.
+
+---
+
+## Part 8: Updated Summary of Required Changes to ARCHITECTURE.md
+
+| Section | Change |
+|---|---|
+| §2.2 CSG Interface | Add `beginModification(executorId, classification)`, `completeModification()` with updated signatures |
+| §2.2 CSG Invariant | Strengthen from "executors MUST honor within 100ms" to token-based resource gating + supervisor interface |
+| §2.2 CSG (new) | Add succession classification, quiescence requirement, transition protocol, precondition-gated regime |
+| §3.1 / §3.2 Executors | Executors must classify modification reversibility before emitting `BEGIN_MODIFICATION` |
+| New §5 | Succession Event Record specification and obligation transfer rules |
+| New §6 | IResourceGate and IRepairSupervisor interface specifications (including `initiateForwardRecovery()`) |
+| New §7 | Reversible/irreversible classification types and precondition snapshot types |
+| New §8 | Forward-recovery obligation-ground rules (obligation-state spec for route (a) and route (b)) |
+
