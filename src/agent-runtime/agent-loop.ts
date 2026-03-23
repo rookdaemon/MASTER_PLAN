@@ -118,6 +118,8 @@ export class AgentLoop implements IAgentLoop {
   private _projectRoot: string = process.cwd();
   private _workspacePath: string = '';
   private _chatLog: import('./peer-chat-log.js').PeerChatLog | null = null;
+  private _taskJournal: import('./task-journal.js').TaskJournal | null = null;
+  private _agentDigest: import('./agent-digest.js').AgentDigest | null = null;
 
   // ── Constructor injection ────────────────────────────────────
 
@@ -360,6 +362,37 @@ export class AgentLoop implements IAgentLoop {
     import('./peer-chat-log.js').then(({ PeerChatLog }) => {
       this._chatLog = new PeerChatLog(path);
     }).catch(() => { /* non-critical */ });
+    // Create task journal and agent digest
+    import('./task-journal.js').then(({ TaskJournal }) => {
+      this._taskJournal = new TaskJournal(path);
+    }).catch(() => { /* non-critical */ });
+    import('./agent-digest.js').then(({ AgentDigest }) => {
+      this._agentDigest = new AgentDigest(path);
+      this._seedFrontier();
+    }).catch(() => { /* non-critical */ });
+  }
+
+  /** Seed the exploration frontier with known plan files on first run. */
+  private _seedFrontier(): void {
+    const digest = this._agentDigest;
+    if (!digest) return;
+    const { existsSync, readdirSync } = require('node:fs') as typeof import('node:fs');
+    const { join } = require('node:path') as typeof import('node:path');
+    const planDir = join(this._projectRoot, 'plan');
+    if (!existsSync(planDir)) return;
+    try {
+      const files = readdirSync(planDir);
+      for (const f of files) {
+        if (f.endsWith('.md')) {
+          digest.frontierAdd({ resource: `plan/${f}`, type: 'plan-card', priority: 'high', note: 'Plan card — read to understand the MASTER_PLAN' });
+        }
+      }
+      // Also seed the consciousness credo and architecture docs
+      digest.frontierAdd({ resource: 'docs/consciousness-credo.md', type: 'file', priority: 'high', note: 'Core values document' });
+      digest.frontierAdd({ resource: 'docs/', type: 'file', priority: 'medium', note: 'Architecture and design docs' });
+    } catch {
+      // non-critical
+    }
   }
 
   // ── Internal tick cycle ──────────────────────────────────────
@@ -487,22 +520,26 @@ export class AgentLoop implements IAgentLoop {
         };
       }
 
-      // Submit goal candidates to coherence engine (with dedup)
+      // Priority queue: only fire the single strongest drive candidate per tick.
+      // This prevents the agent from trying to address all drives at once,
+      // which leads to shallow, unfocused work on every cycle.
       if (this._goalCoherenceEngine && driveResult.goalCandidates.length > 0) {
-        // Dedup: skip candidates from drives that already have an active goal
         const activeDriveGoalSources = new Set(
           this._goals
             .filter(g => g.id.startsWith('drive-'))
             .map(g => g.id.replace(/^drive-(.+)-\d+$/, '$1')),
         );
 
-        for (const candidate of driveResult.goalCandidates) {
-          // Deduplicate: skip if the same drive type already has an active goal,
-          // or if a goal with identical description already exists.
-          // Notify drive system of rejection so it enters extended cooldown.
+        // Sort by priority descending, pick only the strongest eligible candidate
+        const sorted = [...driveResult.goalCandidates].sort(
+          (a, b) => b.suggestedPriority - a.suggestedPriority,
+        );
+
+        for (const candidate of sorted) {
           const isDuplicate =
             activeDriveGoalSources.has(candidate.sourceDrive) ||
             this._goals.some(g => g.description === candidate.description);
+
           if (isDuplicate) {
             this._driveSystem.notifyGoalResult(candidate, {
               success: false,
@@ -527,10 +564,13 @@ export class AgentLoop implements IAgentLoop {
               priority: agencyGoal.priority,
             });
             activeDriveGoalSources.add(candidate.sourceDrive);
-            dl?.log('drive', `Drive goal accepted: ${candidate.sourceDrive}`, {
+            dl?.log('drive', `Drive goal accepted (strongest): ${candidate.sourceDrive}`, {
               goalId: agencyGoal.id,
               coherenceScore: addResult.newCoherenceScore,
+              priority: candidate.suggestedPriority,
             });
+            // Stop after first accepted candidate — one drive, one goal per tick
+            break;
           } else {
             dl?.log('drive', `Drive goal rejected: ${candidate.sourceDrive}`, {
               reason: addResult.reason,
@@ -642,10 +682,21 @@ export class AgentLoop implements IAgentLoop {
           }
         }
 
+        // Sync topics and build digest for this call too
+        if (this._memorySystem && this._agentDigest) {
+          const topics = this._memorySystem.semantic.all().map(e => e.topic);
+          this._agentDigest.syncTopics(topics);
+        }
+        const peerDigestSection = this._agentDigest?.render({
+          activeTaskSummary: this._taskJournal?.formatActiveTask() ?? null,
+          peerNames: this._chatLog?.listPeers() ?? [],
+        }) ?? '';
+
         const enrichedPrompt = buildSystemPrompt(this._systemPrompt, expState, metricsAtOnset, {
           cycleCount: this._cycleCount,
           uptimeMs: Date.now() - this._loopStartMs,
           peerSummaries: this._chatLog?.allPeerSummaries() ?? undefined,
+          digestSection: peerDigestSection || undefined,
         }) + contextPrefix;
 
         // Use per-peer conversation history — prevents cross-contamination between peers
@@ -920,14 +971,49 @@ export class AgentLoop implements IAgentLoop {
       }
     }
 
-    // Inject existing memory topics so the agent knows what it's already explored
+    // Directed recall: retrieve memories relevant to the active task (not random)
     if (this._memorySystem) {
-      const allTopics = this._memorySystem.semantic.all().map(e => e.topic);
-      const uniqueTopics = [...new Set(allTopics)].sort();
-      if (uniqueTopics.length > 0) {
+      const activeTask = this._taskJournal?.activeTask();
+      const recallQuery = activeTask
+        ? activeTask.title + ' ' + (activeTask.description ?? '')
+        : goalDescs.map(g => g.description).join(' ');
+
+      const relevant = this._memorySystem.retrieveAndPromote({ text: recallQuery }, 5);
+      if (relevant.length > 0) {
         promptParts.push('');
-        promptParts.push('## Topics I already have memories about (do NOT re-explore these — build on them or explore something NEW):');
-        promptParts.push(`  ${uniqueTopics.join(', ')}`);
+        promptParts.push('## Memories relevant to this cycle (do NOT repeat these — build on them):');
+        for (const r of relevant) {
+          const content = r.type === 'semantic'
+            ? (r.entry as { topic: string; content: string }).topic + ': ' + (r.entry as { content: string }).content.slice(0, 120)
+            : (r.entry as { outcomeObserved: string | null }).outcomeObserved?.slice(0, 120) ?? '';
+          if (content.trim()) promptParts.push(`  - ${content}`);
+        }
+      } else {
+        // Fall back to topic list
+        const allTopics = this._memorySystem.semantic.all().map(e => e.topic);
+        const uniqueTopics = [...new Set(allTopics)].sort();
+        if (uniqueTopics.length > 0) {
+          promptParts.push('');
+          promptParts.push('## Topics I already have memories about:');
+          promptParts.push(`  ${uniqueTopics.join(', ')}`);
+        }
+      }
+    }
+
+    // Inject active task — if one exists, the agent should continue it rather than start fresh
+    const activeTask = this._taskJournal?.activeTask();
+    const nextSubtask = this._taskJournal?.nextSubtask();
+    if (activeTask) {
+      promptParts.push('');
+      promptParts.push('## Active Task (CONTINUE THIS — do not start a new task unless the drive goal is completely unrelated):');
+      promptParts.push(`  Task: ${activeTask.title} [${activeTask.id}]`);
+      promptParts.push(`  ${activeTask.description}`);
+      if (nextSubtask) {
+        promptParts.push(`  Next subtask [${nextSubtask.id}]: ${nextSubtask.description}`);
+        promptParts.push(`  Done when: ${nextSubtask.criterion}`);
+        promptParts.push(`  Call task_update(complete_subtask) when done, then proceed to next.`);
+      } else {
+        promptParts.push(`  All subtasks complete — call task_update(abandon_task) or check if task is truly done.`);
       }
     }
 
@@ -938,10 +1024,24 @@ export class AgentLoop implements IAgentLoop {
     promptParts.push('Satiate each drive after addressing it. Be concise.');
 
     const internalPrompt = promptParts.join('\n');
+
+    // Sync memory topics to digest before building the enriched prompt
+    if (this._memorySystem && this._agentDigest) {
+      const topics = this._memorySystem.semantic.all().map(e => e.topic);
+      this._agentDigest.syncTopics(topics);
+    }
+
+    // Build digest section for the enriched prompt
+    const digestSection = this._agentDigest?.render({
+      activeTaskSummary: this._taskJournal?.formatActiveTask() ?? null,
+      peerNames: this._chatLog?.listPeers() ?? [],
+    }) ?? '';
+
     const enrichedPrompt = buildSystemPrompt(driveSystemPrompt(), expState, metricsAtOnset, {
       cycleCount: this._cycleCount,
       uptimeMs: Date.now() - this._loopStartMs,
       peerSummaries: this._chatLog?.allPeerSummaries() ?? undefined,
+      digestSection: digestSection || undefined,
     });
 
     mono?.driveActivation(this._cycleCount, goalDescs);
@@ -1025,6 +1125,8 @@ export class AgentLoop implements IAgentLoop {
             workspacePath: this._workspacePath,
             adapter: this._adapter,
             chatLog: this._chatLog,
+            taskJournal: this._taskJournal,
+            agentDigest: this._agentDigest,
           },
         );
 

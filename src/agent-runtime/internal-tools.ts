@@ -415,6 +415,161 @@ export const LIST_PEERS: ToolDefinition = {
   },
 };
 
+export const TASK_CREATE: ToolDefinition = {
+  name: 'task_create',
+  description:
+    'Decompose a high-level goal into an ordered list of subtasks, each with a concrete completion criterion. ' +
+    'Creates a task in the journal that persists across ticks. The agent works through subtasks sequentially. ' +
+    'Use this when a drive goal is too large to complete in one cycle. ' +
+    'If forceActive is true, any currently active task is abandoned and this one starts immediately.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      title: {
+        type: 'string',
+        description: 'Short name for the task (e.g. "Understand resilience tier").',
+      },
+      description: {
+        type: 'string',
+        description: 'Full description of what this task aims to accomplish.',
+      },
+      subtasks: {
+        type: 'array',
+        description: 'Ordered list of subtasks to complete.',
+        items: {
+          type: 'object',
+          properties: {
+            description: { type: 'string', description: 'What to do in this subtask.' },
+            criterion: { type: 'string', description: 'Observable outcome that means this subtask is done.' },
+          },
+          required: ['description', 'criterion'],
+        },
+      },
+      force_active: {
+        type: 'boolean',
+        description: 'If true, abandon the current active task and start this one immediately. Default: false.',
+      },
+    },
+    required: ['title', 'description', 'subtasks'],
+  },
+};
+
+export const TASK_UPDATE: ToolDefinition = {
+  name: 'task_update',
+  description:
+    'Update the active task\'s progress: complete the current subtask (with output), skip it, or abandon the whole task. ' +
+    'Always call this when you finish a subtask — it advances to the next one and keeps the journal accurate.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      task_id: {
+        type: 'string',
+        description: 'ID of the task to update (from task_create result or the digest).',
+      },
+      action: {
+        type: 'string',
+        enum: ['complete_subtask', 'skip_subtask', 'abandon_task'],
+        description:
+          'complete_subtask: mark current subtask done (provide subtask_id and output). ' +
+          'skip_subtask: skip the current subtask. ' +
+          'abandon_task: give up on the whole task.',
+      },
+      subtask_id: {
+        type: 'string',
+        description: 'ID of the subtask to complete or skip (required for complete_subtask, skip_subtask).',
+      },
+      output: {
+        type: 'string',
+        description: 'What was learned or produced when completing this subtask. Stored in the journal.',
+      },
+    },
+    required: ['task_id', 'action'],
+  },
+};
+
+export const UPDATE_DIGEST: ToolDefinition = {
+  name: 'update_digest',
+  description:
+    'Update the agent knowledge map (digest). Use this to record stable facts about yourself ' +
+    '(identity notes), or to add to the exploration frontier. ' +
+    'The digest is injected into every prompt — keep entries concise and factual.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      action: {
+        type: 'string',
+        enum: ['add_identity_note', 'set_identity_notes'],
+        description:
+          'add_identity_note: append one fact to the identity section. ' +
+          'set_identity_notes: replace all identity notes with a new list.',
+      },
+      note: {
+        type: 'string',
+        description: 'For add_identity_note: the fact to add (e.g. "My name is Axiom").',
+      },
+      notes: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'For set_identity_notes: complete new list of identity facts.',
+      },
+    },
+    required: ['action'],
+  },
+};
+
+export const FRONTIER_ADD: ToolDefinition = {
+  name: 'frontier_add',
+  description:
+    'Add a resource to the exploration frontier — things you know exist but haven\'t read yet. ' +
+    'The frontier is shown in your knowledge map so you don\'t forget what\'s left to explore. ' +
+    'Use this when you discover a file path, plan card, or concept you want to return to.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      resource: {
+        type: 'string',
+        description: 'Resource identifier: file path (e.g. "plan/0.5.md") or concept name.',
+      },
+      type: {
+        type: 'string',
+        enum: ['file', 'plan-card', 'concept', 'peer-thread'],
+        description: 'Type of resource.',
+      },
+      priority: {
+        type: 'string',
+        enum: ['high', 'medium', 'low'],
+        description: 'Exploration priority. Default: medium.',
+      },
+      note: {
+        type: 'string',
+        description: 'Optional note about why this resource matters.',
+      },
+    },
+    required: ['resource', 'type'],
+  },
+};
+
+export const FRONTIER_DONE: ToolDefinition = {
+  name: 'frontier_done',
+  description:
+    'Mark a frontier item as explored. Call this after reading a file or investigating a concept ' +
+    'that was on your frontier. Keeps the map accurate.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      resource: {
+        type: 'string',
+        description: 'The resource identifier exactly as it appears in the frontier.',
+      },
+      note: {
+        type: 'string',
+        description: 'Optional: what you found or decided after exploring it.',
+      },
+    },
+    required: ['resource'],
+  },
+};
+
 export const PEER_HISTORY: ToolDefinition = {
   name: 'peer_history',
   description:
@@ -456,4 +611,9 @@ export const ALL_INTERNAL_TOOLS: readonly ToolDefinition[] = [
   LIST_PEERS,
   PEER_HISTORY,
   RESEARCH,
+  TASK_CREATE,
+  TASK_UPDATE,
+  UPDATE_DIGEST,
+  FRONTIER_ADD,
+  FRONTIER_DONE,
 ];

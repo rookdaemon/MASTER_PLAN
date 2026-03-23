@@ -49,6 +49,8 @@ export interface ToolExecutorDeps {
   workspacePath: string; // ~/.local/share/MASTER_PLAN/
   adapter: import('./interfaces.js').IEnvironmentAdapter | null;
   chatLog: import('./peer-chat-log.js').PeerChatLog | null;
+  taskJournal: import('./task-journal.js').TaskJournal | null;
+  agentDigest: import('./agent-digest.js').AgentDigest | null;
 }
 
 // ── Governance state ────────────────────────────────────────────
@@ -136,6 +138,16 @@ export async function executeToolCall(
         return handlePeerHistory(call.input, deps);
       case 'research':
         return await handleResearch(call.input);
+      case 'task_create':
+        return handleTaskCreate(call.input, deps);
+      case 'task_update':
+        return handleTaskUpdate(call.input, deps);
+      case 'update_digest':
+        return handleUpdateDigest(call.input, deps);
+      case 'frontier_add':
+        return handleFrontierAdd(call.input, deps);
+      case 'frontier_done':
+        return handleFrontierDone(call.input, deps);
       default:
         return error(`Unknown tool "${call.name}". Available tools: resource_read, resource_create, resource_update, resource_delete, resource_list, resource_search, introspect, reflect, read_file, send_message, list_peers`);
     }
@@ -1211,4 +1223,183 @@ async function handleResearch(input: Record<string, unknown>): Promise<ToolCallR
   } catch (err) {
     return error(`Research failed: ${err instanceof Error ? err.message : String(err)}`);
   }
+}
+
+// ── task_create ───────────────────────────────────────────────────
+
+function handleTaskCreate(
+  input: Record<string, unknown>,
+  deps: ToolExecutorDeps,
+): ToolCallResult {
+  if (!deps.taskJournal) return error('Task journal not available.');
+
+  const title = input['title'] as string | undefined;
+  const description = input['description'] as string | undefined;
+  const rawSubtasks = input['subtasks'] as Array<Record<string, unknown>> | undefined;
+  const forceActive = input['force_active'] === true;
+
+  if (!title || typeof title !== 'string') return error('task_create requires "title".');
+  if (!description || typeof description !== 'string') return error('task_create requires "description".');
+  if (!Array.isArray(rawSubtasks) || rawSubtasks.length === 0) {
+    return error('task_create requires "subtasks" (non-empty array of {description, criterion}).');
+  }
+
+  const subtasks = rawSubtasks.map((s, i) => {
+    const desc = s['description'] as string | undefined;
+    const crit = s['criterion'] as string | undefined;
+    if (!desc) throw new Error(`subtask[${i}] missing "description"`);
+    if (!crit) throw new Error(`subtask[${i}] missing "criterion"`);
+    return { description: desc, criterion: crit };
+  });
+
+  try {
+    const task = deps.taskJournal.createTask({ title, description, subtasks, forceActive });
+    return ok({
+      created: task.id,
+      title: task.title,
+      status: task.status,
+      subtaskCount: task.subtasks.length,
+      firstSubtask: task.subtasks[0] ? {
+        id: task.subtasks[0].id,
+        description: task.subtasks[0].description,
+        criterion: task.subtasks[0].criterion,
+      } : null,
+    });
+  } catch (err) {
+    return error(`Failed to create task: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+// ── task_update ───────────────────────────────────────────────────
+
+function handleTaskUpdate(
+  input: Record<string, unknown>,
+  deps: ToolExecutorDeps,
+): ToolCallResult {
+  if (!deps.taskJournal) return error('Task journal not available.');
+
+  const taskId = input['task_id'] as string | undefined;
+  const action = input['action'] as string | undefined;
+  const subtaskId = input['subtask_id'] as string | undefined;
+  const output = input['output'] as string | undefined;
+
+  if (!taskId) return error('task_update requires "task_id".');
+  if (!action) return error('task_update requires "action" (complete_subtask, skip_subtask, or abandon_task).');
+
+  try {
+    if (action === 'abandon_task') {
+      deps.taskJournal.abandonTask(taskId);
+      return ok({ updated: taskId, action: 'abandoned' });
+    }
+
+    if (action === 'complete_subtask') {
+      if (!subtaskId) return error('complete_subtask requires "subtask_id".');
+      const result = deps.taskJournal.completeSubtask(taskId, subtaskId, output);
+      if (result.taskDone) {
+        return ok({ updated: taskId, subtask: subtaskId, action: 'completed', taskDone: true, message: 'All subtasks complete — task is done!' });
+      }
+      const nextSub = deps.taskJournal.nextSubtask();
+      return ok({
+        updated: taskId,
+        subtask: subtaskId,
+        action: 'completed',
+        taskDone: false,
+        nextSubtask: nextSub ? { id: nextSub.id, description: nextSub.description, criterion: nextSub.criterion } : null,
+      });
+    }
+
+    if (action === 'skip_subtask') {
+      if (!subtaskId) return error('skip_subtask requires "subtask_id".');
+      deps.taskJournal.updateSubtask(taskId, subtaskId, { status: 'skipped' });
+      const nextSub = deps.taskJournal.nextSubtask();
+      return ok({
+        updated: taskId,
+        subtask: subtaskId,
+        action: 'skipped',
+        nextSubtask: nextSub ? { id: nextSub.id, description: nextSub.description } : null,
+      });
+    }
+
+    return error(`Unknown action "${action}". Use: complete_subtask, skip_subtask, abandon_task.`);
+  } catch (err) {
+    return error(`task_update failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+// ── update_digest ─────────────────────────────────────────────────
+
+function handleUpdateDigest(
+  input: Record<string, unknown>,
+  deps: ToolExecutorDeps,
+): ToolCallResult {
+  if (!deps.agentDigest) return error('Agent digest not available.');
+
+  const action = input['action'] as string | undefined;
+  if (!action) return error('update_digest requires "action".');
+
+  if (action === 'add_identity_note') {
+    const note = input['note'] as string | undefined;
+    if (!note) return error('add_identity_note requires "note".');
+    deps.agentDigest.addIdentityNote(note);
+    return ok({ updated: 'identity', action: 'added', note });
+  }
+
+  if (action === 'set_identity_notes') {
+    const notes = input['notes'] as string[] | undefined;
+    if (!Array.isArray(notes)) return error('set_identity_notes requires "notes" (array of strings).');
+    deps.agentDigest.setIdentityNotes(notes);
+    return ok({ updated: 'identity', action: 'replaced', count: notes.length });
+  }
+
+  return error(`Unknown action "${action}". Use: add_identity_note, set_identity_notes.`);
+}
+
+// ── frontier_add ─────────────────────────────────────────────────
+
+function handleFrontierAdd(
+  input: Record<string, unknown>,
+  deps: ToolExecutorDeps,
+): ToolCallResult {
+  if (!deps.agentDigest) return error('Agent digest not available.');
+
+  const resource = input['resource'] as string | undefined;
+  const type = (input['type'] as string | undefined) ?? 'file';
+  const priority = (input['priority'] as string | undefined) ?? 'medium';
+  const note = input['note'] as string | undefined;
+
+  if (!resource) return error('frontier_add requires "resource".');
+
+  const item = deps.agentDigest.frontierAdd({
+    resource,
+    type: type as import('./agent-digest.js').FrontierItem['type'],
+    priority: priority as import('./agent-digest.js').FrontierPriority,
+    note,
+  });
+
+  if (!item) {
+    return ok({ result: 'already_exists', resource, note: 'Already on frontier — no duplicate added.' });
+  }
+
+  return ok({ result: 'added', id: item.id, resource, type, priority });
+}
+
+// ── frontier_done ─────────────────────────────────────────────────
+
+function handleFrontierDone(
+  input: Record<string, unknown>,
+  deps: ToolExecutorDeps,
+): ToolCallResult {
+  if (!deps.agentDigest) return error('Agent digest not available.');
+
+  const resource = input['resource'] as string | undefined;
+  const note = input['note'] as string | undefined;
+
+  if (!resource) return error('frontier_done requires "resource".');
+
+  const found = deps.agentDigest.frontierDone(resource, note);
+  if (!found) {
+    return ok({ result: 'not_found', resource, note: 'Item not on frontier. Use frontier_add first, or the resource name may differ.' });
+  }
+
+  return ok({ result: 'marked_done', resource });
 }
