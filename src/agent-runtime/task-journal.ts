@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type SubTaskStatus = 'pending' | 'active' | 'done' | 'skipped';
-export type TaskStatus = 'active' | 'done' | 'abandoned';
+export type TaskStatus = 'active' | 'queued' | 'done' | 'abandoned';
 
 export interface SubTask {
   id: string;
@@ -60,11 +60,14 @@ export class TaskJournal {
     return this._tasks.find(t => t.status === 'active') ?? null;
   }
 
-  /** Next pending subtask of the active task, or null. */
+  /** Next subtask of the active task (active first, then pending), or null. */
   nextSubtask(): SubTask | null {
     const task = this.activeTask();
     if (!task) return null;
-    return task.subtasks.find(s => s.status === 'pending' || s.status === 'active') ?? null;
+    // Prefer already-active subtask, fall back to first pending
+    return task.subtasks.find(s => s.status === 'active')
+      ?? task.subtasks.find(s => s.status === 'pending')
+      ?? null;
   }
 
   /** All tasks (active, done, abandoned). */
@@ -117,7 +120,8 @@ export class TaskJournal {
       id,
       title: params.title,
       description: params.description,
-      status: (!hasActive || params.forceActive) ? 'active' : 'active',
+      // Queue behind the active task unless forceActive (which already abandoned it above)
+      status: (!hasActive || params.forceActive) ? 'active' : 'queued',
       subtasks,
       createdAt: now,
       sourceGoalId: params.sourceGoalId,
@@ -130,8 +134,9 @@ export class TaskJournal {
 
   /**
    * Advance the current active subtask: mark it done with optional output,
-   * and activate the next pending subtask. If all subtasks are done,
-   * marks the task itself as done.
+   * and activate the next pending subtask within the same task. If all
+   * subtasks are done, marks the task itself as done and promotes the next
+   * queued task to active.
    */
   completeSubtask(taskId: string, subtaskId: string, output?: string): { taskDone: boolean } {
     const task = this._tasks.find(t => t.id === taskId);
@@ -143,7 +148,7 @@ export class TaskJournal {
     sub.status = 'done';
     if (output) sub.output = output;
 
-    // Activate next pending subtask
+    // Activate next pending subtask within THIS task only
     const nextPending = task.subtasks.find(s => s.status === 'pending');
     if (nextPending) {
       nextPending.status = 'active';
@@ -151,11 +156,19 @@ export class TaskJournal {
       return { taskDone: false };
     }
 
-    // All subtasks done → complete the task
+    // All subtasks done (or skipped) → complete this task
     const allDone = task.subtasks.every(s => s.status === 'done' || s.status === 'skipped');
     if (allDone) {
       task.status = 'done';
       task.completedAt = Date.now();
+      // Promote next queued task to active
+      const nextQueued = this._tasks.find(t => t.status === 'queued');
+      if (nextQueued) {
+        nextQueued.status = 'active';
+        // Activate its first pending subtask
+        const firstSub = nextQueued.subtasks.find(s => s.status === 'pending');
+        if (firstSub) firstSub.status = 'active';
+      }
       this._save();
       return { taskDone: true };
     }
