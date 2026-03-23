@@ -717,6 +717,9 @@ export class AgentLoop implements IAgentLoop {
       let isDriveInternal = false;
       // Route replies back to the adapter that originated the input
       const replyAdapterId = rawInputs.length > 0 ? rawInputs[0].adapterId : undefined;
+      const replyPeerName = rawInputs.length > 0
+        ? rawInputs[0].metadata?.['peerName'] as string | undefined
+        : undefined;
 
       if (this._llm && rawInputs.length > 0) {
         // User-initiated: real LLM inference — enrich system prompt with experiential state
@@ -824,9 +827,13 @@ export class AgentLoop implements IAgentLoop {
           // Agora communication happens explicitly via the send_message tool.
           dl?.log('drive', `Drive output (${text.length} chars, internal only)`, { preview: text.slice(0, 120) });
         } else {
-          // Input-initiated or stub fallback: send to originating adapter (or all)
-          await this._adapter.send({ text, targetAdapterId: replyAdapterId });
-          dl?.log('io', `Reply sent (${text.length} chars) → ${replyAdapterId ?? 'all'}`, { preview: text.slice(0, 120) });
+          // Input-initiated or stub fallback: send to originating adapter, targeted to specific peer
+          await this._adapter.send({
+            text,
+            targetAdapterId: replyAdapterId,
+            targetPeers: replyPeerName ? [replyPeerName] : undefined,
+          });
+          dl?.log('io', `Reply sent (${text.length} chars) → ${replyPeerName ?? replyAdapterId ?? 'all'}`, { preview: text.slice(0, 120) });
           db?.log('io', `Sent: "${text.slice(0, 80)}${text.length > 80 ? '…' : ''}"`);
         }
 
