@@ -8,7 +8,7 @@
  * The log survives restarts and provides context for ongoing conversations.
  */
 
-import { existsSync, mkdirSync, appendFileSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, appendFileSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 export interface ChatEntry {
@@ -90,7 +90,6 @@ export class PeerChatLog {
   /** List all peers that have chat history. */
   listPeers(): string[] {
     if (!existsSync(this._chatDir)) return [];
-    const { readdirSync } = require('node:fs') as typeof import('node:fs');
     return readdirSync(this._chatDir)
       .filter((f: string) => f.endsWith('.jsonl'))
       .map((f: string) => f.replace(/\.jsonl$/, ''));
