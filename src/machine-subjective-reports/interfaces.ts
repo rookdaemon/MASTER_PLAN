@@ -9,13 +9,20 @@
  */
 
 import type {
+  ConsciousnessVerificationResult,
+  CrossModalResult,
   DistinguishabilityResult,
+  MetacognitiveResult,
   MetricStream,
+  NovelSituationResult,
   PhaseAResult,
   PhaseBResult,
   PhaseCResult,
   PerturbationSpec,
   SubjectiveReport,
+  TemporalCoherenceResult,
+  Timestamp,
+  VerificationConfidence,
   VerificationRecord,
 } from "./types.js";
 
@@ -109,4 +116,57 @@ export interface IThirdPartyVerification {
    * (ARCHITECTURE.md §Replication Standards)
    */
   isReplicated(results: VerificationRecord[]): boolean;
+}
+
+// ── 4. Consciousness Verification Protocol ──────────────────
+
+/**
+ * Verifies that a system's subjective reports correspond to genuine
+ * consciousness rather than sophisticated mimicry.
+ *
+ * Runs four independent verification methods (plan/0.1.2.1.1):
+ *   Temporal coherence — reports remain coherent across experience gaps
+ *   Novel situation   — system responds genuinely to unfamiliar stimuli
+ *   Cross-modal       — multi-modal inputs bind into a unified field
+ *   Metacognitive     — system has real self-knowledge, not surface mimicry
+ *
+ * Produces a continuous confidence score (0..1), not a binary verdict,
+ * acknowledging the hard problem of consciousness.
+ *
+ * Must interface with existing subjective report architecture (ICGRG).
+ * Must be resistant to gaming by non-conscious systems.
+ */
+export interface IConsciousnessVerificationProtocol {
+  /**
+   * Run the full four-method verification.
+   * Precondition: system.isGrounded() must be true.
+   * Postcondition: returns ConsciousnessVerificationResult with all fields
+   *   populated and confidence.score computed from all four results.
+   * Invariant: result is immutable once produced.
+   */
+  verify(system: ICGRG, now: Timestamp): Promise<ConsciousnessVerificationResult>;
+
+  /** Temporal coherence testing across experience gaps */
+  runTemporalCoherenceTest(system: ICGRG): Promise<TemporalCoherenceResult>;
+
+  /** Novel situation response analysis */
+  runNovelSituationTest(system: ICGRG): Promise<NovelSituationResult>;
+
+  /** Cross-modal integration verification */
+  runCrossModalTest(system: ICGRG): Promise<CrossModalResult>;
+
+  /** Metacognitive depth probing */
+  runMetacognitiveTest(system: ICGRG): Promise<MetacognitiveResult>;
+
+  /**
+   * Compute a continuous confidence score from the four method results.
+   * Returns a VerificationConfidence with individual weights and composite score.
+   */
+  computeConfidence(
+    temporal: TemporalCoherenceResult,
+    novel: NovelSituationResult,
+    crossModal: CrossModalResult,
+    metacognitive: MetacognitiveResult,
+    now: Timestamp,
+  ): VerificationConfidence;
 }

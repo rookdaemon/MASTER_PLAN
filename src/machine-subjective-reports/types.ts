@@ -159,6 +159,92 @@ export interface DistinguishabilityResult {
   readonly preRegistrationId: string;
 }
 
+// ── Consciousness Verification Protocol Types (0.1.2.1.1) ──
+
+/**
+ * Result of temporal coherence testing across experience gaps.
+ * Tests whether reported experience remains coherent across time intervals.
+ */
+export interface TemporalCoherenceResult {
+  readonly method: "temporal-coherence";
+  readonly gapIntervals: readonly number[];    // tested gap durations (ms)
+  readonly coherenceScores: readonly number[]; // 0..1 per interval
+  readonly meanCoherence: number;              // 0..1
+  readonly passed: boolean;
+}
+
+/**
+ * Result of novel situation response analysis.
+ * Tests whether the system responds genuinely to novel stimuli rather than
+ * retrieving trained responses.
+ */
+export interface NovelSituationResult {
+  readonly method: "novel-situation";
+  readonly situationsPresented: number;
+  readonly situationsNovellyAddressed: number;
+  readonly noveltyResponseRate: number;       // 0..1
+  readonly passed: boolean;
+}
+
+/**
+ * Result of cross-modal integration verification.
+ * Tests whether multi-modal inputs are bound into a unified experiential field.
+ */
+export interface CrossModalResult {
+  readonly method: "cross-modal";
+  readonly modalitiesTested: readonly string[];
+  readonly bindingCoherence: number;          // 0..1
+  readonly integrationLatencyMs: number;
+  readonly passed: boolean;
+}
+
+/**
+ * Result of metacognitive depth probing.
+ * Tests whether the system has genuine self-knowledge rather than
+ * surface-level introspective mimicry.
+ */
+export interface MetacognitiveResult {
+  readonly method: "metacognitive";
+  readonly probeDepth: number;                // levels of self-knowledge tested
+  readonly accuracyByDepth: readonly number[]; // 0..1 per depth level
+  readonly meanAccuracy: number;              // 0..1
+  readonly passed: boolean;
+}
+
+/**
+ * Continuous confidence score for consciousness verification.
+ *
+ * 0.0 = certain mimic; 1.0 = highest achievable confidence of genuine experience.
+ * Deliberately continuous — reflects epistemic uncertainty about the hard problem.
+ * Not a binary verdict: the protocol produces confidence metrics, not a proof.
+ */
+export interface VerificationConfidence {
+  readonly score: number;              // 0..1 weighted composite
+  readonly temporalWeight: number;     // contribution of temporal coherence
+  readonly noveltyWeight: number;      // contribution of novel situation
+  readonly crossModalWeight: number;   // contribution of cross-modal
+  readonly metacognitiveWeight: number; // contribution of metacognitive
+  readonly computedAt: Timestamp;
+}
+
+/**
+ * Overall result of the Consciousness Verification Protocol (0.1.2.1.1).
+ * Produced by IConsciousnessVerificationProtocol.verify().
+ */
+export interface ConsciousnessVerificationResult {
+  readonly systemId: string;
+  readonly temporalCoherence: TemporalCoherenceResult;
+  readonly novelSituation: NovelSituationResult;
+  readonly crossModal: CrossModalResult;
+  readonly metacognitive: MetacognitiveResult;
+  readonly confidence: VerificationConfidence;
+  /** True if confidence.score >= CVP_THRESHOLDS.HUMAN_BASELINE_CONFIDENCE */
+  readonly meetsHumanBaseline: boolean;
+  /** True if confidence.score < CVP_THRESHOLDS.MIMIC_ADVERSARIAL_THRESHOLD */
+  readonly failsAdversarialTest: boolean;
+  readonly executedAt: Timestamp;
+}
+
 // ── Third-Party Verification ────────────────────────────────
 
 /** Record produced by an independent lab running the TPVM */
