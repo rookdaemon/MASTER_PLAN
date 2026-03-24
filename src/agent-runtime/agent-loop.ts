@@ -97,7 +97,7 @@ export class AgentLoop implements IAgentLoop {
   /** Per-peer conversation history. Key is peer name (or '_web' / '_stdio' for non-Agora). */
   private _peerConversationHistories: Map<string, Array<{ role: 'user' | 'assistant'; content: string }>> = new Map();
   private _systemPrompt: string = defaultSystemPrompt();
-  private _maxTokens: number = 4096;
+  private _maxTokens: number = 16384;
 
   // ── Observability (optional) ─────────────────────────────────
   private _debugLog: DebugLogger | null = null;
