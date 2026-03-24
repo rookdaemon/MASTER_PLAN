@@ -74,9 +74,22 @@ export function assembleDriveContext(opts: {
   personality: DrivePersonalityParams;
   now: number;
 }): DriveContext {
+  // World-model uncertainty: inverse of exploration progress.
+  // Use average novelty of the most recent activities as a proxy —
+  // high novelty means the agent is exploring unknown territory, i.e. high uncertainty.
+  // Fall back to (1 - selfModelCoherence) as a floor so that low self-coherence
+  // still contributes some uncertainty signal when the activity log is empty or stale.
+  const avgRecentNovelty = opts.activityLog.length > 0
+    ? opts.activityLog.slice(-10).reduce((s, r) => s + r.novelty, 0) /
+      Math.min(opts.activityLog.length, 10)
+    : 0.7; // high uncertainty when no activity yet
+
   return {
     currentState: opts.expState,
-    worldModelUncertainty: 1 - opts.metrics.selfModelCoherence,
+    worldModelUncertainty: Math.max(
+      avgRecentNovelty,                         // high novelty = exploring unknown territory
+      1 - opts.metrics.selfModelCoherence,      // keep as fallback floor
+    ),
     timeSinceLastSocialInteraction: opts.now - opts.lastSocialInteractionAt,
     recentActivity: opts.activityLog.slice(-10),
     currentCognitiveLoad: opts.tickBudgetMs > 0
