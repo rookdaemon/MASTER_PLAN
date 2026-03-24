@@ -281,10 +281,14 @@ export class AgentLoop implements IAgentLoop {
 
         this._debugLog?.tickEnd(this._cycleCount, tickMs, result.intact);
 
-        // Always yield to the macrotask queue so I/O callbacks (HTTP, stdin,
-        // WebSocket) get a chance to run.  When the tick was fast (no real
-        // work), sleep longer to avoid busy-spinning.
-        await _sleep(tickMs < 10 ? 100 : 1);
+        // Pace the agent: sleep between ticks so we don't burn tokens.
+        // TICK_PAUSE_MS sets the minimum gap.  When the tick was fast
+        // (no real work / no drives fired), sleep the full pause.  When
+        // a real tick ran, still pause to give peers time to respond and
+        // keep token spend reasonable.  Incoming messages are buffered by
+        // the adapter and processed at the next tick start.
+        const pauseMs = parseInt(process.env['TICK_PAUSE_MS'] ?? '300000', 10); // default 5 min
+        await _sleep(tickMs < 10 ? pauseMs : pauseMs);
 
         if (result.budgetReport.monitorFloorMet) {
           this._monitorFloorMetCount++;
