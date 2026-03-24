@@ -619,10 +619,18 @@ export class AgentLoop implements IAgentLoop {
             .map(g => g.id.replace(/^drive-(.+)-\d+$/, '$1')),
         );
 
+        // Check if social hold is active (agent decided to stop messaging)
+        const digestNotes = this._agentDigest?.getData();
+        const socialHold = digestNotes?.identityNotes.some(
+          (n: string) => n.toLowerCase().includes('holding') || n.toLowerCase().includes('hold engagement'),
+        ) || digestNotes?.settledFacts?.some(
+          (f: string) => f.toLowerCase().includes('social hold') || f.toLowerCase().includes('stop messaging'),
+        ) || false;
+
         // Sort by priority descending, pick only the strongest eligible candidate
-        const sorted = [...driveResult.goalCandidates].sort(
-          (a, b) => b.suggestedPriority - a.suggestedPriority,
-        );
+        const sorted = [...driveResult.goalCandidates]
+          .filter(c => !(socialHold && c.sourceDrive === 'social'))
+          .sort((a, b) => b.suggestedPriority - a.suggestedPriority);
 
         for (const candidate of sorted) {
           const isDuplicate =
