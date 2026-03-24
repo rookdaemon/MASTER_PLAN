@@ -1210,8 +1210,16 @@ export class AgentLoop implements IAgentLoop {
         break;
       }
 
-      // Append assistant message with tool_use blocks
-      messages.push({ role: 'assistant' as const, content: result.content as LlmContentBlock[] });
+      // Append assistant message with tool_use blocks.
+      // Filter out: empty text blocks (break the API), thinking blocks (internal only).
+      const cleanedContent = (result.content as LlmContentBlock[]).filter(
+        b => {
+          if (b.type === 'thinking') return false; // don't send thinking back
+          if (b.type === 'text' && !('text' in b && (b as { text: string }).text.length > 0)) return false;
+          return true;
+        },
+      );
+      messages.push({ role: 'assistant' as const, content: cleanedContent });
 
       // Execute each tool call
       const toolResults: Array<{ type: 'tool_result'; tool_use_id: string; content: string; is_error?: boolean }> = [];

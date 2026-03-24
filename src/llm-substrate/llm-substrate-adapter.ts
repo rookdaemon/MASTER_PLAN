@@ -126,7 +126,8 @@ export interface ToolDefinition {
 /** A content block in a tool-aware response. */
 export type LlmContentBlock =
   | { type: 'text'; text: string }
-  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> };
+  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
+  | { type: 'thinking'; thinking: string };
 
 /** Result of a tool-aware inference call. */
 export interface LlmToolInferenceResult {
