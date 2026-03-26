@@ -173,7 +173,7 @@ describe('DriveSystem', () => {
       });
       const result = ds.tick(makeState(), ctx);
       const candidate = result.goalCandidates.find((c) => c.sourceDrive === 'curiosity');
-      expect(candidate?.description).toMatch(/uncertainty|understand/i);
+      expect(candidate?.description).toMatch(/explore|MASTER_PLAN|codebase/i);
     });
   });
 
@@ -312,7 +312,7 @@ describe('DriveSystem', () => {
       const result = ds.tick(state, ctx);
       const candidates = result.goalCandidates.filter((c) => c.sourceDrive === 'boredom');
       expect(candidates).toHaveLength(1);
-      expect(candidates[0].description).toMatch(/plan|advanc|goal|step/i);
+      expect(candidates[0].description).toMatch(/action|producing|contributing/i);
     });
 
     it('fires a goal when agent has no activity history (idling)', () => {
