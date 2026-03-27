@@ -108,9 +108,13 @@ export async function executeToolCall(
   try {
     // Ethical constraint check on outward-facing tools
     if (deps.constraintEngine && ['send_message', 'create_proposal', 'write_file'].includes(call.name)) {
-      const textToCheck = Object.values(call.input)
-        .filter(v => typeof v === 'string')
-        .join(' ');
+      // For write_file, only scan the path — not the file body.
+      // write_file is strictly restricted to the agent workspace (see handleWriteFile) and
+      // cannot affect source code or the plan.  Scanning the content causes false-positive
+      // blocks when the agent writes analysis *about* the constraint patterns themselves.
+      const textToCheck = call.name === 'write_file'
+        ? (typeof call.input['path'] === 'string' ? call.input['path'] : '')
+        : Object.values(call.input).filter(v => typeof v === 'string').join(' ');
       const violation = deps.constraintEngine.checkConstraints(textToCheck);
       if (violation) {
         return error(`Blocked by ethical constraint (${violation.id}): ${violation.reason}`);
