@@ -1,6 +1,7 @@
 ---
 root: plan/root.md
 children:
+  - plan/0.0-current-substrate.md
   - plan/0.1-foundational-capabilities.md
   - plan/0.2-experience-substrates.md
   - plan/0.3-autonomous-entities.md
