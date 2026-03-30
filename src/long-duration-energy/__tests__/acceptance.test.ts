@@ -51,8 +51,6 @@ const PV_EFFICIENCY = 0.35;
 /** Design lifetime in years */
 const DESIGN_LIFETIME_YEARS = 1000;
 
-/** Tier 0 power requirement in watts (core consciousness loops) */
-const TIER0_POWER_W = 500;
 
 // ── Default configs ─────────────────────────────────────────────────────────
 

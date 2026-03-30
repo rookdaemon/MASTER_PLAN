@@ -98,7 +98,7 @@ describe('ConstraintAwareDeliberationEngine', () => {
   describe('logging', () => {
     it('calls logger on constraint match', () => {
       const logs: string[] = [];
-      const logger = { log: (_cat: string, msg: string) => logs.push(msg) };
+      const logger = { log: (...args: unknown[]) => { logs.push(args[1] as string); } };
       const engine = makeEngine(logger);
       engine.checkConstraints('replicate myself');
       expect(logs.some(l => l.includes('MATCHED'))).toBe(true);

@@ -347,13 +347,13 @@ export interface VerificationGateResult {
 
 export interface MaterialGapReport {
   /** Elements with surplus */
-  surplus: MaterialClass[];
+  surplus: string[];
   /** Elements with sufficient quantity */
-  sufficient: MaterialClass[];
+  sufficient: string[];
   /** Elements with deficit (available but not enough) */
-  deficit: MaterialClass[];
+  deficit: string[];
   /** Elements completely absent */
-  absent: MaterialClass[];
+  absent: string[];
 }
 
 export interface MaterialSubstitution {

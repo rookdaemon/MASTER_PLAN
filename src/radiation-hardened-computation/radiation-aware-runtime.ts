@@ -179,7 +179,7 @@ export class RadiationAwareRuntimeImpl implements RadiationAwareRuntime {
       this._alertLevel = rawLevel;
 
       // If transitioning to STORM, enter safe mode
-      if (rawLevel === AlertLevel.Storm && previousLevel !== AlertLevel.Storm) {
+      if (rawLevel === AlertLevel.Storm) {
         this._invokeEntryListeners();
         this._safeMode = true;
       }
