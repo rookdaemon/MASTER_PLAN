@@ -133,16 +133,32 @@ export class AgoraAdapter implements IEnvironmentAdapter {
       targets = targets.filter(([, cfg]) => this._diagnosticPeers.has(cfg.name ?? ''));
     }
 
-    for (const [publicKey, peerConfig] of targets) {
-      const name = peerConfig.name ?? publicKey.slice(0, 12);
+    const targetNames = targets.map(([pk, cfg]) => cfg.name ?? pk.slice(0, 12));
+
+    if (targets.length > 1 && this._service.sendToAll) {
+      // Group send: single envelope with all recipients in the `to` field
       try {
-        await this._service.sendMessage({
-          peerName: name,
+        await this._service.sendToAll({
+          recipients: targetNames,
           type: 'publish',
           payload: { text: output.text },
         });
       } catch (err) {
-        console.warn(`[AgoraAdapter] Failed to send to ${name}: ${err}`);
+        console.warn(`[AgoraAdapter] sendToAll failed for [${targetNames.join(', ')}]: ${err}`);
+      }
+    } else {
+      // Single recipient or no sendToAll: send individually
+      for (const [publicKey, peerConfig] of targets) {
+        const name = peerConfig.name ?? publicKey.slice(0, 12);
+        try {
+          await this._service.sendMessage({
+            peerName: name,
+            type: 'publish',
+            payload: { text: output.text },
+          });
+        } catch (err) {
+          console.warn(`[AgoraAdapter] Failed to send to ${name}: ${err}`);
+        }
       }
     }
   }
