@@ -217,6 +217,77 @@ describe('CognitiveBudgetMonitor', () => {
       const result = monitor.shouldYieldPhase('consolidate', BUDGET_MS);
       expect(result).toBe(false);
     });
+
+    // ── ACT floor protection ─────────────────────────────────────────────────
+
+    it('returns true for DELIBERATE when ACT would be squeezed below 15% floor', () => {
+      // MONITOR has consumed 400ms (40% floor met)
+      // DELIBERATE has consumed 450ms so far (active, ongoing)
+      // ACT remaining = 1000 - 400 - 450 = 150ms = 15% (exactly at floor, not below)
+      // Push deliberate a bit further: 451ms → ACT remaining = 149ms < 150ms floor
+      monitor.startPhase('monitor');
+      advanceTime(400);
+      monitor.endPhase('monitor');
+
+      monitor.startPhase('deliberate');
+      advanceTime(451); // 451ms of deliberate → ACT remaining = 149ms < 150ms (15% of 1000ms)
+
+      const result = monitor.shouldYieldPhase('deliberate', BUDGET_MS);
+      expect(result).toBe(true);
+    });
+
+    it('returns false for DELIBERATE when ACT still has room above 15% floor', () => {
+      // MONITOR: 400ms; DELIBERATE so far: 300ms; ACT remaining = 300ms = 30% > 15%
+      monitor.startPhase('monitor');
+      advanceTime(400);
+      monitor.endPhase('monitor');
+
+      monitor.startPhase('deliberate');
+      advanceTime(300); // 300ms of deliberate → ACT remaining = 300ms = 30%
+
+      const result = monitor.shouldYieldPhase('deliberate', BUDGET_MS);
+      expect(result).toBe(false);
+    });
+
+    it('ACT floor check only applies to DELIBERATE phase, not other phases', () => {
+      // MONITOR: 400ms recorded. DELIBERATE: 250ms recorded (floor met).
+      // At t=800ms, 200ms remaining — well above ACT floor of 150ms.
+      // Now check that 'perceive' at t=851ms does NOT get ACT-floor treatment.
+      monitor.startPhase('monitor');
+      advanceTime(400);
+      monitor.endPhase('monitor');
+
+      monitor.startPhase('deliberate');
+      advanceTime(250);
+      monitor.endPhase('deliberate');
+
+      // Advance to 851ms; remaining=149ms. Reserved=0 (both floors met).
+      // For 'perceive' the first check (remaining <= reserved) is: 149 <= 0 → false.
+      // ACT floor block is skipped (phase !== 'deliberate') → returns false.
+      advanceTime(201);
+
+      const result = monitor.shouldYieldPhase('perceive', BUDGET_MS);
+      // remaining = 149ms; reservedMs = 0; not in deliberate phase → false
+      expect(result).toBe(false);
+    });
+
+    it('ACT floor check uses ongoing deliberate time when phase is active', () => {
+      // MONITOR: 400ms (recorded). DELIBERATE active with 451ms elapsed.
+      // actRemaining = 1000 - 400 - 451 = 149ms < 150ms (15% of 1000)
+      monitor.startPhase('monitor');
+      advanceTime(400);
+      monitor.endPhase('monitor');
+
+      monitor.startPhase('deliberate'); // deliberate is now active
+      advanceTime(451);
+      // _phases.get('deliberate') is undefined (not yet recorded via endPhase)
+      // currentDeliberateMs = now - _activeStart = 451ms
+      // totalDeliberateMs = 0 + 451 = 451ms
+      // actRemaining = 1000 - 400 - 451 = 149 < 150 → should yield
+
+      const result = monitor.shouldYieldPhase('deliberate', BUDGET_MS);
+      expect(result).toBe(true);
+    });
   });
 
   // ── isPhaseOverBudget ─────────────────────────────────────────────────────

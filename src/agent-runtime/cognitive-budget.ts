@@ -6,6 +6,7 @@
  *
  *   MONITOR    ≥40% floor   — never truncated
  *   DELIBERATE ≥25% floor   — truncate planning before this
+ *   ACT        ≥15% floor   — DELIBERATE yields if ACT would be squeezed below this
  *   STABILITY  ≤15% soft cap — log warning; no hard truncation
  *   ETHICAL    ≤10% soft cap — log warning; no hard truncation
  *
@@ -20,6 +21,7 @@ import type { AgentPhase, BudgetReport, PhaseTiming } from './types.js';
 /** Budget caps and floors as fractions of total tick budget. */
 const MONITOR_FLOOR = 0.40;       // hard floor — never truncate MONITOR
 const DELIBERATE_FLOOR = 0.25;    // hard floor — truncate planning to preserve this
+const ACT_FLOOR = 0.15;           // hard floor — ensure action phase gets minimum budget
 const STABILITY_SOFT_CAP = 0.15;  // soft cap — log warning
 const ETHICAL_SOFT_CAP = 0.10;    // soft cap — log warning
 
@@ -119,7 +121,17 @@ export class CognitiveBudgetMonitor implements ICognitiveBudgetMonitor {
     const reservedMs = monitorNeeded + deliberateNeeded;
 
     // Yield if remaining budget is less than what higher-priority phases need
-    return remaining <= reservedMs;
+    if (remaining <= reservedMs) return true;
+
+    // If deliberation would squeeze ACT below its floor, yield
+    if (phase === 'deliberate') {
+      const currentDeliberateMs = this._activePhase === 'deliberate' ? now - this._activeStart : 0;
+      const totalDeliberateMs = deliberateMs + currentDeliberateMs;
+      const actRemaining = totalBudgetMs - monitorMs - totalDeliberateMs;
+      if (actRemaining < totalBudgetMs * ACT_FLOOR) return true;
+    }
+
+    return false;
   }
 
   /** Log a soft-cap warning (non-throwing). */
