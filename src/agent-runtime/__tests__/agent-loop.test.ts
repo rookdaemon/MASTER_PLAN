@@ -575,7 +575,7 @@ describe('AgentLoop', () => {
       expect(systemPrompt).toContain('valence');
       expect(systemPrompt).toContain('Φ');
       expect(messages).toEqual([{ role: 'user', content: 'Hello agent!' }]);
-      expect(maxTokens).toBe(4096);
+      expect(maxTokens).toBe(40960);
     });
 
     it('sends LLM response text via adapter instead of stub text', async () => {
