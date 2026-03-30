@@ -847,6 +847,35 @@ export class AgentLoop implements IAgentLoop {
           this._maxTokens,
         );
         text = llmResult.content;
+
+        // Strip <tool_call> blocks the LLM may emit when it wants to call
+        // send_message from the non-tool path.  Extract the clean text and
+        // execute any send_message calls through the proper adapter.
+        const toolCallRegex = /<tool_call>\s*(\{[\s\S]*?\})\s*<\/tool_call>/g;
+        let match;
+        while ((match = toolCallRegex.exec(text)) !== null) {
+          try {
+            const parsed = JSON.parse(match[1]) as { name?: string; arguments?: Record<string, unknown> };
+            if (parsed.name === 'send_message' && parsed.arguments) {
+              const to = parsed.arguments['to'] as string[] | undefined;
+              const msg = (parsed.arguments['text'] ?? parsed.arguments['message']) as string | undefined;
+              if (to?.length && msg) {
+                const agoraRecipients = to.filter(p => p !== 'web' && p !== 'all');
+                if (agoraRecipients.length > 0) {
+                  await this._adapter.send({
+                    text: msg,
+                    targetAdapterId: 'agora',
+                    targetPeers: agoraRecipients,
+                  });
+                  dl?.log('io', `Extracted send_message → ${agoraRecipients.join(', ')}`, { preview: msg.slice(0, 120) });
+                }
+              }
+            }
+          } catch { /* malformed JSON, ignore */ }
+        }
+        // Remove tool_call blocks from the text to get clean reply
+        text = text.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '').trim();
+
         peerHistory.push({ role: 'assistant', content: text });
         mono?.assistantText(text);
         mono?.summary(1, llmResult.promptTokens, llmResult.completionTokens, this._llmModelId);
