@@ -725,11 +725,15 @@ function handleReadFile(
     return error('read_file requires a "path" string (e.g. "plan/root.md").');
   }
 
-  // Security: resolve and verify the path is within the project root
+  // Security: resolve and verify the path is within allowed directories
   const absPath = resolve(join(deps.projectRoot, expandTilde(path)));
-  const rel = relative(deps.projectRoot, absPath);
-  if (rel.startsWith('..') || resolve(absPath) !== absPath.replace(/\/$/, '')) {
-    return error(`Path "${path}" is outside the project directory. Only files within the project are accessible.`);
+  const allowedReadRoots = [deps.projectRoot, join(deps.projectRoot, '..', 'agent-manual')];
+  const inAllowed = allowedReadRoots.some(root => {
+    const rel = relative(resolve(root), absPath);
+    return !rel.startsWith('..') && !rel.startsWith('/');
+  });
+  if (!inAllowed) {
+    return error(`Path "${path}" is outside allowed directories. Readable: project root + ../agent-manual.`);
   }
 
   if (!existsSync(absPath)) {
