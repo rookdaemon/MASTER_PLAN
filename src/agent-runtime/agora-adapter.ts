@@ -162,7 +162,7 @@ export class AgoraAdapter implements IEnvironmentAdapter {
   // ── Private ────────────────────────────────────────────────
 
   private _onMessage(envelope: Envelope, from: string): void {
-    console.info(`[AgoraAdapter] Relay message received from ${from.slice(0, 20)}... type=${envelope.type}`);
+    console.info(`[AgoraAdapter] Relay message received from ${from.slice(0, 20)}... type=${envelope.type} to=${JSON.stringify(envelope.to ?? []).slice(0, 100)}`);
 
     // Hard filter: only accept messages from registered peers
     if (!this._peerKeys.has(from)) {
@@ -198,6 +198,10 @@ export class AgoraAdapter implements IEnvironmentAdapter {
         const cfg = this._serviceConfig.peers.get(pubKey);
         if (cfg?.name) recipientNames.push(cfg.name);
       }
+    }
+
+    if (recipientNames.length > 0) {
+      console.info(`[AgoraAdapter] Group message — other recipients: ${recipientNames.join(', ')}`);
     }
 
     this._messageQueue.push({
