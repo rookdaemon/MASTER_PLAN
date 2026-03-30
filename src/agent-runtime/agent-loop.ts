@@ -772,6 +772,13 @@ export class AgentLoop implements IAgentLoop {
       const replyPeerName = rawInputs.length > 0
         ? rawInputs[0].metadata?.['peerName'] as string | undefined
         : undefined;
+      // For group messages, include all original recipients so the reply reaches everyone
+      const otherRecipients = rawInputs.length > 0
+        ? rawInputs[0].metadata?.['otherRecipients'] as string[] | undefined
+        : undefined;
+      const replyPeers = replyPeerName
+        ? [replyPeerName, ...(otherRecipients ?? [])]
+        : undefined;
 
       if (this._llm && rawInputs.length > 0) {
         // User-initiated: real LLM inference — enrich system prompt with experiential state
@@ -890,9 +897,9 @@ export class AgentLoop implements IAgentLoop {
           await this._adapter.send({
             text,
             targetAdapterId: replyAdapterId,
-            targetPeers: replyPeerName ? [replyPeerName] : undefined,
+            targetPeers: replyPeers,
           });
-          dl?.log('io', `Reply sent (${text.length} chars) → ${replyPeerName ?? replyAdapterId ?? 'all'}`, { preview: text.slice(0, 120) });
+          dl?.log('io', `Reply sent (${text.length} chars) → ${replyPeers?.join(', ') ?? replyAdapterId ?? 'all'}`, { preview: text.slice(0, 120) });
           db?.log('io', `Sent: "${text.slice(0, 80)}${text.length > 80 ? '…' : ''}"`);
         }
 
