@@ -75,6 +75,9 @@ export class AgentLoop implements IAgentLoop {
   private _loopStartMs = 0;
   private _lastCheckpointMs = 0;
   private _lastExperientialState: ExperientialState | null = null;
+  /** Resolves when the start() loop's finally block has run (i.e. the loop has fully stopped). */
+  private _loopStopped: Promise<void> = Promise.resolve();
+  private _resolveLoopStopped: (() => void) | null = null;
 
   // ── Pending peer message queue ─────────────────────────────
   private _pendingPeerMessages: import('./types.js').RawInput[] = [];
@@ -245,6 +248,11 @@ export class AgentLoop implements IAgentLoop {
     }
 
     try {
+      // Set up the stop-signal promise so stop() can await it instead of polling.
+      this._loopStopped = new Promise<void>(resolve => {
+        this._resolveLoopStopped = resolve;
+      });
+
       while (!this._stopRequested) {
         const tickStart = Date.now();
         this._budgetMonitor.resetTick();
@@ -312,6 +320,8 @@ export class AgentLoop implements IAgentLoop {
       throw err;
     } finally {
       this._running = false;
+      this._resolveLoopStopped?.();
+      this._resolveLoopStopped = null;
       this._totalUptimeMs = Date.now() - this._loopStartMs;
       stream.stop();
       this._debugLog?.log('lifecycle', `Agent ${config.agentId} loop exited`, {
@@ -327,10 +337,8 @@ export class AgentLoop implements IAgentLoop {
     this._debugLog?.log('lifecycle', `Stop requested: ${reason ?? '(no reason given)'}`);
     console.info(`[AgentLoop] stop requested: ${reason ?? '(no reason given)'}`);
 
-    // Wait for the current tick to finish
-    while (this._running) {
-      await _sleep(10);
-    }
+    // Wait for the current tick to finish (no polling — resolved by start()'s finally block)
+    await this._loopStopped;
 
     // Final identity checkpoint before shutdown
     this._identityManager.checkpoint();

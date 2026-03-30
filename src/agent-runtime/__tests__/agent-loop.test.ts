@@ -201,12 +201,14 @@ describe('AgentLoop', () => {
   let loop: AgentLoop;
 
   beforeEach(() => {
+    vi.stubEnv('TICK_PAUSE_MS', '0');
     mocks = buildMocks();
     loop = buildLoop(mocks);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
   });
 
   // ── isRunning ────────────────────────────────────────────────────────────────
@@ -573,7 +575,7 @@ describe('AgentLoop', () => {
       expect(systemPrompt).toContain('valence');
       expect(systemPrompt).toContain('Φ');
       expect(messages).toEqual([{ role: 'user', content: 'Hello agent!' }]);
-      expect(maxTokens).toBe(4096);
+      expect(maxTokens).toBe(40960);
     });
 
     it('sends LLM response text via adapter instead of stub text', async () => {
