@@ -63,6 +63,7 @@ import { GoalCoherenceEngine } from '../agency-stability/goal-coherence.js';
 import { ConstraintAwareDeliberationEngine } from './constraint-engine.js';
 import { buildTerminalGoals, extractDrivePersonality } from './drive-context-assembler.js';
 import { InnerMonologueLogger } from './inner-monologue.js';
+import { TfIdfEmbedder } from '../memory/tfidf-embedder.js';
 
 // ── Configuration ────────────────────────────────────────────
 
@@ -337,6 +338,18 @@ async function _runAgentLoop(
   const innerMonologue = externalMonologue ?? new InnerMonologueLogger(innerMonologuePath);
   console.error(`[main] Inner monologue log: ${innerMonologuePath}`);
 
+  // ── TF-IDF embedder — restore vocabulary from snapshot if available ──
+  const tfidfEmbedder = new TfIdfEmbedder();
+  try {
+    const savedSnapshot = await persistence.loadMemorySnapshot();
+    if (savedSnapshot?.idfVocabulary) {
+      tfidfEmbedder.importVocabulary(savedSnapshot.idfVocabulary);
+      debugLog.log('memory', `TF-IDF vocabulary restored (${tfidfEmbedder.vocabSize()} terms)`);
+    }
+  } catch {
+    // Non-fatal: embedder starts fresh if vocabulary cannot be loaded
+  }
+
   // Pre-seed semantic memory from codebase map on cold start
   if (!config.warmStart) {
     const mapPath = join(process.cwd(), 'docs', 'codebase-map.md');
@@ -351,13 +364,14 @@ async function _runAgentLoop(
           const heading = lines[0].trim();
           const body = lines.slice(1).join('\n').trim();
           if (body.length > 0) {
+            const content = `${heading}: ${body}`;
             memoryStore.inner.semantic.store({
               topic: `self-model:${heading.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-              content: `${heading}: ${body}`,
+              content,
               relationships: [],
               sourceEpisodeIds: [],
               confidence: 0.95,
-              embedding: null,
+              embedding: tfidfEmbedder.embed(content),
             });
           }
         }
@@ -399,6 +413,7 @@ async function _runAgentLoop(
     innerMonologue,
     narrativeIdentity,
     workspacePath: join(homedir(), '.local', 'share', 'MASTER_PLAN'),
+    embedder: tfidfEmbedder,
   };
 
   const { loop, bootMode } = await startAgent(deps, config);
@@ -424,7 +439,11 @@ async function _runAgentLoop(
   // ── Persist state helper ──────────────────────────────────
   const persistState = async () => {
     try {
-      await persistence.saveMemorySnapshot(memorySystem.toSnapshot());
+      const memSnapshot = {
+        ...memorySystem.toSnapshot(),
+        idfVocabulary: tfidfEmbedder.exportVocabulary(),
+      };
+      await persistence.saveMemorySnapshot(memSnapshot);
       await persistence.savePersonalitySnapshot(personality.snapshot());
       debugLog.log('lifecycle', 'State persisted to disk');
       console.error('[main] State persisted to disk');

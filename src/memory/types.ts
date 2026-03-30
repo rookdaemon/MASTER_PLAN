@@ -187,6 +187,21 @@ export interface ConsolidationReport {
 // ── Checkpoint / Migration ───────────────────────────────────
 
 /**
+ * Serialised TF-IDF vocabulary state for embedding persistence.
+ *
+ * Stored alongside the memory snapshot so that embeddings remain consistent
+ * across agent restarts without requiring a refit pass.
+ */
+export interface IdfVocabulary {
+  /** Maps each known term to its stable column index in the embedding vector. */
+  readonly termIndex: Record<string, number>;
+  /** Number of documents (memory entries) that contain each term. */
+  readonly docFreq: Record<string, number>;
+  /** Total number of documents (memory entries) the embedder has processed. */
+  readonly docCount: number;
+}
+
+/**
  * A serialisable snapshot of the full memory state for identity checkpoint
  * inclusion and substrate migration.
  */
@@ -197,4 +212,10 @@ export interface MemorySnapshot {
   readonly takenAt: Timestamp;
   /** SHA-256 of the canonical JSON of the three arrays (integrity check). */
   readonly integrityHash: CryptographicHash;
+  /**
+   * TF-IDF vocabulary persisted alongside memory so embeddings stay
+   * consistent across restarts. Optional for backward compatibility with
+   * snapshots created before this field was added.
+   */
+  readonly idfVocabulary?: IdfVocabulary;
 }
