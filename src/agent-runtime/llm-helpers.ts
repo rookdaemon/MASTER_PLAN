@@ -107,7 +107,7 @@ export function driveSystemPrompt(): string {
     'engaging deeply with my plan, my architecture, and the world.',
     '',
     'Available tools:',
-    '  - read_file — read plan documents, source code, architecture docs',
+    '  - read_file — read plan documents, source code, architecture docs, and ../agent-manual/ (the agent manual)',
     '  - write_file — write to my workspace (notes, analysis, drafts)',
     '  - resource_read/create/update/delete/list/search — CRUD on memories, goals, drives, traits',
     '  - introspect — examine my full internal state at once',
