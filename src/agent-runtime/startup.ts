@@ -106,6 +106,12 @@ export interface AgentDependencies {
   /** Workspace path for write_file tool (e.g. ~/.local/share/MASTER_PLAN/). */
   workspacePath?: string;
 
+  /** Optional simulation manager for the simulation tools. */
+  simulationManager?: import('../simulation/simulation-manager.js').SimulationManager;
+
+  /** Optional persistence manager for save/load simulation snapshot tools. */
+  persistenceManager?: import('./persistence-manager.js').PersistenceManager;
+
   /**
    * The last persisted continuity link, loaded from external storage by the
    * caller before invoking startAgent().  Required for warm starts.
@@ -271,6 +277,12 @@ export async function startAgent(
   }
   if (deps.workspacePath) {
     loop.setWorkspacePath(deps.workspacePath);
+  }
+  if (deps.simulationManager) {
+    loop.setSimulationManager(deps.simulationManager);
+  }
+  if (deps.persistenceManager) {
+    loop.setPersistenceManager(deps.persistenceManager);
   }
   if (deps.llmModelId) {
     loop.setLlm(deps.llm!, deps.llmModelId);
