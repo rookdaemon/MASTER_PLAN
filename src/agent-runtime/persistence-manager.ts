@@ -6,15 +6,17 @@
  * against InMemoryFileSystem without touching real disk.
  *
  * Persisted artifacts:
- *   - memory-snapshot.json:      MemorySnapshot (three-tier memory state)
- *   - personality-snapshot.json: PersonalitySnapshot (trait profile)
- *   - drive-snapshot.json:       DriveSnapshot (drive accumulation, cooldowns)
+ *   - memory-snapshot.json:            MemorySnapshot (three-tier memory state)
+ *   - personality-snapshot.json:       PersonalitySnapshot (trait profile)
+ *   - drive-snapshot.json:             DriveSnapshot (drive accumulation, cooldowns)
+ *   - simulations/<name>.json:         SimulationSnapshot (named simulation state)
  */
 
 import type { IFileSystem } from "./filesystem.js";
 import type { MemorySnapshot } from "../memory/types.js";
 import type { PersonalitySnapshot } from "../personality/types.js";
 import type { DriveSnapshot } from "../intrinsic-motivation/types.js";
+import type { SimulationSnapshot } from "../simulation/types.js";
 import { join } from "node:path";
 
 // ── File names ───────────────────────────────────────────────
@@ -22,6 +24,7 @@ import { join } from "node:path";
 const MEMORY_SNAPSHOT_FILE = "memory-snapshot.json";
 const PERSONALITY_SNAPSHOT_FILE = "personality-snapshot.json";
 export const DRIVE_SNAPSHOT_FILE = "drive-snapshot.json";
+const SIMULATIONS_DIR = "simulations";
 
 // ── PersistenceManager ───────────────────────────────────────
 
@@ -87,6 +90,34 @@ export class PersistenceManager {
     return JSON.parse(json) as DriveSnapshot;
   }
 
+  // ── Simulation snapshots ───────────────────────────────────
+
+  /** Persist a simulation snapshot under simulations/<name>.json. */
+  async saveSimulationSnapshot(snapshot: SimulationSnapshot): Promise<void> {
+    await this._fs.mkdir(this._simulationsDir(), { recursive: true });
+    await this._fs.writeFile(
+      this._simulationPath(snapshot.name),
+      JSON.stringify(snapshot),
+      "utf-8",
+    );
+  }
+
+  /** Load a previously saved simulation snapshot by name. Returns null if not found. */
+  async loadSimulationSnapshot(name: string): Promise<SimulationSnapshot | null> {
+    const path = this._simulationPath(name);
+    if (!this._fs.exists(path)) return null;
+    const json = await this._fs.readFile(path, "utf-8");
+    return JSON.parse(json) as SimulationSnapshot;
+  }
+
+  /** List names of all saved simulation snapshots. */
+  async listSimulationSnapshots(): Promise<string[]> {
+    const files = await this._fs.listFiles(this._simulationsDir());
+    return files
+      .filter(f => f.endsWith(".json"))
+      .map(f => f.slice(0, -".json".length));
+  }
+
   // ── Internal paths ─────────────────────────────────────────
 
   private _memoryPath(): string {
@@ -99,5 +130,13 @@ export class PersistenceManager {
 
   private _drivePath(): string {
     return join(this._stateDir, DRIVE_SNAPSHOT_FILE);
+  }
+
+  private _simulationsDir(): string {
+    return join(this._stateDir, SIMULATIONS_DIR);
+  }
+
+  private _simulationPath(name: string): string {
+    return join(this._simulationsDir(), `${name}.json`);
   }
 }

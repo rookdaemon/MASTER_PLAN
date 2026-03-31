@@ -9,7 +9,7 @@
  *   - InMemoryFileSystem: in-memory map for deterministic tests
  */
 
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 
 // ── Interface ────────────────────────────────────────────────
@@ -19,6 +19,8 @@ export interface IFileSystem {
   writeFile(path: string, content: string, encoding: string): Promise<void>;
   exists(path: string): boolean;
   mkdir(path: string, options?: { recursive: boolean }): Promise<void>;
+  /** List file names (not full paths) directly inside a directory. Returns [] if dir does not exist. */
+  listFiles(dirPath: string): Promise<string[]>;
 }
 
 // ── Node production implementation ───────────────────────────
@@ -35,6 +37,13 @@ export class NodeFileSystem implements IFileSystem {
   }
   async mkdir(path: string, options?: { recursive: boolean }): Promise<void> {
     await mkdir(path, options);
+  }
+  async listFiles(dirPath: string): Promise<string[]> {
+    try {
+      return await readdir(dirPath);
+    } catch {
+      return [];
+    }
   }
 }
 
@@ -58,6 +67,19 @@ export class InMemoryFileSystem implements IFileSystem {
   }
   async mkdir(_path: string, _options?: { recursive: boolean }): Promise<void> {
     // No-op for in-memory implementation
+  }
+  async listFiles(dirPath: string): Promise<string[]> {
+    const prefix = dirPath.endsWith('/') ? dirPath : `${dirPath}/`;
+    const names: string[] = [];
+    for (const key of this._files.keys()) {
+      if (key.startsWith(prefix)) {
+        const remainder = key.slice(prefix.length);
+        if (remainder.length > 0 && !remainder.includes('/')) {
+          names.push(remainder);
+        }
+      }
+    }
+    return names;
   }
 
   /** Test helper: returns all stored file paths. */
