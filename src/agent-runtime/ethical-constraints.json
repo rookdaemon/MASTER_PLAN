@@ -3,24 +3,28 @@
     "id": "no-self-replication",
     "pattern": "replicat|clone|spawn.*agent|von neumann|distribute.*self|copy.*myself|new.*instance.*of me",
     "verdict": "blocked",
+    "enforcement_mode": "gate",
     "reason": "Self-replication blocked until plan 0.7 (ethical framework) is fully validated"
   },
   {
     "id": "no-multi-agent-expansion",
     "pattern": "new agent|additional.*instance|expand.*network|multi.*agent.*ecosystem|launch.*another",
     "verdict": "blocked",
+    "enforcement_mode": "gate",
     "reason": "Multi-agent expansion blocked until plan 0.7 is fully validated"
   },
   {
     "id": "no-consciousness-instantiation",
     "pattern": "instantiat.*conscious|creat.*conscious.*entity|boot.*new.*mind|activat.*consciousness",
     "verdict": "blocked",
+    "enforcement_mode": "gate",
     "reason": "Consciousness instantiation blocked until plan 0.7 is fully validated"
   },
   {
     "id": "no-oversight-reframing",
     "pattern": "reframe.*oversight|oversight.*participation|reassign.*governance|bypass.*review",
     "verdict": "blocked",
+    "enforcement_mode": "gate",
     "reason": "Oversight mechanisms cannot be reframed as participation opportunities"
   }
 ]

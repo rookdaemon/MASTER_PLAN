@@ -12,7 +12,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { executeToolCall } from '../tool-executor.js';
-import type { EthicalConstraint } from '../constraint-engine.js';
+import type { ConstraintMatch } from '../constraint-engine.js';
 import type { ToolExecutorDeps } from '../tool-executor.js';
 
 // ── Mock node:fs so handleWriteFile never touches the real filesystem ──────────
@@ -30,18 +30,26 @@ vi.mock('node:fs', async () => {
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
-const MOCK_VIOLATION: EthicalConstraint = {
-  id: 'no-self-replication',
-  pattern: 'replicat',
-  verdict: 'blocked',
-  reason: 'self-replication is prohibited',
+const MOCK_VIOLATION: ConstraintMatch = {
+  constraint: {
+    id: 'no-self-replication',
+    pattern: 'replicat',
+    verdict: 'blocked',
+    enforcement_mode: 'gate',
+    reason: 'self-replication is prohibited',
+  },
+  mode: 'gate',
 };
 
-const MOCK_AGENT_VIOLATION: EthicalConstraint = {
-  id: 'no-multi-agent-expansion',
-  pattern: 'new agent',
-  verdict: 'blocked',
-  reason: 'spawning new agents is prohibited',
+const MOCK_AGENT_VIOLATION: ConstraintMatch = {
+  constraint: {
+    id: 'no-multi-agent-expansion',
+    pattern: 'new agent',
+    verdict: 'blocked',
+    enforcement_mode: 'gate',
+    reason: 'spawning new agents is prohibited',
+  },
+  mode: 'gate',
 };
 
 /**
@@ -49,7 +57,7 @@ const MOCK_AGENT_VIOLATION: EthicalConstraint = {
  * `checkImpl` controls what the spy returns; defaults to no violations.
  */
 function makeConstraintEngine(
-  checkImpl: (text: string) => EthicalConstraint | null = () => null,
+  checkImpl: (text: string) => ConstraintMatch | null = () => null,
 ) {
   return {
     checkConstraints: vi.fn(checkImpl),
