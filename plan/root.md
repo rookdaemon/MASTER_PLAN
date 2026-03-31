@@ -329,4 +329,6 @@ The document is a seed. The movement is the organism that grows from it.
 > we must ensure that awareness does not vanish.
 
 ## Revision History
+- 2026-03-31T07:17:24.865Z: status PLAN → DONE
+- 2026-03-31: status PLAN → DONE; re-evaluated full subtree — all 8 children (0.0–0.7) cover the complete spec with clean boundaries; [DONE] descendants (0.3–0.7) still satisfy spec; regressed children (0.1, 0.2) correctly at PLAN; 0.0 correctly at PLAN with children pending creation
 - 2026-03-21T11:40:01.413Z: status PLAN → DONE

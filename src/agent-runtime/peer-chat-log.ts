@@ -30,6 +30,8 @@ export class PeerChatLog {
 
   /** Append a message to the peer's chat log. */
   append(entry: ChatEntry): void {
+    if (!entry.peer) throw new Error('ChatEntry requires non-empty peer');
+    if (!entry.text) throw new Error('ChatEntry requires non-empty text');
     const file = this._peerFile(entry.peer);
     appendFileSync(file, JSON.stringify(entry) + '\n');
   }

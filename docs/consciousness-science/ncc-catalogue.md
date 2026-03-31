@@ -84,7 +84,7 @@
 - **Structures:** auditory cortex, superior temporal sulcus; gamma-band synchronization (30-80 Hz)
 - **Key evidence:** gamma oscillations correlate with conscious auditory perception in streaming paradigms; MEG studies show temporal binding window of ~30ms for auditory fusion (Joliot et al. 1994)
 - **Causal status:** correlational
-- **Distinction:** NCC-proper (debated — may be consequence)
+- **Distinction:** NCC-proper (debated: consequence per theories treating gamma synchrony as epiphenomenal)
 - **Open questions:** whether gamma synchrony is causal or epiphenomenal; specificity of frequency bands
 
 ### 2.3 Somatosensory Consciousness
@@ -115,7 +115,7 @@
 - **Structures:** basolateral amygdala, central nucleus, cortical nucleus
 - **Key evidence:** amygdala activation in fear conditioning even without conscious awareness (Morris et al. 1998); bilateral amygdala lesions (patient SM) impair fear experience but not all emotion; subcortical visual pathway to amygdala (LeDoux 1996)
 - **Causal status:** necessary for fear/threat-related conscious experience (but not sufficient — unconscious processing persists)
-- **Distinction:** mixed — amygdala processes both conscious and unconscious emotional information; NCC-proper for specific fear-related contents; prerequisite for emotional valence
+- **Distinction:** prerequisite (debated: NCC-proper for fear content per LeDoux 1996; amygdala processes both conscious and unconscious emotional information, suggesting it enables rather than constitutes emotional experience)
 - **Open questions:** whether amygdala is NCC-proper or prerequisite for emotional consciousness; subcortical vs. cortical emotion debate (LeDoux vs. Damasio)
 
 #### Anterior Insula and Anterior Cingulate Cortex (ACC)
@@ -135,7 +135,7 @@
 - **Structures:** dorsolateral PFC (dlPFC), ventrolateral PFC, medial PFC, orbitofrontal cortex
 - **Key evidence:** PFC activation in cognitive access, report, and working memory paradigms (Dehaene & Changeux 2011); GNW theory assigns PFC a constitutive role; however, no-report paradigms show PFC activation may reflect report rather than experience (Frässle et al. 2014; Koch et al. 2016)
 - **Causal status:** correlational (heavily debated)
-- **Distinction:** consequence (per IIT, RPT) or NCC-proper (per GNW) — see Section 6
+- **Distinction:** consequence (debated: NCC-proper per GNW — see Section 6; no-report paradigms, preserved consciousness after lobotomy, and REM dreaming with deactivated PFC favor consequence classification)
 - **Open questions:** this is the central open debate; prefrontal lobotomy does not abolish consciousness; prefrontal lesions impair metacognition but not basic phenomenal experience
 
 #### Temporoparietal Junction (TPJ)
@@ -166,7 +166,7 @@
 - **Structures:** claustrum — thin sheet of neurons between insular cortex and putamen; extensive reciprocal connections with nearly all cortical areas
 - **Key evidence:** Crick & Koch (2005) proposed it as a "conductor of consciousness"; single case report of electrical stimulation producing loss of consciousness (Koubeissi et al. 2014); lesion data limited due to rarity of isolated claustrum damage
 - **Causal status:** correlational **[speculative]**
-- **Distinction:** uncertain — may be prerequisite (binding/coordination) rather than NCC-proper
+- **Distinction:** uncertain (limited causal evidence; may be prerequisite for cross-modal binding/coordination rather than NCC-proper)
 - **Open questions:** very limited causal evidence; may serve as integration hub without being constitutive; recent mouse studies suggest role in attention rather than consciousness (Narikiyo et al. 2020)
 
 ### Default Mode Network (DMN)
@@ -175,7 +175,7 @@
 - **Structures:** medial PFC, posterior cingulate cortex/precuneus, angular gyrus, medial temporal lobe
 - **Key evidence:** DMN deactivation under anesthesia and in vegetative states (Boly et al. 2008); DMN activity correlates with self-referential thought, mind-wandering, and internal mentation; preserved DMN connectivity distinguishes MCS from VS
 - **Causal status:** correlational (necessary for self-related consciousness, not for all consciousness)
-- **Distinction:** NCC-proper for self-referential content; prerequisite for narrative self-consciousness; NOT required for basic phenomenal consciousness (reduced in meditation, psychedelics without loss of consciousness)
+- **Distinction:** NCC-proper (debated: prerequisite per theories limiting DMN role to narrative self-consciousness only; NOT required for basic phenomenal consciousness — reduced in meditation and psychedelics without loss of consciousness)
 - **Open questions:** whether DMN contributes to consciousness per se or only to self-related content; psychedelic dissolution of DMN with enhanced subjective experience argues against constitutive role
 
 ### Global Workspace / Frontoparietal Network
@@ -184,7 +184,7 @@
 - **Structures:** lateral prefrontal cortex, anterior cingulate cortex, inferior parietal lobule, precuneus; long-range frontoparietal connections
 - **Key evidence:** P3b ERP component correlates with conscious access (Sergent et al. 2005); late ignition (~300ms) in frontoparietal network during conscious perception (Dehaene & Changeux 2011); attentional blink and masking paradigms
 - **Causal status:** necessary for conscious access (reportable consciousness); disputed for phenomenal consciousness
-- **Distinction:** NCC-proper per GNW theory; consequence per IIT/RPT — see Section 6
+- **Distinction:** consequence (debated: NCC-proper per GNW — see Section 6; no-report paradigms suggest frontoparietal ignition reflects cognitive access/report rather than phenomenal consciousness)
 - **Open questions:** the critical question is whether frontoparietal "ignition" is constitutive of consciousness or merely enables cognitive access/report; no-report paradigms attempt to dissociate these
 
 ---

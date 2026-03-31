@@ -43,6 +43,7 @@ export interface Task {
 export class TaskJournal {
   private _tasks: Task[] = [];
   private readonly _file: string;
+  private _idCounter = 0;
 
   constructor(workspacePath: string) {
     const stateDir = join(workspacePath, 'state');
@@ -95,7 +96,7 @@ export class TaskJournal {
     forceActive?: boolean;
   }): Task {
     const now = Date.now();
-    const id = `task-${now}`;
+    const id = `task-${now}-${this._idCounter++}`;
 
     const hasActive = this._tasks.some(t => t.status === 'active');
 

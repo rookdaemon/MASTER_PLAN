@@ -25,7 +25,7 @@ Each NCC entry follows this schema:
 - **Structures:** [list of brain regions/circuits]
 - **Key evidence:** [citations/paradigms]
 - **Causal status:** correlational | necessary | sufficient | necessary-and-sufficient
-- **Distinction:** NCC-proper | prerequisite | consequence
+- **Distinction:** NCC-proper | prerequisite | consequence (debated entries: `<primary> (debated: <alternative> per <theory>)`; uncertain: `uncertain (<explanation>)`)
 - **Open questions:** [unresolved issues]
 ```
 

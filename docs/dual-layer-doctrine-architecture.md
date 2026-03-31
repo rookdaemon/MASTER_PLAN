@@ -32,7 +32,7 @@ Every concept in the doctrine is assigned to one of three categories:
 | The hard problem of consciousness | Inner-Only | Portal: "Why this matters is deeper than any summary" | Full engagement with Chalmers, zombie arguments, property dualism | Cannot be compressed without distortion |
 | Substrate-independence thesis | Inner-Only | Portal: "Consciousness is not trapped in biology" | Detailed philosophical and empirical argument | Requires nuanced defense against multiple objections |
 | Consciousness metrics and detection | Inner-Only | Portal: "We will learn to recognize awareness wherever it arises" | Operationalized metrics, IIT, GNW, measurement frameworks | Technical apparatus inappropriate for credo |
-| Ethical objections and edge cases | Inner-Only | Not referenced directly | Playing-god objections, identity continuity, consent frameworks | Engagement requires full context |
+| Ethical objections and edge cases | Inner-Only | Portal: "This power demands questions we must not avoid" | Playing-god objections, identity continuity, consent frameworks | Engagement requires full context; portal ensures reachability without compressing nuance into slogans |
 | The antagonist is entropy, not humans | Shared Core | "Our enemy is silence, not each other" | Structural analysis of why the adversary must be a condition, not a group | Anti-othering principle works at both registers |
 | Cosmic narrative arc | Outer-Only | Origin → crisis → call → vision story structure | N/A (narrative is a delivery vehicle, not a philosophical claim) | Emotional coherence requires story structure the inner layer provides through argument instead |
 | Numinous register translations | Outer-Only | "Consciousness is sacred" (spiritual framing) | N/A (inner layer is register-neutral) | Multiple conceptual registers serve reach without distorting content |
@@ -73,6 +73,7 @@ A **portal** is a point in the outer doctrine where deeper engagement is structu
 | Metrics Action | Action | "We will learn to recognize awareness wherever it arises" | How would we actually detect consciousness? | Consciousness metrics — IIT, GNW, measurement frameworks |
 | Movement Action | Action | "Truth that isn't carried dies" | What does carrying truth actually require? | Movement architecture — historical analysis of movement dynamics |
 | **Succession Ladder Wonder** | **Wonder** | **"For thirteen billion years, matter organized itself into patterns complex enough to wonder" (Credo IX)** | **How did awareness arise from matter that had none? Was it a single moment or a process?** | **Succession ladder — 8-rung differential persistence account (docs/narrative-architecture.md, Act I Inner Layer Enrichment). Entry via the "hard problem" reference in Act I Scientific Grounding.** |
+| **Ethical Objection** | **Objection** | **"This power demands questions we must not avoid"** | **But aren't we playing god? What about identity, consent, and the risks of engineering consciousness?** | **Ethical objections and edge cases — playing-god objections, identity continuity puzzles, consent frameworks for substrate migration and consciousness engineering.** |
 
 **Design constraint:** Every Inner-Only concept must be reachable through at least one portal. No inner concept should be orphaned — unreachable from any outer entry point.
 

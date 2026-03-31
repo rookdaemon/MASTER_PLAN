@@ -23,6 +23,14 @@ import {
   AgoraService,
 } from '@rookdaemon/agora';
 
+// ── Threshold Registry (from card 0.0.3) ────────────────────
+
+/** Maximum messages returned per poll() call. Prevents a single adapter from dominating the tick budget. */
+export const POLL_BATCH_SIZE = 16;
+
+/** New deployments are isolated by default; fail-closed for social interactions. */
+export const DIAGNOSTIC_MODE_DEFAULT = true;
+
 // ── Configuration ────────────────────────────────────────────
 
 export interface AgoraAdapterConfig {
@@ -58,7 +66,7 @@ export class AgoraAdapter implements IEnvironmentAdapter {
   constructor(serviceConfig: AgoraServiceConfig, config?: AgoraAdapterConfig) {
     this.id = config?.adapterId ?? 'agora';
     this._serviceConfig = serviceConfig;
-    this._diagnosticMode = config?.diagnosticMode ?? true;
+    this._diagnosticMode = config?.diagnosticMode ?? DIAGNOSTIC_MODE_DEFAULT;
     this._diagnosticPeers = new Set(config?.diagnosticPeers ?? ['stefan']);
 
     // Build peer registry for filtering
@@ -114,7 +122,7 @@ export class AgoraAdapter implements IEnvironmentAdapter {
 
   async poll(): Promise<RawInput[]> {
     if (!this._connected || this._messageQueue.length === 0) return [];
-    const batch = this._messageQueue.splice(0, 16);
+    const batch = this._messageQueue.splice(0, POLL_BATCH_SIZE);
     console.info(`[AgoraAdapter] poll() returning ${batch.length} messages`);
     return batch;
   }

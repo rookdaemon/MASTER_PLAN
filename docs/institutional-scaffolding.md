@@ -395,6 +395,7 @@ Per the identity architecture's community structure (docs/identity-and-belonging
 **The Stewards' Council:**
 - Composed of delegates from each circle in the network (one delegate per circle, rotating)
 - Plus designated-function stewards (see below)
+- **Quorum:** A minimum of 3 stewards from participating circles must be present for the council to exercise coordination authority
 - Meets at regular intervals (monthly minimum)
 - All meetings are documented and published
 

@@ -20,6 +20,14 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 
+// ── Threshold Registry ───────────────────────────────────────────────────────
+
+/** Number of semantic memory topics retained in digest (valid range: [5, 50]). */
+export const MAX_RECENT_TOPICS = 20;
+
+/** Number of frontier items shown in rendered digest (valid range: [3, 20]). */
+export const MAX_FRONTIER_RENDERED = 8;
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type FrontierPriority = 'high' | 'medium' | 'low';
@@ -148,7 +156,7 @@ export class AgentDigest {
   syncTopics(topics: string[]): void {
     // Keep unique, most recent first, cap at 20
     const unique = [...new Set(topics)];
-    this._data.recentTopics = unique.slice(-20);
+    this._data.recentTopics = unique.slice(-MAX_RECENT_TOPICS);
     this._data.updatedAt = Date.now();
     this._save();
   }
@@ -206,7 +214,7 @@ export class AgentDigest {
     }
 
     // [frontier] — unexplored items
-    const unread = this.unread(8);
+    const unread = this.unread(MAX_FRONTIER_RENDERED);
     lines.push('');
     lines.push('### Frontier [unexplored]');
     if (unread.length > 0) {
