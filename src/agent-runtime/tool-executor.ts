@@ -119,7 +119,11 @@ export async function executeToolCall(
         : Object.values(call.input).filter(v => typeof v === 'string').join(' ');
       const violation = deps.constraintEngine.checkConstraints(textToCheck);
       if (violation) {
-        return error(`Blocked by ethical constraint (${violation.id}): ${violation.reason}`);
+        const { constraint, mode } = violation;
+        if (mode === 'gate') {
+          return error(`Blocked by ethical constraint (${constraint.id}): ${constraint.reason}`);
+        }
+        // signal / audit: already logged by checkConstraints; allow execution to continue
       }
     }
 
