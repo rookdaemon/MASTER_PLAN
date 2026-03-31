@@ -54,6 +54,10 @@ export interface ToolExecutorDeps {
   constraintEngine: import('./constraint-engine.js').ConstraintAwareDeliberationEngine | null;
   /** TF-IDF embedder for content-based memory retrieval. Optional for backward compatibility. */
   embedder?: import('../memory/tfidf-embedder.js').TfIdfEmbedder | null;
+  /** Simulation manager for the create/tick/inspect/save/load simulation tools. Optional. */
+  simulationManager?: import('../simulation/simulation-manager.js').SimulationManager | null;
+  /** Persistence manager for saving/loading simulation snapshots. Optional. */
+  persistenceManager?: import('./persistence-manager.js').PersistenceManager | null;
 }
 
 // ── Governance state ────────────────────────────────────────────
@@ -174,6 +178,22 @@ export async function executeToolCall(
         return handleCreateProposal(call.input);
       case 'check_proposal':
         return handleCheckProposal(call.input);
+      case 'create_simulation':
+        return await handleCreateSimulation(call.input, deps);
+      case 'tick_simulation':
+        return handleTickSimulation(call.input, deps);
+      case 'set_parameter':
+        return handleSetParameter(call.input, deps);
+      case 'inspect_world':
+        return handleInspectWorld(call.input, deps);
+      case 'inspect_npc':
+        return handleInspectNpc(call.input, deps);
+      case 'save_simulation':
+        return await handleSaveSimulation(call.input, deps);
+      case 'load_simulation':
+        return await handleLoadSimulation(call.input, deps);
+      case 'list_simulations':
+        return await handleListSimulations(deps);
       default:
         return error(`Unknown tool "${call.name}". Available tools: resource_read, resource_create, resource_update, resource_delete, resource_list, resource_search, introspect, reflect, read_file, send_message, list_peers`);
     }
@@ -1550,5 +1570,174 @@ function handleCheckProposal(
   } catch (err) {
     const msg = err instanceof Error ? (err as { stderr?: string }).stderr || err.message : String(err);
     return error(`Failed to check proposal: ${msg}`);
+  }
+}
+
+// ── Simulation tool handlers ─────────────────────────────────────────────────
+
+async function handleCreateSimulation(
+  input: Record<string, unknown>,
+  deps: ToolExecutorDeps,
+): Promise<ToolCallResult> {
+  const manager = deps.simulationManager;
+  if (!manager) return error('Simulation manager not available.');
+  const name = input['name'] as string | undefined;
+  if (!name) return error('create_simulation requires "name".');
+  const scenario = (input['scenario'] as string | undefined) ?? 'village';
+  const overrides: { tickIntervalMs?: number; maxTicks?: number } = {};
+  if (typeof input['tick_interval_ms'] === 'number') overrides.tickIntervalMs = input['tick_interval_ms'] as number;
+  if (typeof input['max_ticks'] === 'number') overrides.maxTicks = input['max_ticks'] as number;
+  try {
+    if (scenario === 'custom') {
+      const { buildCustomConfig } = await import('../simulation/simulation-manager.js');
+      const agents = input['agents'] as import('../simulation/types.js').AgentConfig[] | undefined;
+      const locations = input['locations'] as import('../simulation/types.js').SimulationLocation[] | undefined;
+      if (!Array.isArray(agents) || agents.length === 0)
+        return error('custom scenario requires a non-empty "agents" array.');
+      if (!Array.isArray(locations) || locations.length === 0)
+        return error('custom scenario requires a non-empty "locations" array.');
+      const config = buildCustomConfig(agents, locations, overrides);
+      manager.createSimulation(name, config);
+      return ok({ status: 'created', name, scenario, agentCount: config.agents.length, locationCount: config.locations.length });
+    }
+    manager.createSimulationFromScenario(name, scenario, overrides);
+    const w = manager.inspectWorld(name);
+    return ok({ status: 'created', name, scenario, agentCount: w.agents.length, tickIntervalMs: overrides.tickIntervalMs ?? 0, maxTicks: overrides.maxTicks ?? null });
+  } catch (err) {
+    return error(`create_simulation failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+function handleTickSimulation(
+  input: Record<string, unknown>,
+  deps: ToolExecutorDeps,
+): ToolCallResult {
+  const manager = deps.simulationManager;
+  if (!manager) return error('Simulation manager not available.');
+  const name = input['name'] as string | undefined;
+  if (!name) return error('tick_simulation requires "name".');
+  const ticks = typeof input['ticks'] === 'number' ? Math.floor(input['ticks'] as number) : 1;
+  try {
+    const dumps = manager.tickSimulation(name, ticks);
+    const last = dumps[dumps.length - 1];
+    if (!last) return ok({ status: 'no_ticks', name });
+    return ok({
+      status: 'ok', name,
+      ticksAdvanced: dumps.length,
+      currentTick: last.tick,
+      agentCount: last.agents.length,
+      eventCount: last.recentEvents.length,
+      agents: last.agents.map(a => ({ agentId: a.agentId, name: a.name, location: a.location, mood: a.mood, topDrives: a.topDrives })),
+      recentEvents: last.recentEvents.slice(0, 5).map(e => ({ tick: e.tick, actor: e.actorId, description: e.description })),
+    });
+  } catch (err) {
+    return error(`tick_simulation failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+function handleSetParameter(
+  input: Record<string, unknown>,
+  deps: ToolExecutorDeps,
+): ToolCallResult {
+  const manager = deps.simulationManager;
+  if (!manager) return error('Simulation manager not available.');
+  const name = input['name'] as string | undefined;
+  const key = input['key'] as string | undefined;
+  const value = input['value'];
+  if (!name) return error('set_parameter requires "name".');
+  if (!key) return error('set_parameter requires "key".');
+  if (value === undefined) return error('set_parameter requires "value".');
+  try {
+    manager.setParameter(name, key, value);
+    return ok({ status: 'ok', name, key, value });
+  } catch (err) {
+    return error(`set_parameter failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+function handleInspectWorld(
+  input: Record<string, unknown>,
+  deps: ToolExecutorDeps,
+): ToolCallResult {
+  const manager = deps.simulationManager;
+  if (!manager) return error('Simulation manager not available.');
+  const name = input['name'] as string | undefined;
+  if (!name) return error('inspect_world requires "name".');
+  try {
+    return ok(manager.inspectWorld(name));
+  } catch (err) {
+    return error(`inspect_world failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+function handleInspectNpc(
+  input: Record<string, unknown>,
+  deps: ToolExecutorDeps,
+): ToolCallResult {
+  const manager = deps.simulationManager;
+  if (!manager) return error('Simulation manager not available.');
+  const simulationName = input['simulation_name'] as string | undefined;
+  const agentId = input['agent_id'] as string | undefined;
+  if (!simulationName) return error('inspect_npc requires "simulation_name".');
+  if (!agentId) return error('inspect_npc requires "agent_id".');
+  try {
+    return ok(manager.inspectNpc(simulationName, agentId));
+  } catch (err) {
+    return error(`inspect_npc failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+async function handleSaveSimulation(
+  input: Record<string, unknown>,
+  deps: ToolExecutorDeps,
+): Promise<ToolCallResult> {
+  const manager = deps.simulationManager;
+  if (!manager) return error('Simulation manager not available.');
+  const persistence = deps.persistenceManager;
+  if (!persistence) return error('Persistence manager not available.');
+  const name = input['name'] as string | undefined;
+  if (!name) return error('save_simulation requires "name".');
+  try {
+    const snapshot = manager.snapshotSimulation(name);
+    await persistence.saveSimulationSnapshot(snapshot);
+    return ok({ status: 'saved', name: snapshot.name, tickCount: snapshot.tickCount, agentCount: snapshot.agentDumps.length, snapshotAt: snapshot.snapshotAt });
+  } catch (err) {
+    return error(`save_simulation failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+async function handleLoadSimulation(
+  input: Record<string, unknown>,
+  deps: ToolExecutorDeps,
+): Promise<ToolCallResult> {
+  const manager = deps.simulationManager;
+  if (!manager) return error('Simulation manager not available.');
+  const persistence = deps.persistenceManager;
+  if (!persistence) return error('Persistence manager not available.');
+  const name = input['name'] as string | undefined;
+  if (!name) return error('load_simulation requires "name".');
+  try {
+    const snapshot = await persistence.loadSimulationSnapshot(name);
+    if (!snapshot) return error(`No saved simulation found with name "${name}". Use list_simulations to see what is available.`);
+    manager.restoreSimulation(snapshot);
+    return ok({ status: 'loaded', name: snapshot.name, tickCount: snapshot.tickCount, agentCount: snapshot.agentDumps.length, snapshotAt: snapshot.snapshotAt });
+  } catch (err) {
+    return error(`load_simulation failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+async function handleListSimulations(deps: ToolExecutorDeps): Promise<ToolCallResult> {
+  const manager = deps.simulationManager;
+  if (!manager) return error('Simulation manager not available.');
+  try {
+    const active = manager.listActiveSimulations();
+    const saved = deps.persistenceManager
+      ? await deps.persistenceManager.listSimulationSnapshots()
+      : [];
+    const allNames = [...new Set([...active, ...saved])];
+    const simulations = allNames.map(n => ({ name: n, isActive: active.includes(n), isSaved: saved.includes(n) }));
+    return ok({ count: simulations.length, simulations });
+  } catch (err) {
+    return error(`list_simulations failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
