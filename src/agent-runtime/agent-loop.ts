@@ -128,6 +128,8 @@ export class AgentLoop implements IAgentLoop {
   private _taskJournal: import('./task-journal.js').TaskJournal | null = null;
   private _agentDigest: import('./agent-digest.js').AgentDigest | null = null;
   private _constraintEngine: import('./constraint-engine.js').ConstraintAwareDeliberationEngine | null = null;
+  private _simulationManager: import('../simulation/simulation-manager.js').SimulationManager | null = null;
+  private _persistenceManager: import('./persistence-manager.js').PersistenceManager | null = null;
 
   // ── Constructor injection ────────────────────────────────────
 
@@ -444,6 +446,16 @@ export class AgentLoop implements IAgentLoop {
 
   /** Set the narrative identity string for introspection. */
   setNarrativeIdentity(narrative: string): void { this._narrativeIdentity = narrative; }
+
+  /** Set the simulation manager for create/tick/inspect/save/load simulation tools. */
+  setSimulationManager(manager: import('../simulation/simulation-manager.js').SimulationManager): void {
+    this._simulationManager = manager;
+  }
+
+  /** Set the persistence manager for saving/loading simulation snapshots. */
+  setPersistenceManager(manager: import('./persistence-manager.js').PersistenceManager): void {
+    this._persistenceManager = manager;
+  }
 
   /** Set the workspace path for write_file tool. */
   setWorkspacePath(path: string): void {
@@ -1302,6 +1314,8 @@ export class AgentLoop implements IAgentLoop {
             taskJournal: this._taskJournal,
             agentDigest: this._agentDigest,
             constraintEngine: this._constraintEngine,
+            simulationManager: this._simulationManager,
+            persistenceManager: this._persistenceManager,
           },
         );
 
