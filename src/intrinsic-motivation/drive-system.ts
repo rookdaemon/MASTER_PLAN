@@ -28,6 +28,7 @@ import type {
   DriveContext,
   DriveGoalCandidate,
   DrivePersonalityParams,
+  DriveSnapshot,
   DriveState,
   DriveTickResult,
   DriveType,
@@ -580,6 +581,23 @@ export class DriveSystem implements IDriveSystem {
 
   resetDrive(driveType: DriveType): void {
     this.states.set(driveType, makeInitialDriveState(driveType));
+  }
+
+  getSnapshot(now: number): DriveSnapshot {
+    const driveStates = {} as Record<DriveType, DriveState>;
+    for (const [dt, s] of this.states) {
+      driveStates[dt] = s;
+    }
+    return { driveStates, snapshotAt: now };
+  }
+
+  restoreFromSnapshot(snapshot: DriveSnapshot): void {
+    for (const driveType of ALL_DRIVE_TYPES) {
+      const saved = snapshot.driveStates[driveType];
+      if (saved !== undefined) {
+        this.states.set(driveType, saved);
+      }
+    }
   }
 
   // ── Private helpers ─────────────────────────────────────────────────────────

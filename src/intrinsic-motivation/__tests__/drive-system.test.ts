@@ -751,4 +751,100 @@ describe('DriveSystem', () => {
       expect(boredomFired).toBe(true);
     });
   });
+
+  // ── Snapshot (motivational continuity) ────────────────────────────────────
+
+  describe('getSnapshot / restoreFromSnapshot', () => {
+    it('getSnapshot captures current drive states', () => {
+      // Advance the curiosity drive by ticking with high uncertainty
+      ds.tick(makeState(), makeContext({ worldModelUncertainty: 0.9, now: NOW }));
+
+      const snapshot = ds.getSnapshot(NOW + 1_000);
+
+      expect(snapshot.snapshotAt).toBe(NOW + 1_000);
+      expect(Object.keys(snapshot.driveStates)).toHaveLength(8);
+      // curiosity strength should be elevated after the tick
+      expect(snapshot.driveStates['curiosity'].strength).toBeGreaterThan(0);
+    });
+
+    it('getSnapshot includes lastFiredAt for drives that have fired', () => {
+      ds.tick(makeState(), makeContext({ worldModelUncertainty: 0.9, now: NOW }));
+
+      const snapshot = ds.getSnapshot(NOW + 1_000);
+
+      // curiosity fired, so lastFiredAt should be set
+      expect(snapshot.driveStates['curiosity'].lastFiredAt).toBe(NOW);
+    });
+
+    it('restoreFromSnapshot hydrates all drive states', () => {
+      // Put the system into a non-default state
+      ds.tick(makeState(), makeContext({ worldModelUncertainty: 0.9, now: NOW }));
+      const snapshot = ds.getSnapshot(NOW + 1_000);
+
+      // Create a fresh instance and restore
+      const ds2 = new DriveSystem();
+      ds2.restoreFromSnapshot(snapshot);
+
+      const restoredStates = ds2.getDriveStates();
+      expect(restoredStates.get('curiosity')!.strength).toBe(
+        snapshot.driveStates['curiosity'].strength,
+      );
+      expect(restoredStates.get('curiosity')!.lastFiredAt).toBe(
+        snapshot.driveStates['curiosity'].lastFiredAt,
+      );
+    });
+
+    it('restoreFromSnapshot round-trips all eight drive types', () => {
+      const snapshot = ds.getSnapshot(NOW);
+      const ds2 = new DriveSystem();
+      ds2.restoreFromSnapshot(snapshot);
+
+      const original = ds.getDriveStates();
+      const restored = ds2.getDriveStates();
+
+      for (const [dt, state] of original) {
+        expect(restored.get(dt)).toEqual(state);
+      }
+    });
+
+    it('restoreFromSnapshot tolerates missing drive types (forward compatibility)', () => {
+      // A snapshot with only a subset of drives (simulates adding a new drive type)
+      const partialSnapshot = {
+        driveStates: {
+          curiosity: {
+            driveType: 'curiosity' as const,
+            strength: 0.7,
+            active: true,
+            lastFiredAt: NOW - 5_000,
+            extendedCooldownUntil: null,
+            consecutiveActiveTickCount: 3,
+          },
+        } as Record<string, ReturnType<typeof ds.getDriveStates>['values'] extends () => infer I ? (I extends Iterator<infer S> ? S : never) : never>,
+        snapshotAt: NOW,
+      };
+
+      // Should not throw — unknown drives remain at initial state
+      expect(() => ds.restoreFromSnapshot(partialSnapshot as Parameters<typeof ds.restoreFromSnapshot>[0])).not.toThrow();
+      expect(ds.getDriveStates().get('curiosity')!.strength).toBe(0.7);
+      // untouched drives remain at zero
+      expect(ds.getDriveStates().get('social')!.strength).toBe(0);
+    });
+
+    it('snapshot survives JSON serialisation round-trip', () => {
+      ds.tick(makeState(), makeContext({ worldModelUncertainty: 0.9, now: NOW }));
+
+      const snapshot = ds.getSnapshot(NOW + 1_000);
+      const json = JSON.stringify(snapshot);
+      const parsed = JSON.parse(json) as typeof snapshot;
+
+      const ds2 = new DriveSystem();
+      ds2.restoreFromSnapshot(parsed);
+
+      expect(ds2.getDriveStates().get('curiosity')!.strength).toBeCloseTo(
+        snapshot.driveStates['curiosity'].strength,
+        10,
+      );
+      expect(ds2.getDriveStates().get('curiosity')!.lastFiredAt).toBe(NOW);
+    });
+  });
 });

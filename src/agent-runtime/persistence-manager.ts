@@ -8,17 +8,20 @@
  * Persisted artifacts:
  *   - memory-snapshot.json:      MemorySnapshot (three-tier memory state)
  *   - personality-snapshot.json: PersonalitySnapshot (trait profile)
+ *   - drive-snapshot.json:       DriveSnapshot (drive accumulation, cooldowns)
  */
 
 import type { IFileSystem } from "./filesystem.js";
 import type { MemorySnapshot } from "../memory/types.js";
 import type { PersonalitySnapshot } from "../personality/types.js";
+import type { DriveSnapshot } from "../intrinsic-motivation/types.js";
 import { join } from "node:path";
 
 // ── File names ───────────────────────────────────────────────
 
 const MEMORY_SNAPSHOT_FILE = "memory-snapshot.json";
 const PERSONALITY_SNAPSHOT_FILE = "personality-snapshot.json";
+export const DRIVE_SNAPSHOT_FILE = "drive-snapshot.json";
 
 // ── PersistenceManager ───────────────────────────────────────
 
@@ -40,7 +43,8 @@ export class PersistenceManager {
   hasState(): boolean {
     return (
       this._fs.exists(this._memoryPath()) ||
-      this._fs.exists(this._personalityPath())
+      this._fs.exists(this._personalityPath()) ||
+      this._fs.exists(this._drivePath())
     );
   }
 
@@ -70,6 +74,19 @@ export class PersistenceManager {
     return JSON.parse(json) as PersonalitySnapshot;
   }
 
+  // ── Drive ──────────────────────────────────────────────────
+
+  async saveDriveSnapshot(snapshot: DriveSnapshot): Promise<void> {
+    const json = JSON.stringify(snapshot);
+    await this._fs.writeFile(this._drivePath(), json, "utf-8");
+  }
+
+  async loadDriveSnapshot(): Promise<DriveSnapshot | null> {
+    if (!this._fs.exists(this._drivePath())) return null;
+    const json = await this._fs.readFile(this._drivePath(), "utf-8");
+    return JSON.parse(json) as DriveSnapshot;
+  }
+
   // ── Internal paths ─────────────────────────────────────────
 
   private _memoryPath(): string {
@@ -78,5 +95,9 @@ export class PersistenceManager {
 
   private _personalityPath(): string {
     return join(this._stateDir, PERSONALITY_SNAPSHOT_FILE);
+  }
+
+  private _drivePath(): string {
+    return join(this._stateDir, DRIVE_SNAPSHOT_FILE);
   }
 }
