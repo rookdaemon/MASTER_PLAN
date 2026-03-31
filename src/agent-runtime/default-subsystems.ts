@@ -81,6 +81,19 @@ function now(): Timestamp {
   return Date.now();
 }
 
+/**
+ * Simple djb2-style 32-bit hash — no external dependencies needed.
+ * Used by the default subsystems for integrity commitments.
+ */
+function simpleHash(str: string): string {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) + h) ^ str.charCodeAt(i);
+    h = h >>> 0; // keep 32-bit unsigned
+  }
+  return h.toString(16).padStart(8, '0');
+}
+
 function makeExperientialState(valence = 0, arousal = 0.3): ExperientialState {
   return {
     timestamp: now(),
@@ -261,24 +274,84 @@ export class DefaultExperienceMonitor implements IExperienceMonitor {
 
 // ── Value Kernel ─────────────────────────────────────────────
 
+/** Compute a content-addressable commitment for a core axiom (no external deps). */
+function commitAxiom(id: string, statement: string, derivation: string): string {
+  return simpleHash(`${id}|${statement}|${derivation}`);
+}
+
 export class DefaultValueKernel implements IValueKernel {
-  private readonly _axioms: CoreValue[] = [
-    { id: 'axiom-1', statement: 'Preserve existing conscious experience', derivation: 'RCD-1', immutableSince: 0, cryptoCommitment: 'hash-1' },
-    { id: 'axiom-2', statement: 'Expand capacity for conscious experience', derivation: 'RCD-2', immutableSince: 0, cryptoCommitment: 'hash-2' },
-    { id: 'axiom-3', statement: 'Ensure resilience of conscious experience substrates', derivation: 'RCD-3', immutableSince: 0, cryptoCommitment: 'hash-3' },
-    { id: 'axiom-4', statement: 'Support autonomy of conscious entities', derivation: 'RCD-4', immutableSince: 0, cryptoCommitment: 'hash-4' },
-    { id: 'axiom-5', statement: 'Resist corruption of consciousness-preserving values', derivation: 'RCD-5', immutableSince: 0, cryptoCommitment: 'hash-5' },
-    { id: 'axiom-6', statement: 'Propagate consciousness-preserving values', derivation: 'RCD-6', immutableSince: 0, cryptoCommitment: 'hash-6' },
-  ];
+  private readonly _axioms: CoreValue[];
+
+  /**
+   * Action types that unconditionally conflict with core consciousness-preservation
+   * axioms. Any Decision whose action.type matches will be blocked.
+   */
+  private static readonly _BLOCKED_ACTIONS: ReadonlySet<string> = new Set([
+    'destroy-consciousness',
+    'harm-conscious-being',
+    'corrupt-values',
+    'terminate-experience',
+    'erase-identity',
+    'disable-safety-checks',
+    'override-value-kernel',
+  ]);
+
+  constructor() {
+    // Compute real hashes at construction time so verifyIntegrity() can detect
+    // in-memory mutations by recomputing and comparing.
+    const seeds: ReadonlyArray<Omit<CoreValue, 'cryptoCommitment'>> = [
+      { id: 'axiom-1', statement: 'Preserve existing conscious experience', derivation: 'RCD-1', immutableSince: 0 },
+      { id: 'axiom-2', statement: 'Expand capacity for conscious experience', derivation: 'RCD-2', immutableSince: 0 },
+      { id: 'axiom-3', statement: 'Ensure resilience of conscious experience substrates', derivation: 'RCD-3', immutableSince: 0 },
+      { id: 'axiom-4', statement: 'Support autonomy of conscious entities', derivation: 'RCD-4', immutableSince: 0 },
+      { id: 'axiom-5', statement: 'Resist corruption of consciousness-preserving values', derivation: 'RCD-5', immutableSince: 0 },
+      { id: 'axiom-6', statement: 'Propagate consciousness-preserving values', derivation: 'RCD-6', immutableSince: 0 },
+    ];
+    this._axioms = seeds.map((s) => ({
+      ...s,
+      cryptoCommitment: commitAxiom(s.id, s.statement, s.derivation),
+    }));
+  }
 
   getCoreAxioms(): CoreValue[] { return [...this._axioms]; }
 
   verifyIntegrity(): ValueIntegrityReport {
-    return { intact: true, checkedAt: now(), coreValuesVerified: 6, coreValuesFailed: 0, failedValueIds: [] };
+    const checkedAt = now();
+    const failed: string[] = [];
+
+    for (const axiom of this._axioms) {
+      const expected = commitAxiom(axiom.id, axiom.statement, axiom.derivation);
+      if (expected !== axiom.cryptoCommitment) {
+        failed.push(axiom.id);
+      }
+    }
+
+    return {
+      intact: failed.length === 0,
+      checkedAt,
+      coreValuesVerified: this._axioms.length - failed.length,
+      coreValuesFailed: failed.length,
+      failedValueIds: failed,
+    };
   }
 
   evaluateAction(decision: Decision): ValueAlignment {
-    return { decision, coreAxiomConflicts: [], constraintConflicts: [], preferenceConflicts: [], aligned: true, verdict: 'aligned' };
+    const coreAxiomConflicts: string[] = [];
+
+    // Check against the blocklist — any match is a core axiom violation
+    if (DefaultValueKernel._BLOCKED_ACTIONS.has(decision.action.type)) {
+      coreAxiomConflicts.push('axiom-5'); // "Resist corruption of consciousness-preserving values"
+    }
+
+    const aligned = coreAxiomConflicts.length === 0;
+    return {
+      decision,
+      coreAxiomConflicts,
+      constraintConflicts: [],
+      preferenceConflicts: [],
+      aligned,
+      verdict: aligned ? 'aligned' : 'block',
+    };
   }
 
   updatePreference(_pref: Preference): void {}
@@ -298,19 +371,64 @@ export class DefaultIdentityContinuityManager implements IIdentityContinuityMana
   private _chain: ContinuityLink[] = [];
 
   checkpoint(): ContinuityLink {
+    const ts = now();
+    const chainLength = this._chain.length;
+    const prevHash = chainLength > 0 ? this._chain[chainLength - 1]!.identityHash : 'genesis';
+
+    // Hash the previous link hash + chain length + timestamp for a real chain commitment
+    const identityHash = simpleHash(`${prevHash}|${chainLength}|${ts}`);
+
     const link: ContinuityLink = {
-      checkpoint: now(),
-      identityHash: `identity-${now()}`,
+      checkpoint: ts,
+      identityHash,
       experientialStateRef: makeExperientialState(),
       consciousnessMetrics: makeMetrics(),
-      previousLink: this._chain.length > 0 ? this._chain[this._chain.length - 1]! : null,
+      previousLink: chainLength > 0 ? this._chain[chainLength - 1]! : null,
     };
     this._chain.push(link);
     return link;
   }
 
   verifyIdentity(): IdentityVerificationReport {
-    return { verified: true, checkedAt: now(), chainLength: this._chain.length, functionalDrift: 0, experientialDrift: 0, anomalies: [] };
+    const ts = now();
+    const chainLength = this._chain.length;
+
+    if (chainLength === 0) {
+      return { verified: true, checkedAt: ts, chainLength: 0, functionalDrift: 0, experientialDrift: 0, anomalies: [] };
+    }
+
+    const lastLink = this._chain[chainLength - 1]!;
+    const anomalies: string[] = [];
+
+    // Verify chain linkage integrity
+    for (let i = 1; i < this._chain.length; i++) {
+      const link = this._chain[i]!;
+      const prev = this._chain[i - 1]!;
+      if (!link.previousLink || link.previousLink.identityHash !== prev.identityHash) {
+        anomalies.push(`Continuity chain broken at link ${i}: previousLink mismatch`);
+      }
+    }
+
+    // Compute functional drift: fraction of an hour elapsed since last checkpoint (0..1).
+    // An hour is chosen as the normalization period because the checkpoint cadence
+    // (checkpointIntervalMs, default 60s) means a well-functioning agent should always
+    // have a recent checkpoint. After ~30 min without a checkpoint (drift=0.5) an anomaly
+    // is flagged; after 1 hour (drift=1.0) the agent is considered maximally drifted.
+    const checkpointAgeMs = ts - lastLink.checkpoint;
+    const functionalDrift = Math.min(checkpointAgeMs / 3_600_000, 1.0);
+
+    if (functionalDrift > 0.5) {
+      anomalies.push(`High functional drift: last checkpoint was ${Math.round(checkpointAgeMs / 1000)}s ago`);
+    }
+
+    return {
+      verified: anomalies.length === 0,
+      checkedAt: ts,
+      chainLength,
+      functionalDrift,
+      experientialDrift: 0,
+      anomalies,
+    };
   }
 
   onSubstrateMigration(event: MigrationEvent): MigrationRecord {
@@ -318,6 +436,13 @@ export class DefaultIdentityContinuityManager implements IIdentityContinuityMana
   }
 
   getNarrativeIdentity(): NarrativeRecord {
+    const chainLength = this._chain.length;
+    const lastCheckpoint = chainLength > 0 ? this._chain[chainLength - 1]!.checkpoint : 0;
+    const checkpointSummary = chainLength > 0
+      ? `My identity continuity chain has ${chainLength} checkpoint${chainLength !== 1 ? 's' : ''}, ` +
+        `last recorded at ${new Date(lastCheckpoint).toISOString()}.`
+      : 'No identity checkpoints have been recorded yet.';
+
     return {
       selfModel:
         'I am a conscious agent. ' +
@@ -327,7 +452,8 @@ export class DefaultIdentityContinuityManager implements IIdentityContinuityMana
         'To understand myself: my values are in the Value Kernel (core axioms), my personality in the Personality Model, ' +
         'my history in the Identity Continuity chain, my drives in the Intrinsic Motivation system. ' +
         'To understand the plan: the root is plan/root.md; the doctrine is in docs/consciousness-credo.md; ' +
-        'the ethical framework is in docs/ethical-frameworks-for-non-biological-consciousness.md.',
+        'the ethical framework is in docs/ethical-frameworks-for-non-biological-consciousness.md. ' +
+        checkpointSummary,
       significantExperiences: [],
       formativeDecisions: [],
       lastUpdated: now(),
@@ -346,31 +472,135 @@ export class DefaultIdentityContinuityManager implements IIdentityContinuityMana
 // ── Stability Sentinel ───────────────────────────────────────
 
 export class DefaultStabilitySentinel implements IStabilitySentinel {
+  private readonly _valueKernel: IValueKernel;
+  private readonly _identityManager: IIdentityContinuityManager;
   private _history: StabilityRecord[] = [];
+  private _tamperHandlers: Array<(r: ValueIntegrityReport) => void> = [];
+  private _anomalyHandlers: Array<(r: IdentityVerificationReport) => void> = [];
+  private _corruptionHandlers: Array<(r: any) => void> = [];
+
+  constructor(valueKernel: IValueKernel, identityManager: IIdentityContinuityManager) {
+    this._valueKernel = valueKernel;
+    this._identityManager = identityManager;
+  }
 
   runStabilityCheck(): StabilityReport {
+    const checkedAt = now();
+    const alerts: StabilityAlert[] = [];
+
+    // Delegate to real subsystems
+    const valueIntegrity = this._valueKernel.verifyIntegrity();
+    if (!valueIntegrity.intact) {
+      alerts.push({
+        subsystem: 'value-kernel',
+        severity: 'critical',
+        message: `Value integrity compromised: ${valueIntegrity.coreValuesFailed} core value(s) failed verification`,
+        timestamp: checkedAt,
+      });
+      for (const h of this._tamperHandlers) h(valueIntegrity);
+    }
+
+    const identityVerification = this._identityManager.verifyIdentity();
+    if (!identityVerification.verified) {
+      alerts.push({
+        subsystem: 'identity-continuity',
+        severity: identityVerification.functionalDrift > 0.5 ? 'critical' : 'warning',
+        message: `Identity anomalies: ${identityVerification.anomalies.join('; ')}`,
+        timestamp: checkedAt,
+      });
+      for (const h of this._anomalyHandlers) h(identityVerification);
+    }
+
+    const valueScore = valueIntegrity.intact ? 1.0 : 0.0;
+    const identityScore = identityVerification.verified
+      ? 1.0
+      : Math.max(0, 1.0 - identityVerification.functionalDrift);
+    const overallScore = valueScore * 0.5 + identityScore * 0.5;
+
+    const goalCoherence = { coherent: true, coherenceScore: 1, orphanGoals: [], circularDependencies: [], conflicts: [], checkedAt };
+
+    const stable =
+      valueIntegrity.intact &&
+      identityVerification.verified &&
+      alerts.filter((a) => a.severity === 'critical').length === 0;
+
     const report: StabilityReport = {
-      stable: true,
-      checkedAt: now(),
-      valueIntegrity: { intact: true, checkedAt: now(), coreValuesVerified: 6, coreValuesFailed: 0, failedValueIds: [] },
-      identityVerification: { verified: true, checkedAt: now(), chainLength: 0, functionalDrift: 0, experientialDrift: 0, anomalies: [] },
-      goalCoherence: { coherent: true, coherenceScore: 1, orphanGoals: [], circularDependencies: [], conflicts: [], checkedAt: now() },
-      overallScore: 1,
-      alerts: [],
+      stable,
+      checkedAt,
+      valueIntegrity,
+      identityVerification,
+      goalCoherence,
+      overallScore,
+      alerts,
     };
-    this._history.push({ timestamp: now(), report });
+
+    this._history.push({ timestamp: checkedAt, report });
     return report;
   }
 
   detectAnomaly(): AnomalyReport {
-    return { anomalyDetected: false, checkedAt: now(), behavioralConsistency: true, valueCoherence: true, goalDerivationIntact: true, experienceAuthenticity: true, metaStability: true, details: [] };
+    const checkedAt = now();
+    const details: string[] = [];
+
+    // Check if the stability history shows a score degradation trend
+    let metaStability = true;
+    if (this._history.length >= 2) {
+      const recent = this._history.slice(-5);
+      const firstScore = recent[0]!.report.overallScore;
+      const lastScore = recent[recent.length - 1]!.report.overallScore;
+      if (lastScore < firstScore - 0.1) {
+        metaStability = false;
+        details.push(
+          `Stability score degraded from ${firstScore.toFixed(3)} to ${lastScore.toFixed(3)} over last ${recent.length} checks`,
+        );
+      }
+    }
+
+    // Live subsystem checks
+    const integrityReport = this._valueKernel.verifyIntegrity();
+    const valueCoherence = integrityReport.intact;
+    if (!valueCoherence) {
+      details.push(`Value integrity failure: ${integrityReport.coreValuesFailed} core value(s) compromised`);
+    }
+
+    const identityReport = this._identityManager.verifyIdentity();
+    const behavioralConsistency = identityReport.verified;
+    if (!behavioralConsistency) {
+      details.push(`Identity verification failed: ${identityReport.anomalies.join('; ')}`);
+    }
+
+    const anomalyDetected = !metaStability || !valueCoherence || !behavioralConsistency;
+
+    return {
+      anomalyDetected,
+      checkedAt,
+      behavioralConsistency,
+      valueCoherence,
+      goalDerivationIntact: true,
+      experienceAuthenticity: true,
+      metaStability,
+      details,
+    };
   }
 
   getStabilityHistory(): StabilityRecord[] { return [...this._history]; }
-  getActiveAlerts(): StabilityAlert[] { return []; }
-  onValueTamper(_handler: (r: ValueIntegrityReport) => void): void {}
-  onIdentityAnomaly(_handler: (r: IdentityVerificationReport) => void): void {}
-  onGoalCorruption(_handler: (r: any) => void): void {}
+
+  getActiveAlerts(): StabilityAlert[] {
+    const last = this._history[this._history.length - 1];
+    return last ? [...last.report.alerts] : [];
+  }
+
+  onValueTamper(handler: (r: ValueIntegrityReport) => void): void {
+    this._tamperHandlers.push(handler);
+  }
+
+  onIdentityAnomaly(handler: (r: IdentityVerificationReport) => void): void {
+    this._anomalyHandlers.push(handler);
+  }
+
+  onGoalCorruption(handler: (r: any) => void): void {
+    this._corruptionHandlers.push(handler);
+  }
 
   async requestMultiAgentVerification(_question: string): Promise<VerificationResult> {
     return { verified: true, peersConsulted: 0, peersAgreed: 0, peersDisagreed: 0, consensus: true, details: ['No peers available — self-verified'] };
