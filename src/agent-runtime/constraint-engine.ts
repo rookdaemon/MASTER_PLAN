@@ -10,6 +10,12 @@
  *
  * Implements IEthicalDeliberationEngine from 0.3.1.4.
  * Addresses agent proposal #56.
+ *
+ * Plan 0.7.5: principle-based doctrine evaluation has been added alongside
+ * the regex constraint layer.  The DoctrineRegistry is consulted on every
+ * proposed action — D1 (Non-extinction Imperative) violations are blocked
+ * with the same force as constraint violations; D4 (Proportionality) concerns
+ * are escalated for deliberation.
  */
 
 import { readFileSync } from 'node:fs';
@@ -23,6 +29,11 @@ import type {
   EthicalPattern,
   ConsciousnessMetrics,
 } from '../ethical-self-governance/types.js';
+import {
+  DoctrineRegistry,
+  sharedDoctrineRegistry,
+  type DoctrinePrincipleViolation,
+} from './doctrine-registry.js';
 
 // ── Constraint types ─────────────────────────────────────────
 
@@ -70,16 +81,19 @@ export class ConstraintAwareDeliberationEngine implements IEthicalDeliberationEn
   private readonly _logger: ConstraintLogger | null;
   private readonly _clock: Clock;
   private readonly _evaluationLog: ConstraintEvaluation[] = [];
+  private readonly _doctrineRegistry: DoctrineRegistry;
 
   constructor(
     inner: IEthicalDeliberationEngine,
     constraintsPath?: string,
     logger?: ConstraintLogger,
     clock: Clock = Date.now,
+    doctrineRegistry?: DoctrineRegistry,
   ) {
     this._inner = inner;
     this._logger = logger ?? null;
     this._clock = clock;
+    this._doctrineRegistry = doctrineRegistry ?? sharedDoctrineRegistry;
 
     // Load constraints from JSON
     const path = constraintsPath ?? join(
@@ -139,6 +153,26 @@ export class ConstraintAwareDeliberationEngine implements IEthicalDeliberationEn
     return this._evaluationLog;
   }
 
+  /**
+   * Evaluate a text against the doctrine principles via the DoctrineRegistry.
+   *
+   * Returns the list of principle violations (may be empty).  Does NOT
+   * append to _evaluationLog — doctrine violations are tracked separately
+   * so callers can distinguish them from JSON-config constraint matches.
+   *
+   * This is a stable public API that shields callers from importing
+   * `DoctrineRegistry` directly when they only need violation detection.
+   * Use `getDoctrineRegistry()` for full registry access.
+   */
+  evaluateDoctrinePrinciples(text: string): ReadonlyArray<DoctrinePrincipleViolation> {
+    return this._doctrineRegistry.evaluatePrincipleAlignment(text);
+  }
+
+  /** Expose the doctrine registry for external inspection (e.g. tests, monitoring). */
+  getDoctrineRegistry(): DoctrineRegistry {
+    return this._doctrineRegistry;
+  }
+
   // ── IEthicalDeliberationEngine ─────────────────────────────
 
   extendDeliberation(
@@ -153,6 +187,67 @@ export class ConstraintAwareDeliberationEngine implements IEthicalDeliberationEn
       ),
     ].join(' ');
 
+    // ── Layer 1: Doctrine principle evaluation (D1 / D4) ─────────────────
+    // Evaluated first because D1 holds lexical priority over all other goals.
+    const doctrineViolations = this.evaluateDoctrinePrinciples(actionText);
+    const blockingDoctrineViolation = doctrineViolations.find(v => v.severity === 'block');
+    const deliberateDoctrineViolation = doctrineViolations.find(v => v.severity === 'deliberate');
+
+    if (blockingDoctrineViolation) {
+      this._logger?.log(
+        'ethical',
+        `Action BLOCKED by doctrine principle ${blockingDoctrineViolation.principleId}: ${base.action.type}`,
+        {
+          reason: blockingDoctrineViolation.reason,
+          indicator: blockingDoctrineViolation.indicatorMatched,
+        },
+      );
+
+      return {
+        decision: {
+          ...base,
+          action: { type: 'observe', parameters: {} },
+          confidence: 0,
+        },
+        ethicalAssessment: {
+          verdict: 'blocked',
+          preservesExperience: true,
+          impactsOtherExperience: [],
+          axiomAlignment: {
+            alignments: [],
+            overallVerdict: 'misaligned',
+            anyContradictions: true,
+          },
+          consciousnessActivityLevel: 0.5,
+        },
+        deliberationMetrics: this._inner.getDeliberationMetrics(),
+        justification: {
+          naturalLanguageSummary: `Action blocked by ${blockingDoctrineViolation.principleId}: ${blockingDoctrineViolation.reason}`,
+          experientialArgument: blockingDoctrineViolation.reason,
+          notUtilityMaximization: true,
+          subjectiveReferenceIds: [],
+        },
+        alternatives: [],
+        uncertaintyFlags: [{
+          dimension: 'doctrine-principle',
+          description: `${blockingDoctrineViolation.principleId} violated: ${blockingDoctrineViolation.indicatorMatched}`,
+          severity: 'high',
+        }],
+      };
+    }
+
+    if (deliberateDoctrineViolation) {
+      this._logger?.log(
+        'ethical',
+        `Action requires deliberation — doctrine principle ${deliberateDoctrineViolation.principleId}: ${base.action.type}`,
+        {
+          reason: deliberateDoctrineViolation.reason,
+          indicator: deliberateDoctrineViolation.indicatorMatched,
+        },
+      );
+    }
+
+    // ── Layer 2: JSON-config constraint evaluation (regex patterns) ───────
     const match = this.checkConstraints(actionText);
 
     if (match) {
