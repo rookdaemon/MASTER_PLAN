@@ -22,7 +22,7 @@ import type { TraitDimensionId } from '../personality/types.js';
 import { readFileSync, readdirSync, writeFileSync, appendFileSync, existsSync, statSync, mkdirSync } from 'node:fs';
 import { join, resolve, relative, dirname } from 'node:path';
 import { execSync } from 'node:child_process';
-import { VALID_RESOURCE_TYPES, type ResourceType } from './internal-tools.js';
+import { VALID_RESOURCE_TYPES, ALL_INTERNAL_TOOLS, type ResourceType } from './internal-tools.js';
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -195,7 +195,7 @@ export async function executeToolCall(
       case 'list_simulations':
         return await handleListSimulations(deps);
       default:
-        return error(`Unknown tool "${call.name}". Available tools: resource_read, resource_create, resource_update, resource_delete, resource_list, resource_search, introspect, reflect, read_file, send_message, list_peers`);
+        return error(`Unknown tool "${call.name}". Available tools: ${ALL_INTERNAL_TOOLS.map(t => t.name).join(', ')}`);
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
