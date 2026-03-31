@@ -175,3 +175,26 @@ export interface SimulationStateDump {
   readonly agents: AgentStateDump[];
   readonly recentEvents: SimulationEvent[];
 }
+
+// ── Simulation snapshot ────────────────────────────────────────────────────
+
+/**
+ * A serialisable snapshot of a named simulation's state.
+ * Used to persist and restore simulations across agent sessions.
+ *
+ * NPC deep cognitive state (mood history, working memory, drive accumulators)
+ * is not captured here — only the observable state dump.  On restore the
+ * simulation loop is rebuilt from `config` with fresh cognitive subsystems.
+ */
+export interface SimulationSnapshot {
+  /** Unique name identifying this simulation. */
+  readonly name: string;
+  /** The original configuration used to create the simulation. */
+  readonly config: SimulationConfig;
+  /** Number of ticks completed when the snapshot was taken. */
+  readonly tickCount: number;
+  /** Observable state of each agent at snapshot time. */
+  readonly agentDumps: AgentStateDump[];
+  /** Wall-clock timestamp (epoch ms) when the snapshot was taken. */
+  readonly snapshotAt: Timestamp;
+}

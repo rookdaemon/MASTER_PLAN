@@ -21,6 +21,7 @@ export type {
   SimulationConfig,
   AgentStateDump,
   SimulationStateDump,
+  SimulationSnapshot,
 } from './types.js';
 
 // ── Core components ───────────────────────────────────────────────────────────
@@ -28,6 +29,8 @@ export { SimulatedAgent } from './simulated-agent.js';
 export type { AgentTickContext } from './simulated-agent.js';
 export { SimulationWorld } from './simulation-world.js';
 export { SimulationLoop } from './simulation-loop.js';
+export { SimulationManager, buildCustomConfig } from './simulation-manager.js';
+export type { WorldInspection, NpcInspection } from './simulation-manager.js';
 
 // ── Demo scenarios ────────────────────────────────────────────────────────────
 export { createVillageConfig, VILLAGE_LOCATIONS } from './scenarios/village.js';
