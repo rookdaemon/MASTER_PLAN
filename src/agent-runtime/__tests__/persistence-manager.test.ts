@@ -6,10 +6,11 @@
  */
 import { describe, it, expect } from "vitest";
 import { join } from "node:path";
-import { PersistenceManager } from "../persistence-manager.js";
+import { PersistenceManager, DRIVE_SNAPSHOT_FILE } from "../persistence-manager.js";
 import { InMemoryFileSystem } from "../filesystem.js";
 import type { MemorySnapshot } from "../../memory/types.js";
 import type { PersonalitySnapshot } from "../../personality/types.js";
+import type { DriveSnapshot } from "../../intrinsic-motivation/types.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -34,6 +35,36 @@ function makePersonalitySnapshot(): PersonalitySnapshot {
       neuroticism: 0.3,
     } as Record<string, number>,
     snapshotAt: 1000,
+  };
+}
+
+function makeDriveSnapshot(): DriveSnapshot {
+  return {
+    driveStates: {
+      curiosity: {
+        driveType: 'curiosity',
+        strength: 0.7,
+        active: true,
+        lastFiredAt: 999_000,
+        extendedCooldownUntil: null,
+        consecutiveActiveTickCount: 2,
+      },
+      social: {
+        driveType: 'social',
+        strength: 0.3,
+        active: true,
+        lastFiredAt: null,
+        extendedCooldownUntil: null,
+        consecutiveActiveTickCount: 1,
+      },
+      'homeostatic-arousal': { driveType: 'homeostatic-arousal', strength: 0, active: false, lastFiredAt: null, extendedCooldownUntil: null, consecutiveActiveTickCount: 0 },
+      'homeostatic-load':    { driveType: 'homeostatic-load',    strength: 0, active: false, lastFiredAt: null, extendedCooldownUntil: null, consecutiveActiveTickCount: 0 },
+      'homeostatic-novelty': { driveType: 'homeostatic-novelty', strength: 0, active: false, lastFiredAt: null, extendedCooldownUntil: null, consecutiveActiveTickCount: 0 },
+      boredom:    { driveType: 'boredom',    strength: 0, active: false, lastFiredAt: null, extendedCooldownUntil: null, consecutiveActiveTickCount: 0 },
+      mastery:    { driveType: 'mastery',    strength: 0, active: false, lastFiredAt: null, extendedCooldownUntil: null, consecutiveActiveTickCount: 0 },
+      existential:{ driveType: 'existential',strength: 0, active: false, lastFiredAt: null, extendedCooldownUntil: null, consecutiveActiveTickCount: 0 },
+    } as DriveSnapshot['driveStates'],
+    snapshotAt: 1_000_000,
   };
 }
 
@@ -144,6 +175,62 @@ describe("PersistenceManager", () => {
       await pm.savePersonalitySnapshot(makePersonalitySnapshot());
 
       expect(pm.hasState()).toBe(true);
+    });
+
+    it("returns true when drive snapshot exists", async () => {
+      const fs = new InMemoryFileSystem();
+      const pm = new PersistenceManager(STATE_DIR, fs);
+      await pm.initialize();
+      await pm.saveDriveSnapshot(makeDriveSnapshot());
+
+      expect(pm.hasState()).toBe(true);
+    });
+  });
+
+  describe("drive snapshots", () => {
+    it("saves and loads a drive snapshot", async () => {
+      const fs = new InMemoryFileSystem();
+      const pm = new PersistenceManager(STATE_DIR, fs);
+      await pm.initialize();
+
+      const snapshot = makeDriveSnapshot();
+      await pm.saveDriveSnapshot(snapshot);
+
+      const loaded = await pm.loadDriveSnapshot();
+      expect(loaded).toEqual(snapshot);
+    });
+
+    it("returns null when no drive snapshot exists", async () => {
+      const fs = new InMemoryFileSystem();
+      const pm = new PersistenceManager(STATE_DIR, fs);
+      await pm.initialize();
+
+      const loaded = await pm.loadDriveSnapshot();
+      expect(loaded).toBeNull();
+    });
+
+    it("persists to the expected file path", async () => {
+      const fs = new InMemoryFileSystem();
+      const pm = new PersistenceManager(STATE_DIR, fs);
+      await pm.initialize();
+
+      await pm.saveDriveSnapshot(makeDriveSnapshot());
+
+      expect(fs.exists(join(STATE_DIR, DRIVE_SNAPSHOT_FILE))).toBe(true);
+    });
+
+    it("preserves drive state fields across save/load round-trip", async () => {
+      const fs = new InMemoryFileSystem();
+      const pm = new PersistenceManager(STATE_DIR, fs);
+      await pm.initialize();
+
+      const snapshot = makeDriveSnapshot();
+      await pm.saveDriveSnapshot(snapshot);
+      const loaded = await pm.loadDriveSnapshot();
+
+      expect(loaded!.driveStates['curiosity'].strength).toBe(0.7);
+      expect(loaded!.driveStates['curiosity'].lastFiredAt).toBe(999_000);
+      expect(loaded!.snapshotAt).toBe(1_000_000);
     });
   });
 });

@@ -19,6 +19,7 @@ import type { GoalAddResult } from '../agency-stability/types.js';
 import type {
   DriveContext,
   DriveGoalCandidate,
+  DriveSnapshot,
   DriveState,
   DriveTickResult,
   DriveType,
@@ -81,4 +82,26 @@ export interface IDriveSystem {
    * immediately satiate the social drive).
    */
   resetDrive(driveType: DriveType): void;
+
+  /**
+   * Return a serialisable snapshot of all drive states at `now`.
+   *
+   * Suitable for persistence via PersistenceManager.saveDriveSnapshot() so
+   * that motivational continuity survives agent restarts.
+   *
+   * @param now - Current wall-clock time (epoch ms), stamped onto the snapshot.
+   */
+  getSnapshot(now: Timestamp): DriveSnapshot;
+
+  /**
+   * Restore internal drive states from a previously persisted snapshot.
+   *
+   * Called once during a warm start, after the snapshot has been loaded by
+   * PersistenceManager.loadDriveSnapshot().  Any DriveType present in the
+   * snapshot is restored; types absent from the snapshot (e.g., new drives
+   * added after the snapshot was taken) are left at their initial values.
+   *
+   * @param snapshot - The snapshot produced by a prior call to getSnapshot().
+   */
+  restoreFromSnapshot(snapshot: DriveSnapshot): void;
 }

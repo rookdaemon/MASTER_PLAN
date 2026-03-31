@@ -290,6 +290,23 @@ export interface ExperientialStateDelta {
   readonly arousalDelta: number | null;
 }
 
+// ── Drive Snapshot ───────────────────────────────────────────────
+
+/**
+ * A serialisable snapshot of all drive states, captured at a specific instant.
+ * Used by PersistenceManager to persist motivational continuity across restarts.
+ *
+ * `driveStates` is a plain Record rather than a Map so it survives JSON
+ * round-trips without custom serialisation.
+ */
+export interface DriveSnapshot {
+  /** Drive states at the moment of the snapshot, keyed by DriveType. */
+  readonly driveStates: Record<DriveType, DriveState>;
+
+  /** Wall-clock time when this snapshot was taken (epoch ms). */
+  readonly snapshotAt: Timestamp;
+}
+
 // ── Drive Diagnostic ────────────────────────────────────────────
 
 /**
