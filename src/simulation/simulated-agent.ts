@@ -63,8 +63,8 @@ function makeContinuityToken(timestamp: number, previousId: string | null): Cont
 }
 
 let _eventIdCounter = 0;
-function makeId(prefix: string): string {
-  return `${prefix}-${Date.now()}-${(++_eventIdCounter).toString(36)}`;
+function makeId(prefix: string, now: number): string {
+  return `${prefix}-${now}-${(++_eventIdCounter).toString(36)}`;
 }
 
 // ── AgentTickContext ─────────────────────────────────────────────────────────
@@ -218,7 +218,6 @@ export class SimulatedAgent {
           const perceivedState = this._buildExperientialState(now, perceivedValence, perceivedArousal, token);
           const empathy = this._social.generateEmpathicResponse(actorId, perceivedState);
           // Apply empathic resonance to mood
-          const updatedMood = this._mood.getCurrentMood();
           const empathicAppraisalResult = this._buildEmpathicAppraisalResult(
             now,
             actorId,
@@ -226,7 +225,6 @@ export class SimulatedAgent {
             empathy.resonantArousalShift,
           );
           this._mood.update(empathicAppraisalResult, this._buildMoodParams());
-          void updatedMood; // suppress unused warning
         }
       }
     } else {
@@ -621,7 +619,7 @@ export class SimulatedAgent {
     arousalShift: number,
   ) {
     return {
-      perceptId: makeId('empathy'),
+      perceptId: makeId('empathy', now),
       timestamp: now,
       goalCongruenceShift: valenceShift * 0.5,
       affectedGoalPriority: 0.5,

@@ -47,12 +47,19 @@ import type {
 export class SimulationLoop {
   private readonly _world: SimulationWorld;
   private readonly _config: SimulationConfig;
+  private readonly _clock: () => number;
   private _currentTick = 0;
   private _running = false;
   private _tickCallbacks: Array<(dump: SimulationStateDump) => void> = [];
 
-  constructor(config: SimulationConfig) {
+  /**
+   * @param config  Simulation configuration
+   * @param clock   Injectable time source (epoch ms). Defaults to `Date.now`.
+   *                Pass a custom clock in tests for deterministic timestamps.
+   */
+  constructor(config: SimulationConfig, clock: () => number = Date.now) {
     this._config = config;
+    this._clock = clock;
     this._world = new SimulationWorld();
     this._initialise();
   }
@@ -141,7 +148,7 @@ export class SimulationLoop {
   private _executeTick(): SimulationStateDump {
     this._currentTick++;
     const tick = this._currentTick;
-    const now = Date.now();
+    const now = this._clock();
 
     const events: SimulationEvent[] = [];
     const agentResults: AgentTickResult[] = [];

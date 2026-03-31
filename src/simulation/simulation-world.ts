@@ -33,8 +33,8 @@ import type { SimulatedAgent } from './simulated-agent.js';
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 let _eventCounter = 0;
-function makeEventId(): string {
-  return `evt-${Date.now()}-${(++_eventCounter).toString(36)}`;
+function makeEventId(now: number): string {
+  return `evt-${now}-${(++_eventCounter).toString(36)}`;
 }
 
 // ── SimulationWorld ──────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ export class SimulationWorld {
    * Register an agent with the world and seed the world model with an entity
    * record for it.
    */
-  addAgent(agent: SimulatedAgent, config: AgentConfig): void {
+  addAgent(agent: SimulatedAgent, config: AgentConfig, now: number = Date.now()): void {
     this._agents.set(agent.agentId, agent);
     this._entities.set(agent.agentId, {
       id: agent.agentId,
@@ -97,7 +97,7 @@ export class SimulationWorld {
 
     // Seed WorldModel entity record
     const obs: ObservationEvent = {
-      timestamp: Date.now(),
+      timestamp: now,
       description: `Agent ${agent.name} joined the simulation.`,
       deltaConfidence: 0.5,
     };
@@ -260,7 +260,7 @@ export class SimulationWorld {
     ].filter((id, idx, arr) => arr.indexOf(id) === idx); // unique
 
     return {
-      id: makeEventId(),
+      id: makeEventId(now),
       tick,
       timestamp: now,
       actorId: agent.agentId,
@@ -320,7 +320,7 @@ export class SimulationWorld {
     const visibleTo = this.getAgentsAtLocation(locationId);
 
     return {
-      id: makeEventId(),
+      id: makeEventId(now),
       tick,
       timestamp: now,
       actorId: agent.agentId,
@@ -350,7 +350,7 @@ export class SimulationWorld {
     );
 
     return {
-      id: makeEventId(),
+      id: makeEventId(now),
       tick,
       timestamp: now,
       actorId: agent.agentId,
@@ -370,7 +370,7 @@ export class SimulationWorld {
   ): SimulationEvent {
     const locationId = agent.location;
     return {
-      id: makeEventId(),
+      id: makeEventId(now),
       tick,
       timestamp: now,
       actorId: agent.agentId,
@@ -390,7 +390,7 @@ export class SimulationWorld {
   ): SimulationEvent {
     const locationId = agent.location;
     return {
-      id: makeEventId(),
+      id: makeEventId(now),
       tick,
       timestamp: now,
       actorId: agent.agentId,
