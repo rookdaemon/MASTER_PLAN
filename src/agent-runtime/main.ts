@@ -27,7 +27,7 @@
  *   -p / --prompt <text>     One-shot prompt (send, receive, exit)
  *   --sim [port]             Simulation Control UI (default port: 1339)
  *   --web [port]             Web chat UI (default port: 1338)
- *   --model <id>             LLM model (default: claude-opus-4-6)
+ *   --model <id>             LLM model (default: claude-sonnet-4-20250514)
  *   --provider <provider>    LLM provider (default: anthropic)
  *   --state-dir <path>       State persistence directory
  */
