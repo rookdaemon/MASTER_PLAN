@@ -137,6 +137,13 @@ export class SimulationWorld {
   }
 
   /**
+   * Return all registered locations.
+   */
+  getLocations(): SimulationLocation[] {
+    return Array.from(this._locations.values());
+  }
+
+  /**
    * Return IDs of agents currently at a given location.
    */
   getAgentsAtLocation(locationId: LocationId): AgentId[] {
