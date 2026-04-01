@@ -17,16 +17,17 @@
 
 import { SimulationLoop } from './simulation-loop.js';
 import { createVillageConfig } from './scenarios/village.js';
+import { createColonyConfig } from './scenarios/colony.js';
 import type {
   AgentConfig,
   AgentId,
   AgentStateDump,
   SimulationConfig,
+  SimulationEvent,
   SimulationLocation,
   SimulationSnapshot,
   SimulationStateDump,
 } from './types.js';
-import type { ExperientialState } from '../conscious-core/types.js';
 
 // ── SimulationManager ─────────────────────────────────────────────────────────
 
@@ -58,7 +59,7 @@ export class SimulationManager {
 
   /**
    * Create a simulation from a built-in scenario name.
-   * Currently supported: `'village'`.
+   * Supported scenarios: `'village'`, `'colony'`.
    */
   createSimulationFromScenario(
     name: string,
@@ -68,11 +69,21 @@ export class SimulationManager {
     let base: SimulationConfig;
     if (scenario === 'village') {
       base = createVillageConfig();
+    } else if (scenario === 'colony') {
+      base = createColonyConfig();
     } else {
-      throw new Error(`Unknown scenario "${scenario}". Supported: "village".`);
+      throw new Error(`Unknown scenario "${scenario}". Supported: "village", "colony".`);
     }
     const config: SimulationConfig = { ...base, ...overrides };
     this.createSimulation(name, config);
+  }
+
+  /**
+   * Return the list of built-in scenarios available for use with
+   * `createSimulationFromScenario`.
+   */
+  listScenarios(): ScenarioDescriptor[] {
+    return BUILT_IN_SCENARIOS;
   }
 
   /** Remove a simulation from the registry. Returns true if it existed. */
@@ -136,16 +147,7 @@ export class SimulationManager {
         throw new Error(`Agent "${params.agentId}" not found in simulation "${name}".`);
       }
       const now = this._clock();
-      const fakeState: ExperientialState = {
-        timestamp: now,
-        phenomenalContent: { modalities: ['simulation'], richness: 0.5, raw: null },
-        intentionalContent: { target: 'parameter-set', clarity: 0.7 },
-        valence: 0,
-        arousal: 0.3,
-        unityIndex: 0.5,
-        continuityToken: { id: `param-${now}`, previousId: null, timestamp: now },
-      };
-      agent.getPersonality().updateTrait(params.trait, params.value, fakeState);
+      agent.setTrait(params.trait, params.value, now);
       return;
     }
 
@@ -154,21 +156,64 @@ export class SimulationManager {
     );
   }
 
+  /**
+   * Inject an external world event into the named simulation.
+   * The event will be visible to all agents and picked up in the next tick's
+   * percept list.
+   *
+   * @param name         Name of the simulation.
+   * @param description  Human-readable description of the event.
+   * @param locationId   Location where the event takes place.
+   * @param valenceHint  Optional emotional valence hint (−1..1). Default: 0.
+   * @param noveltyHint  Optional novelty hint (0..1). Default: 0.8.
+   */
+  injectEvent(
+    name: string,
+    opts: {
+      description: string;
+      locationId: string;
+      valenceHint?: number;
+      noveltyHint?: number;
+    },
+  ): void {
+    const loop = this._requireLoop(name);
+    const now = this._clock();
+    const tick = loop.currentTick;
+
+    const allAgentIds = loop.world.getAgents().map(a => a.agentId);
+
+    const event: SimulationEvent = {
+      id: `ext-${now}-${tick}`,
+      tick,
+      timestamp: now,
+      actorId: 'world',
+      locationId: opts.locationId,
+      description: opts.description,
+      visibleToAgentIds: allAgentIds,
+      valenceHint: opts.valenceHint ?? 0,
+      noveltyHint: opts.noveltyHint ?? 0.8,
+    };
+
+    loop.queueExternalEvent(event);
+  }
+
   // ── Inspection ────────────────────────────────────────────────────────────
 
   /**
-   * Return the world-level state: all agent state dumps, tick counter, and a
-   * sample of world-model beliefs.
+   * Return the world-level state: all agent state dumps, tick counter, locations,
+   * and a sample of world-model beliefs.
    */
   inspectWorld(name: string): WorldInspection {
     const loop = this._requireLoop(name);
     const agents = loop.world.getAgents().map(a => a.toStateDump());
     const beliefs = loop.world.worldModel.beliefs.getBeliefsByDomain([]);
+    const locations = loop.world.getLocations();
     return {
       simulationName: name,
       currentTick: loop.currentTick,
       isRunning: loop.isRunning,
       agents,
+      locations,
       beliefCount: beliefs.length,
       beliefSample: beliefs.slice(0, 10).map(b => ({
         content: b.content,
@@ -281,11 +326,36 @@ export class SimulationManager {
 
 // ── Inspection result types ───────────────────────────────────────────────────
 
+/** Describes a built-in simulation scenario. */
+export interface ScenarioDescriptor {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly defaultAgentCount: number;
+}
+
+/** Built-in scenarios available via `createSimulationFromScenario`. */
+export const BUILT_IN_SCENARIOS: ScenarioDescriptor[] = [
+  {
+    id: 'village',
+    name: 'Village',
+    description: 'Five villagers with distinct personalities exploring a small medieval village.',
+    defaultAgentCount: 5,
+  },
+  {
+    id: 'colony',
+    name: 'Off-World Colony',
+    description: 'Six colonists managing life aboard a remote outpost — command, engineering, and survival.',
+    defaultAgentCount: 6,
+  },
+];
+
 export interface WorldInspection {
   readonly simulationName: string;
   readonly currentTick: number;
   readonly isRunning: boolean;
   readonly agents: AgentStateDump[];
+  readonly locations: SimulationLocation[];
   readonly beliefCount: number;
   readonly beliefSample: Array<{ content: string; confidence: number; domains: string[] }>;
 }

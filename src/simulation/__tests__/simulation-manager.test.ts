@@ -81,6 +81,19 @@ describe('SimulationManager — lifecycle', () => {
     expect(mgr.listActiveSimulations()).toContain('village-1');
   });
 
+  it('creates a colony scenario simulation', () => {
+    const mgr = new SimulationManager();
+    mgr.createSimulationFromScenario('colony-1', 'colony');
+    expect(mgr.listActiveSimulations()).toContain('colony-1');
+  });
+
+  it('colony scenario has 6 agents', () => {
+    const mgr = new SimulationManager();
+    mgr.createSimulationFromScenario('col', 'colony');
+    const world = mgr.inspectWorld('col');
+    expect(world.agents).toHaveLength(6);
+  });
+
   it('throws for unknown scenario', () => {
     const mgr = new SimulationManager();
     expect(() => mgr.createSimulationFromScenario('x', 'alien')).toThrow(/Unknown scenario/);
@@ -243,5 +256,84 @@ describe('SimulationManager — snapshot/restore', () => {
     // restore overwrites
     mgr.restoreSimulation(snap);
     expect(mgr.inspectWorld('r').currentTick).toBe(0);
+  });
+});
+
+// ── listScenarios ─────────────────────────────────────────────────────────────
+
+describe('SimulationManager — listScenarios', () => {
+  it('returns village and colony scenarios', () => {
+    const mgr = new SimulationManager();
+    const ids = mgr.listScenarios().map(s => s.id);
+    expect(ids).toContain('village');
+    expect(ids).toContain('colony');
+  });
+
+  it('each scenario descriptor has required fields', () => {
+    const mgr = new SimulationManager();
+    for (const s of mgr.listScenarios()) {
+      expect(typeof s.id).toBe('string');
+      expect(typeof s.name).toBe('string');
+      expect(typeof s.description).toBe('string');
+      expect(typeof s.defaultAgentCount).toBe('number');
+    }
+  });
+});
+
+// ── inspectWorld — locations ──────────────────────────────────────────────────
+
+describe('SimulationManager — inspectWorld locations', () => {
+  it('includes the simulation locations', () => {
+    const mgr = new SimulationManager();
+    mgr.createSimulation('w', miniConfig());
+    const world = mgr.inspectWorld('w');
+    expect(Array.isArray(world.locations)).toBe(true);
+    expect(world.locations).toHaveLength(2);
+  });
+
+  it('locations have the expected ids', () => {
+    const mgr = new SimulationManager();
+    mgr.createSimulation('w', miniConfig());
+    const world = mgr.inspectWorld('w');
+    const ids = world.locations.map(l => l.id);
+    expect(ids).toContain('plaza');
+    expect(ids).toContain('park');
+  });
+});
+
+// ── injectEvent ───────────────────────────────────────────────────────────────
+
+describe('SimulationManager — injectEvent', () => {
+  it('injected event appears in next tick events', () => {
+    const clock = vi.fn().mockReturnValue(42_000);
+    const mgr = new SimulationManager(clock);
+    mgr.createSimulation('ev', miniConfig());
+
+    mgr.injectEvent('ev', {
+      description: 'A meteor is detected overhead.',
+      locationId: 'plaza',
+      valenceHint: -0.5,
+      noveltyHint: 0.9,
+    });
+
+    const [dump] = mgr.tickSimulation('ev', 1);
+    const found = dump!.recentEvents.some(e => e.description === 'A meteor is detected overhead.');
+    expect(found).toBe(true);
+  });
+
+  it('throws for unknown simulation', () => {
+    const mgr = new SimulationManager();
+    expect(() =>
+      mgr.injectEvent('ghost', { description: 'test', locationId: 'plaza' }),
+    ).toThrow(/not found/);
+  });
+
+  it('uses default valence and novelty hints when omitted', () => {
+    const clock = vi.fn().mockReturnValue(1_000);
+    const mgr = new SimulationManager(clock);
+    mgr.createSimulation('ev2', miniConfig());
+    expect(() =>
+      mgr.injectEvent('ev2', { description: 'Something happens.', locationId: 'plaza' }),
+    ).not.toThrow();
   });
 });
