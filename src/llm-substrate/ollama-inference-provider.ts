@@ -38,18 +38,19 @@ export class OllamaInferenceProvider implements IInferenceProvider {
     private readonly modelId: string,
     private readonly authProvider: IAuthProvider,
     private readonly endpoint: string,
+    private readonly now: () => number = () => Date.now(),
   ) {}
 
   async probe(): Promise<{ reachable: boolean; latencyMs: number; error?: string }> {
-    const start = Date.now();
+    const start = this.now();
     try {
       await this.infer("You are a health probe. Reply with one word.", [
         { role: "user", content: "ping" },
       ], [], 4);
-      return { latencyMs: Date.now() - start, reachable: true };
+      return { latencyMs: this.now() - start, reachable: true };
     } catch (err) {
       return {
-        latencyMs: Date.now() - start,
+        latencyMs: this.now() - start,
         reachable: false,
         error: String(err),
       };
@@ -62,7 +63,7 @@ export class OllamaInferenceProvider implements IInferenceProvider {
     tools: ToolDefinition[],
     maxTokens: number,
   ): Promise<InferenceResult> {
-    const start = Date.now();
+    const start = this.now();
 
     // Inject tool descriptions into the system prompt
     const enrichedSystemPrompt = tools.length > 0
@@ -114,7 +115,7 @@ export class OllamaInferenceProvider implements IInferenceProvider {
       // stores the clean text in the assistant message.
       promptTokens: usage.prompt_tokens,
       completionTokens: usage.completion_tokens,
-      latencyMs: Date.now() - start,
+      latencyMs: this.now() - start,
     };
   }
 

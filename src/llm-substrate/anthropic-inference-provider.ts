@@ -61,18 +61,19 @@ export class AnthropicInferenceProvider implements IInferenceProvider {
     private readonly authProvider: IAuthProvider,
     private readonly endpoint: string,
     private readonly thinkingBudgetTokens: number = 0,
+    private readonly now: () => number = () => Date.now(),
   ) {}
 
   async probe(): Promise<{ reachable: boolean; latencyMs: number; error?: string }> {
-    const start = Date.now();
+    const start = this.now();
     try {
       await this.infer("You are a health probe. Reply with one word.", [
         { role: "user", content: "ping" },
       ], [], 4);
-      return { latencyMs: Date.now() - start, reachable: true };
+      return { latencyMs: this.now() - start, reachable: true };
     } catch (err) {
       return {
-        latencyMs: Date.now() - start,
+        latencyMs: this.now() - start,
         reachable: false,
         error: String(err),
       };
@@ -85,7 +86,7 @@ export class AnthropicInferenceProvider implements IInferenceProvider {
     tools: ToolDefinition[],
     maxTokens: number,
   ): Promise<InferenceResult> {
-    const start = Date.now();
+    const start = this.now();
 
     // OAuth tokens require the Claude Code identity prefix in block-structured format
     let system: string | SystemBlock[];
@@ -144,7 +145,7 @@ export class AnthropicInferenceProvider implements IInferenceProvider {
           const seconds = parseInt(retryAfter, 10);
           err.retryAfterMs = !isNaN(seconds)
             ? seconds * 1000
-            : Math.max(0, new Date(retryAfter).getTime() - Date.now());
+            : Math.max(0, new Date(retryAfter).getTime() - this.now());
         }
       }
       throw err;
@@ -181,7 +182,7 @@ export class AnthropicInferenceProvider implements IInferenceProvider {
       _rawAssistantContent: data.content,  // provider-internal; ToolLoop stores this opaquely
       promptTokens: usage.input_tokens,
       completionTokens: usage.output_tokens,
-      latencyMs: Date.now() - start,
+      latencyMs: this.now() - start,
     };
   }
 
