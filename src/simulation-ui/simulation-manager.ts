@@ -15,7 +15,7 @@
 import { SimulationLoop } from '../simulation/simulation-loop.js';
 import { createVillageConfig } from '../simulation/scenarios/village.js';
 import { createColonyConfig } from '../simulation/scenarios/colony.js';
-import type { SimulationStateDump, SimulationEvent } from '../simulation/types.js';
+import type { SimulationConfig, SimulationStateDump, SimulationEvent } from '../simulation/types.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

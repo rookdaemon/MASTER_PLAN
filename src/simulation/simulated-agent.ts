@@ -183,10 +183,14 @@ export class SimulatedAgent {
    * Value is clamped to [0, 1]. Used by the simulation UI to adjust NPC
    * traits live without going through the full ValueKernel machinery
    * (SimulatedAgent has no kernel attached).
+   *
+   * @param traitId  Trait dimension identifier.
+   * @param value    New value in [0, 1].
+   * @param now      Epoch-ms timestamp for the synthetic experiential state.
+   *                 Defaults to `Date.now()`. Pass a fixed value in tests.
    */
-  setTrait(traitId: string, value: number): void {
+  setTrait(traitId: string, value: number, now: number = Date.now()): void {
     const clamped = Math.max(0, Math.min(1, value));
-    const now = Date.now();
     const synthState: import('../conscious-core/types.js').ExperientialState = {
       timestamp: now,
       phenomenalContent: { modalities: ['introspective'], richness: 0.5, raw: null },
