@@ -122,6 +122,8 @@ function makeDeps(overrides: Partial<MessagePipelineDeps> = {}): MessagePipeline
       notifyGoalResult: vi.fn(),
       getDriveStates: vi.fn().mockReturnValue(new Map()),
       resetDrive: vi.fn(),
+      getSnapshot: vi.fn().mockReturnValue({ driveStates: {}, snapshotAt: 0 }),
+      restoreFromSnapshot: vi.fn(),
     },
     ...overrides,
   };

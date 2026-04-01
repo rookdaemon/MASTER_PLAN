@@ -41,6 +41,9 @@ import {
   THRESHOLDS,
   InstanceState,
   type ConsciousnessInstance,
+  type ConsciousnessInstanceId,
+  type ClusterId,
+  type CheckpointId,
 } from "../cosmological-longevity/types.js";
 
 // ── Von Neumann Probe ─────────────────────────────────────────────────────────
@@ -344,6 +347,7 @@ const deepFutureScenario: ScenarioDefinition = {
 
     // Step 2 — Horizon closure: should we seed remote clusters now?
     const horizonResponse = evaluateHorizonClosure({
+      targetClusterId: "remote-cluster-1" as ClusterId,
       remainingCommunicationTime,
       minimumSeedingDuration,
     });
@@ -380,7 +384,7 @@ const deepFutureScenario: ScenarioDefinition = {
 
     // Build minimal instances for graceful degradation demonstration
     const instances: ConsciousnessInstance[] = Array.from({ length: instanceCount }, (_, i) => ({
-      instanceId: `instance-${i}` as ReturnType<typeof makeScenarioId>,
+      instanceId: `instance-${i}` as ConsciousnessInstanceId,
       state: InstanceState.Active,
       preservationPriority: instanceCount - i,
       experienceMetrics: {
@@ -389,8 +393,8 @@ const deepFutureScenario: ScenarioDefinition = {
         subjectiveTimeRate: 1.0,
       },
       lastCheckpoint: {
-        checkpointId: `ckpt-${i}` as ReturnType<typeof makeScenarioId>,
-        instanceId: `instance-${i}` as ReturnType<typeof makeScenarioId>,
+        checkpointId: `ckpt-${i}` as CheckpointId,
+        instanceId: `instance-${i}` as ConsciousnessInstanceId,
         timestamp: 0,
         verified: true,
       },

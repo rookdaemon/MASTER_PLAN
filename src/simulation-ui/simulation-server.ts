@@ -425,7 +425,7 @@ export class SimulationServer {
     const locations = rec.loop.world.getLocations();
 
     return {
-      ...summary,
+      ...(summary as Record<string, unknown>),
       latestDump,
       agents,
       locations,

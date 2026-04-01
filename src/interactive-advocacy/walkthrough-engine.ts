@@ -47,10 +47,10 @@ export function createWalkthroughEngine(
       }
 
       // Merge defaults with caller overrides — caller values take precedence
-      const mergedParams: ScenarioParameters = {
-        ...definition.defaultParameters,
-        ...(params ?? {}),
-      };
+      const mergedParams = { ...definition.defaultParameters } as Record<string, string | number | boolean>;
+      for (const [k, v] of Object.entries(params ?? {})) {
+        if (v !== undefined) mergedParams[k] = v;
+      }
 
       return definition.runWalkthrough(mergedParams);
     },

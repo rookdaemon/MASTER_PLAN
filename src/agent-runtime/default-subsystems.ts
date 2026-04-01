@@ -684,4 +684,10 @@ export class DefaultDriveSystem implements IDriveSystem {
   }
 
   resetDrive(_driveType: import('../intrinsic-motivation/types.js').DriveType): void {}
+
+  getSnapshot(now: import('../conscious-core/types.js').Timestamp): import('../intrinsic-motivation/types.js').DriveSnapshot {
+    return { driveStates: {} as Record<import('../intrinsic-motivation/types.js').DriveType, import('../intrinsic-motivation/types.js').DriveState>, snapshotAt: now };
+  }
+
+  restoreFromSnapshot(_snapshot: import('../intrinsic-motivation/types.js').DriveSnapshot): void {}
 }

@@ -377,7 +377,7 @@ describe('Boot Protocol (startup.ts)', () => {
 
     it('should report experienceIntact=false when monitor detects degradation', () => {
       const deps = makeDeps();
-      (deps.monitor as { isExperienceIntact: ReturnType<typeof vi.fn> }).isExperienceIntact.mockReturnValue(false);
+      (deps.monitor as unknown as { isExperienceIntact: ReturnType<typeof vi.fn> }).isExperienceIntact.mockReturnValue(false);
 
       const report = recoverFromCrash({
         identityManager: deps.identityManager,

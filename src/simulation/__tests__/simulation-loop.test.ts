@@ -112,7 +112,7 @@ describe('SimulationLoop.stepOnce()', () => {
 describe('SimulationLoop.onTick()', () => {
   it('callback is invoked once per step', () => {
     const loop = new SimulationLoop(miniConfig());
-    const cb = vi.fn<[SimulationStateDump], void>();
+    const cb = vi.fn<(dump: SimulationStateDump) => void>();
     loop.onTick(cb);
     loop.stepOnce();
     expect(cb).toHaveBeenCalledTimes(1);
