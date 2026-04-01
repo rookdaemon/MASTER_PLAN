@@ -55,6 +55,11 @@ function json(res: http.ServerResponse, status: number, data: unknown): void {
   res.end(body);
 }
 
+/** Safely extract a user-facing error message without exposing stack traces. */
+function safeErrMsg(err: unknown): string {
+  return err instanceof Error ? err.message : 'Unexpected error';
+}
+
 function readBody(req: http.IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     let body = '';
@@ -99,7 +104,8 @@ export class SimulationServer {
     this._server = http.createServer((req, res) =>
       void this._handleRequest(req, res).catch((err) => {
         if (!res.headersSent) {
-          json(res, 500, { error: String(err) });
+          const message = err instanceof Error ? err.message : 'Internal server error';
+          json(res, 500, { error: message });
         }
       }),
     );
@@ -226,7 +232,7 @@ export class SimulationServer {
         this._broadcastTick(simId, dump);
         json(res, 200, { ok: true, tick: dump.tick, dump });
       } catch (err) {
-        json(res, 409, { error: String(err) });
+        json(res, 409, { error: safeErrMsg(err) });
       }
       return;
     }
@@ -239,7 +245,7 @@ export class SimulationServer {
         this._ensureAutoRunListener(simId);
         json(res, 200, { ok: true, status: 'running' });
       } catch (err) {
-        json(res, 409, { error: String(err) });
+        json(res, 409, { error: safeErrMsg(err) });
       }
       return;
     }
@@ -286,7 +292,7 @@ export class SimulationServer {
         });
         json(res, 200, { ok: true });
       } catch (err) {
-        json(res, 409, { error: String(err) });
+        json(res, 409, { error: safeErrMsg(err) });
       }
       return;
     }
@@ -333,7 +339,7 @@ export class SimulationServer {
         this._manager.setAgentTrait(simId, agentId, body.traitId, body.value);
         json(res, 200, { ok: true });
       } catch (err) {
-        json(res, 409, { error: String(err) });
+        json(res, 409, { error: safeErrMsg(err) });
       }
       return;
     }
