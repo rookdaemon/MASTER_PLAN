@@ -28,8 +28,8 @@ import {
 /** Maximum messages returned per poll() call. Prevents a single adapter from dominating the tick budget. */
 export const POLL_BATCH_SIZE = 16;
 
-/** New deployments are isolated by default; fail-closed for social interactions. */
-export const DIAGNOSTIC_MODE_DEFAULT = true;
+/** Diagnostic mode is opt-in; agents communicate freely by default. */
+export const DIAGNOSTIC_MODE_DEFAULT = false;
 
 // ── Configuration ────────────────────────────────────────────
 

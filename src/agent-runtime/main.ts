@@ -339,7 +339,7 @@ async function attachAgora(
     const agoraConfig = loadAgoraConfig();
     if (agoraConfig.relay?.url && agoraConfig.identity?.publicKey) {
       const serviceConfig = await AgoraService.loadConfig();
-      const diagnosticMode = process.env['DIAGNOSTIC_MODE'] !== 'false';
+      const diagnosticMode = process.env['DIAGNOSTIC_MODE'] === 'true';
       const agoraAdapter = new AgoraAdapter(serviceConfig, { diagnosticMode });
       const peerCount = agoraConfig.peers ? Object.keys(agoraConfig.peers).length : 0;
       const diagNote = diagnosticMode ? ' [DIAGNOSTIC MODE: stefan only]' : '';

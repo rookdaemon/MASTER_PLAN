@@ -86,8 +86,8 @@ describe('AgoraAdapter', () => {
       expect(POLL_BATCH_SIZE).toBe(16);
     });
 
-    it('DIAGNOSTIC_MODE_DEFAULT is true', () => {
-      expect(DIAGNOSTIC_MODE_DEFAULT).toBe(true);
+    it('DIAGNOSTIC_MODE_DEFAULT is false', () => {
+      expect(DIAGNOSTIC_MODE_DEFAULT).toBe(false);
     });
   });
 
