@@ -178,6 +178,35 @@ export class SimulatedAgent {
     return this._drives;
   }
 
+  /**
+   * Directly update a personality trait value.
+   * Value is clamped to [0, 1]. Used by the simulation UI to adjust NPC
+   * traits live without going through the full ValueKernel machinery
+   * (SimulatedAgent has no kernel attached).
+   *
+   * @param traitId  Trait dimension identifier.
+   * @param value    New value in [0, 1].
+   * @param now      Epoch-ms timestamp for the synthetic experiential state.
+   *                 Defaults to `Date.now()`. Pass a fixed value in tests.
+   */
+  setTrait(traitId: string, value: number, now: number = Date.now()): void {
+    const clamped = Math.max(0, Math.min(1, value));
+    const synthState: import('../conscious-core/types.js').ExperientialState = {
+      timestamp: now,
+      phenomenalContent: { modalities: ['introspective'], richness: 0.5, raw: null },
+      intentionalContent: { target: 'trait-adjustment', clarity: 0.9 },
+      valence: 0,
+      arousal: 0.3,
+      unityIndex: 0.8,
+      continuityToken: { id: `trait-adj-${now}`, previousId: null, timestamp: now },
+    };
+    this._personality.updateTrait(
+      traitId as import('../personality/types.js').TraitDimensionId,
+      clamped,
+      synthState,
+    );
+  }
+
   // ── Main tick ─────────────────────────────────────────────────────────────
 
   /**

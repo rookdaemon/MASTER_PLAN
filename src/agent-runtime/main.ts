@@ -9,6 +9,11 @@
  *     Sends a single prompt to the LLM, prints the response, and exits.
  *     Uses Anthropic setup-token (Claude Code subscription) by default.
  *
+ *   Simulation UI mode (--sim):
+ *     npx tsx src/agent-runtime/main.ts --sim
+ *     Runs the Simulation Control UI at http://127.0.0.1:1339 (or --sim <port>).
+ *     No LLM required — fully deterministic NPC simulation.
+ *
  *   Web chat mode (--web):
  *     npx tsx src/agent-runtime/main.ts --web
  *     Runs the full 8-phase conscious pipeline with a browser chat UI.
@@ -20,6 +25,7 @@
  *
  * Flags:
  *   -p / --prompt <text>     One-shot prompt (send, receive, exit)
+ *   --sim [port]             Simulation Control UI (default port: 1339)
  *   --web [port]             Web chat UI (default port: 1338)
  *   --model <id>             LLM model (default: claude-opus-4-6)
  *   --provider <provider>    LLM provider (default: anthropic)
@@ -539,6 +545,35 @@ async function _runAgentLoop(
   }
 }
 
+// ── Simulation UI mode ───────────────────────────────────────
+
+async function handleSimUI(port: number): Promise<void> {
+  const { SimulationManager, SimulationServer } = await import('../simulation-ui/index.js');
+  const manager = new SimulationManager();
+  const server = new SimulationServer(manager, { port });
+  await server.start();
+  const actualPort = server.port;
+
+  console.error('╔══════════════════════════════════════════════════╗');
+  console.error('║   Simulation Control UI                          ║');
+  console.error('╚══════════════════════════════════════════════════╝');
+  console.error(`  Open: http://127.0.0.1:${actualPort}`);
+  console.error('  No LLM required — fully deterministic NPC simulation.');
+  console.error('  Ctrl+C to quit.');
+  console.error('');
+
+  const shutdown = async (signal: string) => {
+    console.info(`\n[sim-ui] Received ${signal}, shutting down...`);
+    await server.stop();
+    process.exit(0);
+  };
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+  // Block until signal
+  await new Promise<never>(() => { /* keep alive */ });
+}
+
 // ── Main ─────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -552,6 +587,8 @@ async function main(): Promise<void> {
 
   if (cliOpts.mode === 'one-shot') {
     await handleOneShot(cliOpts.prompt!, cliOpts.model, cliOpts.provider);
+  } else if (cliOpts.mode === 'sim') {
+    await handleSimUI(cliOpts.simPort ?? 1339);
   } else if (cliOpts.mode === 'web') {
     await handleWebChat(stateDir, cliOpts.webPort ?? 1338, cliOpts.model, cliOpts.provider);
   } else {

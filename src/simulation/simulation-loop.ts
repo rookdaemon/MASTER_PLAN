@@ -51,6 +51,7 @@ export class SimulationLoop {
   private _currentTick = 0;
   private _running = false;
   private _tickCallbacks: Array<(dump: SimulationStateDump) => void> = [];
+  private _pendingExternalEvents: SimulationEvent[] = [];
 
   /**
    * @param config  Simulation configuration
@@ -74,6 +75,10 @@ export class SimulationLoop {
     return this._running;
   }
 
+  get maxTicks(): number | null {
+    return this._config.maxTicks ?? null;
+  }
+
   get world(): SimulationWorld {
     return this._world;
   }
@@ -85,6 +90,15 @@ export class SimulationLoop {
    */
   onTick(cb: (dump: SimulationStateDump) => void): void {
     this._tickCallbacks.push(cb);
+  }
+
+  /**
+   * Queue an external event to be included in the next tick's event list.
+   * Useful for injecting world events mid-simulation (e.g. "stranger arrives",
+   * "meteor detected") from the simulation UI or external tooling.
+   */
+  queueExternalEvent(event: SimulationEvent): void {
+    this._pendingExternalEvents.push(event);
   }
 
   // ── Async generator interface ─────────────────────────────────────────────
@@ -150,7 +164,9 @@ export class SimulationLoop {
     const tick = this._currentTick;
     const now = this._clock();
 
-    const events: SimulationEvent[] = [];
+    // Seed the events list with any externally queued events (e.g. UI injections)
+    const events: SimulationEvent[] = [...this._pendingExternalEvents];
+    this._pendingExternalEvents = [];
     const agentResults: AgentTickResult[] = [];
 
     const agents = this._world.getAgents();

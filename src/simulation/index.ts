@@ -34,3 +34,4 @@ export type { WorldInspection, NpcInspection } from './simulation-manager.js';
 
 // ── Demo scenarios ────────────────────────────────────────────────────────────
 export { createVillageConfig, VILLAGE_LOCATIONS } from './scenarios/village.js';
+export { createColonyConfig, COLONY_LOCATIONS } from './scenarios/colony.js';
