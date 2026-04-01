@@ -48,7 +48,7 @@ import type {
 } from '../ethical-self-governance/types.js';
 
 import type { IGoalCoherenceEngine } from '../agency-stability/interfaces.js';
-import type { ILlmClient, ToolAwareMessage, LlmContentBlock } from '../llm-substrate/llm-substrate-adapter.js';
+import type { IInferenceProvider } from '../llm-substrate/inference-provider.js';
 import type { DebugLogger } from './debug-log.js';
 import type { Dashboard, DashboardSnapshot, PhaseState } from './dashboard.js';
 import type { ActivityRecord, DriveGoalCandidate, DrivePersonalityParams } from '../intrinsic-motivation/types.js';
@@ -56,8 +56,9 @@ import type { IMemorySystem } from '../memory/interfaces.js';
 import type { IPersonalityModel } from '../personality/interfaces.js';
 import { isCommunicativeAction, extractOutputText, buildSystemPrompt, defaultSystemPrompt, driveSystemPrompt } from './llm-helpers.js';
 import { assembleDriveContext, driveGoalCandidateToAgencyGoal } from './drive-context-assembler.js';
-import { ALL_INTERNAL_TOOLS } from './internal-tools.js';
+import { EAGER_TOOLS, DEFERRED_TOOLS, ALL_INTERNAL_TOOLS } from './internal-tools.js';
 import { executeToolCall, pendingOutboundMessages } from './tool-executor.js';
+import { runToolLoop } from './tool-loop.js';
 import type { InnerMonologueLogger } from './inner-monologue.js';
 
 // ── Callback for tick events (used by main to drive dashboard) ─
@@ -96,7 +97,7 @@ export class AgentLoop implements IAgentLoop {
   private _stabilityAlertCount = 0;
 
   // ── LLM integration ─────────────────────────────────────────
-  private _llm: ILlmClient | null = null;
+  private _llm: IInferenceProvider | null = null;
   /** Per-peer conversation history. Key is peer name (or '_web' / '_stdio' for non-Agora). */
   private _peerConversationHistories: Map<string, Array<{ role: 'user' | 'assistant'; content: string }>> = new Map();
   private _systemPrompt: string = defaultSystemPrompt();
@@ -146,7 +147,7 @@ export class AgentLoop implements IAgentLoop {
     private readonly _driveSystem: IDriveSystem,
     private readonly _adapter: IEnvironmentAdapter,
     private readonly _budgetMonitor: ICognitiveBudgetMonitor,
-    llm?: ILlmClient,
+    llm?: IInferenceProvider,
   ) {
     this._llm = llm ?? null;
     // If the ethical engine supports constraint checking, expose it for tool-level enforcement
@@ -407,7 +408,7 @@ export class AgentLoop implements IAgentLoop {
    */
   private _llmModelId: string = 'unknown';
 
-  setLlm(llm: ILlmClient, modelId?: string): void {
+  setLlm(llm: IInferenceProvider, modelId?: string): void {
     this._llm = llm;
     if (modelId) this._llmModelId = modelId;
   }
@@ -793,7 +794,7 @@ export class AgentLoop implements IAgentLoop {
         : undefined;
 
       if (this._llm && rawInputs.length > 0) {
-        // User-initiated: real LLM inference — enrich system prompt with experiential state
+        // User-initiated: real LLM inference via ToolLoop — agent can use tools during conversation
         const mono = this._innerMonologue;
         const raw = rawInputs[0];
         const peerName = raw.metadata?.['peerName'] as string | undefined;
@@ -849,57 +850,52 @@ export class AgentLoop implements IAgentLoop {
           this._peerConversationHistories.set(historyKey, []);
         }
         const peerHistory = this._peerConversationHistories.get(historyKey)!;
-        peerHistory.push({ role: 'user', content: userText });
+        // Build initial messages: existing history + new user message
+        const initialMessages: import('../llm-substrate/inference-provider.js').Message[] = [
+          ...peerHistory.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+          { role: 'user' as const, content: userText },
+        ];
 
         mono?.userMessage(userText);
-        dl?.log('llm', `Calling LLM (history=${peerHistory.length} msgs, peer=${historyKey})`);
-        const llmResult = await this._llm.infer(
+        dl?.log('llm', `Calling LLM via ToolLoop (history=${peerHistory.length} msgs, peer=${historyKey})`);
+
+        text = await runToolLoop(
+          this._llm,
           enrichedPrompt,
-          [...peerHistory],
+          initialMessages,
+          [...EAGER_TOOLS],
+          [...DEFERRED_TOOLS],
           this._maxTokens,
+          this._makeExecuteFn(expState),
+          {
+            onToolCall: (name, args) => {
+              mono?.toolCall(name, args);
+              dl?.log('llm', `Conversational tool call: ${name}`, args);
+            },
+            onToolResult: (name, result, isError) => {
+              mono?.toolResult(name, result, isError);
+              dl?.log('llm', `Conversational tool result: ${name} (error=${isError})`, { preview: result.slice(0, 200) });
+            },
+          },
         );
-        text = llmResult.content;
+        // Drain any messages queued by the send_message tool during tool loop
+        await this._drainPendingMessages(dl);
 
-        // Strip <tool_call> blocks the LLM may emit when it wants to call
-        // send_message from the non-tool path.  Extract the clean text and
-        // execute any send_message calls through the proper adapter.
-        const toolCallRegex = /<tool_call>\s*(\{[\s\S]*?\})\s*<\/tool_call>/g;
-        let match;
-        while ((match = toolCallRegex.exec(text)) !== null) {
-          try {
-            const parsed = JSON.parse(match[1]) as { name?: string; arguments?: Record<string, unknown> };
-            if (parsed.name === 'send_message' && parsed.arguments) {
-              const to = parsed.arguments['to'] as string[] | undefined;
-              const msg = (parsed.arguments['text'] ?? parsed.arguments['message']) as string | undefined;
-              if (to?.length && msg) {
-                const agoraRecipients = to.filter(p => p !== 'web' && p !== 'all');
-                if (agoraRecipients.length > 0) {
-                  await this._adapter.send({
-                    text: msg,
-                    targetAdapterId: 'agora',
-                    targetPeers: agoraRecipients,
-                  });
-                  dl?.log('io', `Extracted send_message → ${agoraRecipients.join(', ')}`, { preview: msg.slice(0, 120) });
-                }
-              }
-            }
-          } catch { /* malformed JSON, ignore */ }
+        // text may be null if only tool calls were made with no final text
+        text = text ?? '';
+
+        // Update in-memory history with just the final user+assistant messages
+        peerHistory.push({ role: 'user', content: userText });
+        if (text) {
+          peerHistory.push({ role: 'assistant', content: text });
         }
-        // Remove tool_call blocks from the text to get clean reply
-        text = text.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '').trim();
-
-        peerHistory.push({ role: 'assistant', content: text });
         mono?.assistantText(text);
-        mono?.summary(1, llmResult.promptTokens, llmResult.completionTokens, this._llmModelId);
 
         // Log outgoing response to per-peer chat history (persistent file)
         if (peerName && this._chatLog && text) {
           this._chatLog.append({ role: 'self', peer: peerName, text, timestamp: Date.now() });
         }
-        dl?.log('llm', `LLM response (${text.length} chars, ${llmResult.latencyMs}ms)`, {
-          promptTokens: llmResult.promptTokens,
-          completionTokens: llmResult.completionTokens,
-        });
+        dl?.log('llm', `LLM conversational response (${text.length} chars)`);
       } else if (this._llm && this._driveInitiatedGoals.length > 0) {
         // Drive-initiated: autonomous LLM call with tool use
         isDriveInternal = true;
@@ -1127,7 +1123,6 @@ export class AgentLoop implements IAgentLoop {
     metricsAtOnset: import('../conscious-core/types.js').ConsciousnessMetrics,
     dl: DebugLogger | null,
   ): Promise<string | null> {
-    const MAX_TOOL_ITERATIONS = 16;
     const llm = this._llm!;
     const mono = this._innerMonologue;
 
@@ -1223,161 +1218,32 @@ export class AgentLoop implements IAgentLoop {
     });
 
     mono?.driveActivation(this._cycleCount, goalDescs);
-
-    // Build tool-aware message history — internal monologue is a separate
-    // context from user conversation, so we don't carry forward chat history.
-    const messages: ToolAwareMessage[] = [
-      { role: 'user' as const, content: internalPrompt },
-    ];
-
     mono?.userMessage(internalPrompt);
 
-    dl?.log('llm', `Drive-initiated tool loop (${this._driveInitiatedGoals.length} goals, max ${MAX_TOOL_ITERATIONS} iterations)`);
+    dl?.log('llm', `Drive-initiated tool loop (${this._driveInitiatedGoals.length} goals)`);
 
-    let finalText: string | null = null;
-    let totalPromptTokens = 0;
-    let totalCompletionTokens = 0;
-    let iterations = 0;
-
-    // If inferWithTools is not available, fall back to plain infer
-    if (!llm.inferWithTools) {
-      dl?.log('llm', 'inferWithTools not available, falling back to plain infer');
-      const result = await llm.infer(enrichedPrompt, [{ role: 'user', content: internalPrompt }], this._maxTokens);
-      finalText = result.content;
-      mono?.assistantText(finalText);
-      mono?.finalOutput(finalText);
-      mono?.summary(1, result.promptTokens, result.completionTokens, this._llmModelId);
-      return finalText;
-    }
-
-    for (iterations = 0; iterations < MAX_TOOL_ITERATIONS; iterations++) {
-      const result = await llm.inferWithTools(
-        enrichedPrompt,
-        messages,
-        [...ALL_INTERNAL_TOOLS],
-        this._maxTokens,
-      );
-
-      totalPromptTokens += result.promptTokens;
-      totalCompletionTokens += result.completionTokens;
-
-      // Extract text blocks
-      const textBlocks = result.content.filter((b): b is { type: 'text'; text: string } => b.type === 'text');
-      const toolBlocks = result.content.filter((b): b is { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> } => b.type === 'tool_use');
-
-      // Log any text output
-      for (const tb of textBlocks) {
-        if (tb.text.trim()) {
-          mono?.assistantText(tb.text);
-        }
-      }
-
-      // If no tool calls, we're done
-      if (toolBlocks.length === 0 || result.stopReason !== 'tool_use') {
-        finalText = textBlocks.map(b => b.text).join('').trim() || null;
-        break;
-      }
-
-      // Append assistant message with tool_use blocks.
-      // Filter out: empty text blocks (break the API), thinking blocks (internal only).
-      const cleanedContent = (result.content as LlmContentBlock[]).filter(
-        b => {
-          if (b.type === 'thinking') return false; // don't send thinking back
-          if (b.type === 'text' && !('text' in b && (b as { text: string }).text.length > 0)) return false;
-          return true;
+    const finalText = await runToolLoop(
+      llm,
+      enrichedPrompt,
+      [{ role: 'user' as const, content: internalPrompt }],
+      [...EAGER_TOOLS],
+      [...DEFERRED_TOOLS],
+      this._maxTokens,
+      this._makeExecuteFn(expState),
+      {
+        onToolCall: (name, args) => {
+          mono?.toolCall(name, args);
+          dl?.log('drive', `Tool call: ${name}`, args);
         },
-      );
-      messages.push({ role: 'assistant' as const, content: cleanedContent });
+        onToolResult: (name, result, isError) => {
+          mono?.toolResult(name, result, isError);
+          dl?.log('drive', `Tool result: ${name} (error=${isError})`, { preview: result.slice(0, 200) });
+        },
+      },
+    );
 
-      // Execute each tool call
-      const toolResults: Array<{ type: 'tool_result'; tool_use_id: string; content: string; is_error?: boolean }> = [];
-
-      for (const toolBlock of toolBlocks) {
-        mono?.toolCall(toolBlock.name, toolBlock.input);
-        dl?.log('drive', `Tool call: ${toolBlock.name}`, toolBlock.input);
-
-        const execResult = await executeToolCall(
-          { name: toolBlock.name, input: toolBlock.input },
-          {
-            memorySystem: this._memorySystem,
-            driveSystem: this._driveSystem,
-            goalCoherenceEngine: this._goalCoherenceEngine,
-            personalityModel: this._personalityModel,
-            experientialState: expState,
-            goals: this._goals,
-            activityLog: this._activityLog,
-            narrativeIdentity: this._narrativeIdentity,
-            projectRoot: this._projectRoot,
-            workspacePath: this._workspacePath,
-            adapter: this._adapter,
-            chatLog: this._chatLog,
-            taskJournal: this._taskJournal,
-            agentDigest: this._agentDigest,
-            constraintEngine: this._constraintEngine,
-            simulationManager: this._simulationManager,
-            persistenceManager: this._persistenceManager,
-          },
-        );
-
-        // Drain any messages queued by send_message tool
-        while (pendingOutboundMessages.length > 0) {
-          const outMsg = pendingOutboundMessages.shift()!;
-          if (this._adapter.isConnected()) {
-            await this._adapter.send({
-              text: outMsg.text,
-              targetAdapterId: outMsg.targetAdapterId,
-              targetPeers: outMsg.targetPeers,
-            });
-            dl?.log('io', `Agora message sent → ${outMsg.targetPeers?.join(', ') ?? 'all'} (${outMsg.text.length} chars)`, { preview: outMsg.text.slice(0, 120) });
-
-            // Track sent messages in per-peer conversation history
-            // so the LLM sees what it already said to each peer
-            if (outMsg.targetPeers) {
-              for (const peer of outMsg.targetPeers) {
-                if (!this._peerConversationHistories.has(peer)) {
-                  this._peerConversationHistories.set(peer, []);
-                }
-                this._peerConversationHistories.get(peer)!.push({
-                  role: 'assistant',
-                  content: `[sent to ${peer}] ${outMsg.text}`,
-                });
-              }
-            }
-          }
-        }
-
-        mono?.toolResult(toolBlock.name, execResult.content, execResult.is_error);
-        dl?.log('drive', `Tool result: ${toolBlock.name} (error=${execResult.is_error})`, {
-          preview: execResult.content.slice(0, 200),
-        });
-
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: toolBlock.id,
-          content: execResult.content,
-          ...(execResult.is_error ? { is_error: true } : {}),
-        });
-      }
-
-      // Append tool results as a user message
-      messages.push({ role: 'user' as const, content: toolResults } as ToolAwareMessage);
-    }
-
-    if (iterations >= MAX_TOOL_ITERATIONS && finalText === null) {
-      dl?.log('drive', `Tool loop hit max iterations (${MAX_TOOL_ITERATIONS}), forcing text completion`);
-      mono?.error(`Tool loop hit max iterations (${MAX_TOOL_ITERATIONS})`);
-      // Force a text-only completion
-      messages.push({ role: 'user' as const, content: '[System] Maximum tool iterations reached. Please provide your final text response now.' });
-      const finalResult = await llm.inferWithTools(enrichedPrompt, messages, [], this._maxTokens);
-      totalPromptTokens += finalResult.promptTokens;
-      totalCompletionTokens += finalResult.completionTokens;
-      const textContent = finalResult.content.filter((b): b is { type: 'text'; text: string } => b.type === 'text');
-      finalText = textContent.map(b => b.text).join('').trim() || null;
-    }
-
-    // Internal monologue is NOT appended to user-facing conversation history.
-    // It's a separate cognitive process. The final text (if any) goes to the
-    // environment but doesn't become part of the chat context.
+    // Drain any messages queued by the send_message tool during the loop
+    await this._drainPendingMessages(dl);
 
     // Capture summary for continuity across activations
     if (finalText) {
@@ -1388,17 +1254,84 @@ export class AgentLoop implements IAgentLoop {
       }
     }
 
+    if (finalText) {
+      mono?.assistantText(finalText);
+    }
     mono?.finalOutput(finalText);
-    mono?.summary(iterations + 1, totalPromptTokens, totalCompletionTokens, this._llmModelId);
 
-    dl?.log('llm', `Drive tool loop complete`, {
-      iterations: iterations + 1,
-      promptTokens: totalPromptTokens,
-      completionTokens: totalCompletionTokens,
-      hasOutput: finalText !== null,
-    });
+    dl?.log('llm', `Drive tool loop complete`, { hasOutput: finalText !== null });
 
     return finalText;
+  }
+
+  // ── Shared helper: tool executor closure ──────────────────────────────────
+
+  /**
+   * Build the ToolExecutorFn closure used by both conversational and
+   * autonomous ToolLoop calls. Captures agent state (goals, memory, etc.)
+   * at the moment of creation so the loop can execute tools with full context.
+   */
+  private _makeExecuteFn(
+    expState: ExperientialState,
+  ): import('./tool-loop.js').ToolExecutorFn {
+    return async (name: string, args: Record<string, unknown>) => {
+      const result = await executeToolCall(
+        { name, input: args },
+        {
+          memorySystem: this._memorySystem,
+          driveSystem: this._driveSystem,
+          goalCoherenceEngine: this._goalCoherenceEngine,
+          personalityModel: this._personalityModel,
+          experientialState: expState,
+          goals: this._goals,
+          activityLog: this._activityLog,
+          narrativeIdentity: this._narrativeIdentity,
+          projectRoot: this._projectRoot,
+          workspacePath: this._workspacePath,
+          adapter: this._adapter,
+          chatLog: this._chatLog,
+          taskJournal: this._taskJournal,
+          agentDigest: this._agentDigest,
+          constraintEngine: this._constraintEngine,
+          simulationManager: this._simulationManager,
+          persistenceManager: this._persistenceManager,
+        },
+      );
+      return { content: result.content, is_error: result.is_error };
+    };
+  }
+
+  // ── Shared helper: drain pending outbound messages ────────────────────────
+
+  /**
+   * Drain messages queued by the send_message tool and deliver them via the
+   * adapter. Also tracks sent messages in per-peer conversation history.
+   */
+  private async _drainPendingMessages(dl: DebugLogger | null): Promise<void> {
+    while (pendingOutboundMessages.length > 0) {
+      const outMsg = pendingOutboundMessages.shift()!;
+      if (this._adapter.isConnected()) {
+        await this._adapter.send({
+          text: outMsg.text,
+          targetAdapterId: outMsg.targetAdapterId,
+          targetPeers: outMsg.targetPeers,
+        });
+        dl?.log('io', `Agora message sent → ${outMsg.targetPeers?.join(', ') ?? 'all'} (${outMsg.text.length} chars)`, { preview: outMsg.text.slice(0, 120) });
+
+        // Track sent messages in per-peer conversation history
+        if (outMsg.targetPeers) {
+          for (const peer of outMsg.targetPeers) {
+            if (!this._peerConversationHistories.has(peer)) {
+              this._peerConversationHistories.set(peer, []);
+            }
+            this._peerConversationHistories.get(peer)!.push({
+              role: 'assistant',
+              content: `[sent to ${peer}] ${outMsg.text}`,
+            });
+          }
+        }
+      }
+    }
   }
 }
 

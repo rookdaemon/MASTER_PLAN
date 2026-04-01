@@ -14,10 +14,6 @@ import type {
   ILlmClient,
   LlmInferenceResult,
   LlmProbeResult,
-  LlmToolInferenceResult,
-  LlmContentBlock,
-  ToolDefinition,
-  ToolAwareMessage,
 } from "./llm-substrate-adapter.js";
 
 /** Anthropic content block for structured system prompts. */
@@ -124,93 +120,6 @@ export class AnthropicLlmClient implements ILlmClient {
     return {
       content,
       tokenLogprobs: [],
-      promptTokens: usage.input_tokens,
-      completionTokens: usage.output_tokens,
-      latencyMs: Date.now() - start,
-    };
-  }
-
-  async inferWithTools(
-    systemPrompt: string,
-    messages: ToolAwareMessage[],
-    tools: ToolDefinition[],
-    maxTokens: number,
-  ): Promise<LlmToolInferenceResult> {
-    const start = Date.now();
-
-    let system: string | SystemBlock[];
-    if (this.authProvider.requiresSystemIdentityPrefix()) {
-      system = [
-        { type: "text", text: CLAUDE_CODE_IDENTITY },
-        { type: "text", text: systemPrompt },
-      ];
-    } else {
-      system = systemPrompt;
-    }
-
-    const body: Record<string, unknown> = {
-      model: this.modelId,
-      max_tokens: maxTokens,
-      system,
-      messages,
-      tools,
-    };
-    if (this.thinkingBudgetTokens > 0) {
-      body.thinking = { type: 'enabled', budget_tokens: this.thinkingBudgetTokens };
-    }
-
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      "anthropic-version": "2023-06-01",
-      ...this.authProvider.getHeaders(),
-    };
-
-    const response = await fetch(`${this.endpoint}/messages`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text().catch(() => "(could not read body)");
-      const err = new Error(
-        `Anthropic API error ${response.status}: ${response.statusText}\n${errorBody}`
-      ) as Error & { retryAfterMs?: number };
-      if (response.status === 429) {
-        const retryAfter = response.headers.get('retry-after');
-        if (retryAfter) {
-          const seconds = parseInt(retryAfter, 10);
-          err.retryAfterMs = !isNaN(seconds)
-            ? seconds * 1000
-            : Math.max(0, new Date(retryAfter).getTime() - Date.now());
-        }
-      }
-      throw err;
-    }
-
-    const data = await response.json() as {
-      content: Array<{ type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown> }>;
-      stop_reason: string;
-      usage: { input_tokens: number; output_tokens: number };
-    };
-
-    const contentBlocks: LlmContentBlock[] = data.content.map((block) => {
-      if (block.type === 'tool_use') {
-        return {
-          type: 'tool_use' as const,
-          id: block.id!,
-          name: block.name!,
-          input: block.input ?? {},
-        };
-      }
-      return { type: 'text' as const, text: block.text ?? '' };
-    });
-
-    const usage = data.usage ?? { input_tokens: 0, output_tokens: 0 };
-
-    return {
-      content: contentBlocks,
-      stopReason: data.stop_reason ?? 'end_turn',
       promptTokens: usage.input_tokens,
       completionTokens: usage.output_tokens,
       latencyMs: Date.now() - start,
