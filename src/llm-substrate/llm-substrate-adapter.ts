@@ -114,52 +114,9 @@ export interface LlmInferenceResult {
   latencyMs: number;
 }
 
-// ── Tool-aware inference types ──────────────────────────────────────────────
-
-/** JSON Schema for a tool parameter. */
-export interface ToolDefinition {
-  readonly name: string;
-  readonly description: string;
-  readonly input_schema: Record<string, unknown>;
-}
-
-/** A content block in a tool-aware response. */
-export type LlmContentBlock =
-  | { type: 'text'; text: string }
-  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
-  | { type: 'thinking'; thinking: string };
-
-/** Result of a tool-aware inference call. */
-export interface LlmToolInferenceResult {
-  /** All content blocks (text and/or tool_use). */
-  content: LlmContentBlock[];
-  /** Whether the model wants to use tools (stop_reason === 'tool_use'). */
-  stopReason: 'end_turn' | 'tool_use' | 'max_tokens' | string;
-  promptTokens: number;
-  completionTokens: number;
-  latencyMs: number;
-}
-
-/** A tool result to feed back to the model. */
-export interface ToolResultMessage {
-  role: 'user';
-  content: Array<{
-    type: 'tool_result';
-    tool_use_id: string;
-    content: string;
-    is_error?: boolean;
-  }>;
-}
-
-/** Message types for tool-aware conversations. */
-export type ToolAwareMessage =
-  | { role: 'user'; content: string }
-  | { role: 'assistant'; content: string }
-  | { role: 'assistant'; content: LlmContentBlock[] }
-  | ToolResultMessage;
-
 /**
- * Minimal interface for a single LLM backend.
+ * Minimal interface for a single LLM backend used by LlmSubstrateAdapter
+ * (the self-model substrate). For agent-loop tool use, see IInferenceProvider.
  * Swappable — inject a mock via setClient() for unit / integration tests.
  */
 export interface ILlmClient {
@@ -169,18 +126,6 @@ export interface ILlmClient {
     messages: Array<{ role: "user" | "assistant"; content: string }>,
     maxTokens: number
   ): Promise<LlmInferenceResult>;
-
-  /**
-   * Tool-aware inference. Optional — only required for drive-initiated
-   * autonomous calls. Returns content blocks that may include tool_use
-   * requests alongside text.
-   */
-  inferWithTools?(
-    systemPrompt: string,
-    messages: ToolAwareMessage[],
-    tools: ToolDefinition[],
-    maxTokens: number,
-  ): Promise<LlmToolInferenceResult>;
 }
 
 // ── Default endpoints ────────────────────────────────────────────────────────

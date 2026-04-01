@@ -6,7 +6,7 @@
  *
  * Supported flags:
  *   -p / --prompt <text>     One-shot prompt mode (send, receive, exit)
- *   --model <id>             LLM model identifier (default: claude-opus-4-6)
+ *   --model <id>             LLM model identifier (default: claude-sonnet-4-20250514)
  *   --provider <provider>    LLM provider (default: anthropic)
  *   --state-dir <path>       State persistence directory
  */
@@ -19,7 +19,7 @@ const VALID_PROVIDERS: readonly string[] = [
   "local",
 ];
 
-const DEFAULT_MODEL = "claude-opus-4-6";
+const DEFAULT_MODEL = "claude-sonnet-4-20250514";
 const DEFAULT_PROVIDER: LlmProvider = "anthropic";
 
 export interface CliOptions {

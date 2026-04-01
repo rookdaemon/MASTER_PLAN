@@ -362,7 +362,7 @@ describe('AgoraAdapter', () => {
 
     it('send_message tool requires "to" and "message" parameters', async () => {
       const { SEND_MESSAGE } = await import('../internal-tools.js');
-      const schema = SEND_MESSAGE.input_schema as Record<string, unknown>;
+      const schema = SEND_MESSAGE.parameters as Record<string, unknown>;
 
       expect(schema.required).toContain('to');
       expect(schema.required).toContain('message');

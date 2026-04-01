@@ -27,7 +27,7 @@
  *   -p / --prompt <text>     One-shot prompt (send, receive, exit)
  *   --sim [port]             Simulation Control UI (default port: 1339)
  *   --web [port]             Web chat UI (default port: 1338)
- *   --model <id>             LLM model (default: claude-opus-4-6)
+ *   --model <id>             LLM model (default: claude-sonnet-4-20250514)
  *   --provider <provider>    LLM provider (default: anthropic)
  *   --state-dir <path>       State persistence directory
  */
@@ -57,6 +57,8 @@ import { parseCliArgs } from './cli.js';
 import { SetupTokenAuthProvider, ApiKeyAuthProvider, NoopAuthProvider } from '../llm-substrate/auth-providers.js';
 import { AnthropicLlmClient } from '../llm-substrate/anthropic-llm-client.js';
 import { OpenAiLlmClient } from '../llm-substrate/openai-llm-client.js';
+import { AnthropicInferenceProvider } from '../llm-substrate/anthropic-inference-provider.js';
+import { OllamaInferenceProvider } from '../llm-substrate/ollama-inference-provider.js';
 import { ensureSetupToken, FileTokenStore, StdinLineReader } from './setup-token.js';
 import type { LlmProvider } from '../llm-substrate/llm-substrate-adapter.js';
 import { MemorySystem } from '../memory/memory-system.js';
@@ -85,6 +87,7 @@ const config: AgentConfig = {
 };
 
 // ── LLM client factory ──────────────────────────────────────
+// Used for simple text inference (one-shot mode, message-pipeline substrate).
 
 const PROVIDER_DEFAULT_ENDPOINTS: Record<LlmProvider, string> = {
   openai: "https://api.openai.com/v1",
@@ -112,6 +115,33 @@ async function buildLlmClient(provider: LlmProvider, model: string) {
       const apiKey = process.env['LLM_API_KEY'];
       const auth = apiKey ? new ApiKeyAuthProvider(provider, apiKey) : new NoopAuthProvider();
       return new OpenAiLlmClient(model, auth, endpoint);
+    }
+  }
+}
+
+// ── IInferenceProvider factory ───────────────────────────────
+// Used for the agent-loop inference cycle (supports full tool use).
+
+async function buildInferenceProvider(provider: LlmProvider, model: string) {
+  const endpoint = PROVIDER_DEFAULT_ENDPOINTS[provider];
+  const thinkingBudget = parseInt(process.env['THINKING_BUDGET_TOKENS'] ?? '0', 10);
+
+  switch (provider) {
+    case "anthropic": {
+      const apiKey = process.env['LLM_API_KEY'];
+      if (apiKey) {
+        return new AnthropicInferenceProvider(model, new ApiKeyAuthProvider("anthropic", apiKey), endpoint, thinkingBudget);
+      }
+      const token = await ensureSetupToken(new FileTokenStore(), new StdinLineReader());
+      return new AnthropicInferenceProvider(model, new SetupTokenAuthProvider(token), endpoint, thinkingBudget);
+    }
+    case "openai":
+    case "local":
+    default: {
+      // Both local (Ollama) and OpenAI-compatible endpoints use prompt-based tool injection
+      const apiKey = process.env['LLM_API_KEY'];
+      const auth = apiKey ? new ApiKeyAuthProvider(provider, apiKey) : new NoopAuthProvider();
+      return new OllamaInferenceProvider(model, auth, endpoint);
     }
   }
 }
@@ -224,9 +254,9 @@ async function handleAgentLoop(stateDir: string, model: string, provider: LlmPro
 
   const adapter = await attachAgora(chatAdapter, debugLog);
 
-  // Build real LLM client for agent-loop mode
-  console.error(`[main] Building LLM client: provider=${provider} model=${model}`);
-  const llmClient = await buildLlmClient(provider, model);
+  // Build IInferenceProvider for agent-loop mode (full tool use)
+  console.error(`[main] Building inference provider: provider=${provider} model=${model}`);
+  const llmClient = await buildInferenceProvider(provider, model);
 
   return _runAgentLoop(memoryStore, adapter, debugLog, debugLogPath, memorySystem, personality, valueKernel, persistence, llmClient);
 }
@@ -271,9 +301,9 @@ async function handleWebChat(stateDir: string, webPort: number, model: string, p
     config.warmStart = true;
   }
 
-  // Build real LLM client
-  console.error(`[main] Building LLM client: provider=${provider} model=${model}`);
-  const llmClient = await buildLlmClient(provider, model);
+  // Build IInferenceProvider for web chat agent loop (full tool use)
+  console.error(`[main] Building inference provider: provider=${provider} model=${model}`);
+  const llmClient = await buildInferenceProvider(provider, model);
 
   // Web adapter — runs the full agent loop with drives, tool use, and monologue
   const { WebChatAdapter } = await import('./web-chat-adapter.js');
@@ -332,7 +362,7 @@ async function _runAgentLoop(
   personality: PersonalityModel,
   valueKernel: IValueKernel,
   persistence: PersistenceManager,
-  llmClient?: import('../llm-substrate/llm-substrate-adapter.js').ILlmClient,
+  llmClient?: import('../llm-substrate/inference-provider.js').IInferenceProvider,
   externalMonologue?: InnerMonologueLogger,
 ): Promise<void> {
   // Real drive system + goal coherence engine for autonomous behavior

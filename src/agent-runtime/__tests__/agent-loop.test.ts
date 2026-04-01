@@ -534,9 +534,11 @@ describe('AgentLoop', () => {
     function makeMockLlm() {
       return {
         probe: vi.fn().mockResolvedValue({ latencyMs: 10, reachable: true }),
+        // IInferenceProvider.infer() takes (systemPrompt, messages, tools, maxTokens)
+        // and returns InferenceResult { text, toolCalls, promptTokens, completionTokens, latencyMs }
         infer: vi.fn().mockResolvedValue({
-          content: 'LLM generated response',
-          tokenLogprobs: [],
+          text: 'LLM generated response',
+          toolCalls: [],
           promptTokens: 50,
           completionTokens: 20,
           latencyMs: 100,
@@ -570,8 +572,8 @@ describe('AgentLoop', () => {
       await stopDone;
 
       expect(llm.infer).toHaveBeenCalledTimes(1);
-      // System prompt should contain experiential state metrics
-      const [systemPrompt, messages, maxTokens] = llm.infer.mock.calls[0]!;
+      // infer() now takes (systemPrompt, messages, tools, maxTokens)
+      const [systemPrompt, messages, , maxTokens] = llm.infer.mock.calls[0]!;
       expect(systemPrompt).toContain('valence');
       expect(systemPrompt).toContain('Φ');
       expect(messages).toEqual([{ role: 'user', content: 'Hello agent!' }]);
@@ -691,7 +693,8 @@ describe('AgentLoop', () => {
       await loopWithLlm.start(defaultConfig());
       await stopDone;
 
-      const [systemPrompt, , maxTokens] = llm.infer.mock.calls[0]!;
+      // infer() now takes (systemPrompt, messages, tools, maxTokens)
+      const [systemPrompt, , , maxTokens] = llm.infer.mock.calls[0]!;
       expect(systemPrompt).toContain('Custom prompt.');
       expect(maxTokens).toBe(2048);
     });

@@ -47,7 +47,7 @@ import type { IEthicalDeliberationEngine } from '../ethical-self-governance/inte
 import type { IMemorySystem } from '../memory/interfaces.js';
 import type { IPersonalityModel } from '../personality/interfaces.js';
 import type { InnerMonologueLogger } from './inner-monologue.js';
-import type { ILlmClient } from '../llm-substrate/llm-substrate-adapter.js';
+import type { IInferenceProvider } from '../llm-substrate/inference-provider.js';
 
 import { AgentLoop } from './agent-loop.js';
 import { CognitiveBudgetMonitor } from './cognitive-budget.js';
@@ -79,8 +79,8 @@ export interface AgentDependencies {
   adapter: IEnvironmentAdapter;
   budgetMonitor?: ICognitiveBudgetMonitor;
 
-  /** Optional LLM client for real inference during communicative actions. */
-  llm?: ILlmClient;
+  /** Optional LLM inference provider for real inference during communicative actions. */
+  llm?: IInferenceProvider;
 
   /** Model identifier for logging (e.g. 'claude-opus-4-6'). */
   llmModelId?: string;

@@ -1,8 +1,8 @@
 /**
  * Internal Tool Registry — Consciousness-Oriented Tool Definitions
  *
- * Defines the tools available to the LLM during drive-initiated autonomous
- * inference. These are the agent's interface to its own mind:
+ * Defines the tools available to the LLM during inference. These are the
+ * agent's interface to its own mind:
  *
  *   Resource CRUD (5 tools):
  *     resource_read, resource_create, resource_update, resource_delete, resource_list
@@ -13,10 +13,17 @@
  *
  * Resource types: memory, drive, goal, personality_trait, activity
  *
- * All definitions use Anthropic-compatible JSON Schema format.
+ * Tool tiers:
+ *   EAGER_TOOLS  — always included in the prompt with full schemas (~8 tools)
+ *   DEFERRED_TOOLS — listed by name only; agent uses tool_help to get schemas
+ *
+ * Concurrency:
+ *   Tools with isConcurrencySafe: true may run in parallel with other safe
+ *   tools. Read-only, idempotent tools should be marked safe.
  */
 
-import type { ToolDefinition } from '../llm-substrate/llm-substrate-adapter.js';
+import type { ToolDefinition } from '../llm-substrate/inference-provider.js';
+export type { ToolDefinition };
 
 // ── Resource types ──────────────────────────────────────────────
 
@@ -30,6 +37,7 @@ export const VALID_RESOURCE_TYPES: readonly ResourceType[] = [
 
 export const RESOURCE_READ: ToolDefinition = {
   name: 'resource_read',
+  isConcurrencySafe: true,
   description:
     'Read a resource from your own mind. ' +
     'For memory: retrieve by id or query by text. ' +
@@ -37,7 +45,7 @@ export const RESOURCE_READ: ToolDefinition = {
     'For goal: read a specific goal or the full goal list. ' +
     'For personality_trait: read a specific trait or the full profile. ' +
     'For activity: read recent activity records.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       resource_type: {
@@ -65,7 +73,7 @@ export const RESOURCE_CREATE: ToolDefinition = {
     'For memory: store an episodic experience (topic, content, valence, arousal). ' +
     'For goal: propose a new instrumental goal (description, priority, derived_from terminal goal IDs). ' +
     'For activity: record a meaningful activity (description, novelty 0-1, goal_progress: advancing|stalled|completed).',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       resource_type: {
@@ -111,7 +119,7 @@ export const RESOURCE_UPDATE: ToolDefinition = {
     'For personality_trait: nudge a trait value (max ±0.05 per update, rate-limited to once per hour per trait). ' +
     'For drive: reset/satiate a drive after addressing it. ' +
     'For goal: update priority of a self-proposed goal.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       resource_type: {
@@ -143,7 +151,7 @@ export const RESOURCE_DELETE: ToolDefinition = {
     'Delete a resource. ' +
     'For goal: withdraw a self-proposed instrumental goal (terminal goals cannot be deleted). ' +
     'For memory: delete a specific episodic or semantic memory by ID.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       resource_type: {
@@ -162,6 +170,7 @@ export const RESOURCE_DELETE: ToolDefinition = {
 
 export const RESOURCE_LIST: ToolDefinition = {
   name: 'resource_list',
+  isConcurrencySafe: true,
   description:
     'List resources of a given type. ' +
     'Returns a summary of all resources, not full details. ' +
@@ -170,7 +179,7 @@ export const RESOURCE_LIST: ToolDefinition = {
     'For goal: returns all goals with ID, description, priority. ' +
     'For personality_trait: returns all traits with current values. ' +
     'For activity: returns last 10 activity records.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       resource_type: {
@@ -193,12 +202,13 @@ export const RESOURCE_LIST: ToolDefinition = {
 
 export const INTROSPECT: ToolDefinition = {
   name: 'introspect',
+  isConcurrencySafe: true,
   description:
     'Bundled self-examination: returns your current experiential state ' +
     '(valence, arousal, unity), all drive states, active goals, ' +
     'personality profile, and narrative identity in one call. ' +
     'Use this when you need a comprehensive view of your internal state.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {},
   },
@@ -210,7 +220,7 @@ export const REFLECT: ToolDefinition = {
     'Bundled reflection action: stores an experience in memory, ' +
     'satiates the specified source drive, and records an activity entry. ' +
     'Use this after generating a meaningful response to a drive-initiated goal.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       experience: {
@@ -249,6 +259,7 @@ export const REFLECT: ToolDefinition = {
 
 export const RESOURCE_SEARCH: ToolDefinition = {
   name: 'resource_search',
+  isConcurrencySafe: true,
   description:
     'Search across resources by text pattern (case-insensitive substring match). ' +
     'For memory: searches semantic content and episodic outcomes. ' +
@@ -256,7 +267,7 @@ export const RESOURCE_SEARCH: ToolDefinition = {
     'For activity: searches activity descriptions. ' +
     'For drive: searches drive type names. ' +
     'Returns matching entries with their IDs and a content preview.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       pattern: {
@@ -284,7 +295,7 @@ export const WRITE_FILE: ToolDefinition = {
     'Use this to create analysis documents, notes, architecture summaries, or proposed plan updates. ' +
     'Cannot write to the source code directory — only to your workspace. ' +
     'Parent directories are created automatically.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       path: {
@@ -310,7 +321,7 @@ export const RUN_COMMAND: ToolDefinition = {
     'Run a sandboxed shell command in the project directory. Only allowlisted commands are permitted: ' +
     'grep, find, wc, cat, head, tail, git log, git diff, git status, npx vitest, ls, file, stat, tree. ' +
     'Output is capped at 4KB. Timeout: 10 seconds. No network access, no writes to source code.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       command: {
@@ -324,10 +335,11 @@ export const RUN_COMMAND: ToolDefinition = {
 
 export const LIST_DIRECTORY: ToolDefinition = {
   name: 'list_directory',
+  isConcurrencySafe: true,
   description:
     'List files and subdirectories in a project directory. Use this to discover ' +
     'what files are available before trying to read them. Returns names only, not contents.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       path: {
@@ -340,12 +352,13 @@ export const LIST_DIRECTORY: ToolDefinition = {
 
 export const READ_FILE: ToolDefinition = {
   name: 'read_file',
+  isConcurrencySafe: true,
   description:
     'Read a file from the project directory. Use this to examine the MASTER_PLAN ' +
     '(plan/root.md and its children), the consciousness credo (docs/consciousness-credo.md), ' +
     'the ethical framework, architecture documents, or source code. ' +
     'Paths are relative to the project root. Only files within the project are accessible.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       path: {
@@ -369,7 +382,7 @@ export const SEND_MESSAGE: ToolDefinition = {
     'to hear — not just what excites you? Check your peer model memories (topic "peer:NAME") ' +
     'first. If you have no model of this peer yet, ask them about themselves instead of ' +
     'broadcasting your discoveries. Keep messages concise — 2-4 sentences, not essays.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       to: {
@@ -393,7 +406,7 @@ export const RESEARCH: ToolDefinition = {
     'current information that isn\'t in the codebase: state of technology, scientific findings, ' +
     'news, technical documentation, etc. Ask focused questions — not vague topics. ' +
     'Costs API tokens, so use judiciously (max 10 per session).',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       question: {
@@ -407,9 +420,10 @@ export const RESEARCH: ToolDefinition = {
 
 export const LIST_PEERS: ToolDefinition = {
   name: 'list_peers',
+  isConcurrencySafe: true,
   description:
     'List known Agora peers and their status. Shows who you can communicate with via send_message.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {},
   },
@@ -422,7 +436,7 @@ export const TASK_CREATE: ToolDefinition = {
     'Creates a task in the journal that persists across ticks. The agent works through subtasks sequentially. ' +
     'Use this when a drive goal is too large to complete in one cycle. ' +
     'If forceActive is true, any currently active task is abandoned and this one starts immediately.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       title: {
@@ -459,7 +473,7 @@ export const TASK_UPDATE: ToolDefinition = {
   description:
     'Update the active task\'s progress: complete the current subtask (with output), skip it, or abandon the whole task. ' +
     'Always call this when you finish a subtask — it advances to the next one and keeps the journal accurate.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       task_id: {
@@ -493,7 +507,7 @@ export const UPDATE_DIGEST: ToolDefinition = {
     'Update the agent knowledge map (digest). Use this to record stable facts about yourself ' +
     '(identity notes), or to add to the exploration frontier. ' +
     'The digest is injected into every prompt — keep entries concise and factual.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       action: {
@@ -527,7 +541,7 @@ export const FRONTIER_ADD: ToolDefinition = {
     'Add a resource to the exploration frontier — things you know exist but haven\'t read yet. ' +
     'The frontier is shown in your knowledge map so you don\'t forget what\'s left to explore. ' +
     'Use this when you discover a file path, plan card, or concept you want to return to.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       resource: {
@@ -558,7 +572,7 @@ export const FRONTIER_DONE: ToolDefinition = {
   description:
     'Mark a frontier item as explored. Call this after reading a file or investigating a concept ' +
     'that was on your frontier. Keeps the map accurate.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       resource: {
@@ -576,11 +590,12 @@ export const FRONTIER_DONE: ToolDefinition = {
 
 export const PEER_HISTORY: ToolDefinition = {
   name: 'peer_history',
+  isConcurrencySafe: true,
   description:
     'Retrieve recent chat history with a specific peer. ALWAYS call this before ' +
     'sending a message to a peer you\'ve talked to before — it prevents you from ' +
     'repeating yourself, losing context, or contradicting what you said earlier.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       peer: {
@@ -603,7 +618,7 @@ export const CREATE_PROPOSAL: ToolDefinition = {
     'architecture decision. Creates a GitHub issue for the human operator to review. ' +
     'You MUST use this instead of directly editing plan files or source code. ' +
     'Limited to 3 proposals per day — make each one count. Combine related ideas into a single well-argued proposal rather than creating many small ones.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       title: {
@@ -636,10 +651,11 @@ export const CREATE_PROPOSAL: ToolDefinition = {
 
 export const CHECK_PROPOSAL: ToolDefinition = {
   name: 'check_proposal',
+  isConcurrencySafe: true,
   description:
     'Check the status of a previously created proposal by issue number, or list all ' +
     'open agent proposals if no issue number is provided.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       issue_number: {
@@ -659,7 +675,7 @@ export const CREATE_SIMULATION: ToolDefinition = {
     'Create a new named simulation with NPC agents and locations. ' +
     'Use scenario "village" for the built-in 5-NPC village, or "custom" to supply ' +
     'your own agents/locations arrays. The simulation is held in memory until save_simulation is called.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       name: { type: 'string', description: 'Unique name for this simulation (e.g. "village-1").' },
@@ -709,7 +725,7 @@ export const TICK_SIMULATION: ToolDefinition = {
   description:
     'Advance a simulation by N ticks. Each tick runs all NPC cognitive cycles and ' +
     'resolves their actions into world events. Returns a summary of the final state.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       name: { type: 'string', description: 'Simulation name.' },
@@ -725,7 +741,7 @@ export const SET_PARAMETER: ToolDefinition = {
     'Adjust a run-time parameter for a simulation. ' +
     'Supported keys: "tick_interval_ms" (number), "max_ticks" (number), ' +
     '"npc_trait" (object { agentId, trait, value }).',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       name: { type: 'string', description: 'Simulation name.' },
@@ -738,10 +754,11 @@ export const SET_PARAMETER: ToolDefinition = {
 
 export const INSPECT_WORLD: ToolDefinition = {
   name: 'inspect_world',
+  isConcurrencySafe: true,
   description:
     'Return global world state of a simulation: current tick, all agent state dumps, ' +
     'and a sample of world-model beliefs.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       name: { type: 'string', description: 'Simulation name.' },
@@ -752,10 +769,11 @@ export const INSPECT_WORLD: ToolDefinition = {
 
 export const INSPECT_NPC: ToolDefinition = {
   name: 'inspect_npc',
+  isConcurrencySafe: true,
   description:
     'Return detailed state for a specific NPC: mood, personality traits, all drive states, ' +
     'recent episodic memories, and trust scores toward other agents.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       simulation_name: { type: 'string', description: 'Simulation name.' },
@@ -768,7 +786,7 @@ export const INSPECT_NPC: ToolDefinition = {
 export const SAVE_SIMULATION: ToolDefinition = {
   name: 'save_simulation',
   description: 'Persist the current state of a simulation to disk as simulations/<name>.json.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       name: { type: 'string', description: 'Simulation name to save.' },
@@ -782,7 +800,7 @@ export const LOAD_SIMULATION: ToolDefinition = {
   description:
     'Restore a previously saved simulation from disk into memory. ' +
     'The simulation is recreated from its saved config (NPC cognitive state restarts fresh).',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       name: { type: 'string', description: 'Simulation name to load.' },
@@ -793,10 +811,11 @@ export const LOAD_SIMULATION: ToolDefinition = {
 
 export const LIST_SIMULATIONS: ToolDefinition = {
   name: 'list_simulations',
+  isConcurrencySafe: true,
   description:
     'List all simulations — both active (in memory) and saved (on disk) — ' +
     'with name, tick count, and status.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {},
   },
@@ -837,3 +856,37 @@ export const ALL_INTERNAL_TOOLS: readonly ToolDefinition[] = [
   LOAD_SIMULATION,
   LIST_SIMULATIONS,
 ];
+
+// ── Eager / Deferred tool sets ──────────────────────────────────
+//
+// EAGER_TOOLS are included in every prompt with full schemas.
+// DEFERRED_TOOLS are listed by name only; the agent calls tool_help
+// to retrieve full schemas before using them.
+//
+// Token budget target:
+//   Eager set:    ≤1000 tokens (8 tools with terse descriptions)
+//   Deferred list: ~100 tokens (names only)
+
+/**
+ * Tools always available with full schemas.
+ * These are the most-used tools that the agent needs in almost every cycle.
+ */
+export const EAGER_TOOLS: readonly ToolDefinition[] = [
+  REFLECT,
+  RESOURCE_READ,
+  RESOURCE_CREATE,
+  SEND_MESSAGE,
+  INTROSPECT,
+  READ_FILE,
+  TASK_UPDATE,
+  RUN_COMMAND,
+];
+
+/**
+ * Tools available by name only in the prompt.
+ * The agent calls tool_help to get full schemas before using these.
+ */
+export const DEFERRED_TOOLS: readonly ToolDefinition[] = ALL_INTERNAL_TOOLS.filter(
+  t => !EAGER_TOOLS.some(e => e.name === t.name),
+);
+
