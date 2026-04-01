@@ -75,6 +75,10 @@ export class SimulationLoop {
     return this._running;
   }
 
+  get maxTicks(): number | null {
+    return this._config.maxTicks ?? null;
+  }
+
   get world(): SimulationWorld {
     return this._world;
   }
