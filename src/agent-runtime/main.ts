@@ -58,6 +58,7 @@ import { MemoryStoreAdapter } from './memory-store-adapter.js';
 import { PersonalityModel } from '../personality/personality-model.js';
 import { PersistenceManager } from './persistence-manager.js';
 import { NodeFileSystem } from './filesystem.js';
+import { SimulationManager } from '../simulation/simulation-manager.js';
 import { DebugLogger } from './debug-log.js';
 import { DriveSystem } from '../intrinsic-motivation/drive-system.js';
 import { GoalCoherenceEngine } from '../agency-stability/goal-coherence.js';
@@ -452,6 +453,8 @@ async function _runAgentLoop(
     narrativeIdentity,
     workspacePath: join(homedir(), '.local', 'share', 'MASTER_PLAN'),
     embedder: tfidfEmbedder,
+    simulationManager: new SimulationManager(),
+    persistenceManager: persistence,
   };
 
   const { loop, bootMode } = await startAgent(deps, config);

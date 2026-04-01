@@ -651,6 +651,157 @@ export const CHECK_PROPOSAL: ToolDefinition = {
   },
 };
 
+// ── Simulation tools ─────────────────────────────────────────────────────────
+
+export const CREATE_SIMULATION: ToolDefinition = {
+  name: 'create_simulation',
+  description:
+    'Create a new named simulation with NPC agents and locations. ' +
+    'Use scenario "village" for the built-in 5-NPC village, or "custom" to supply ' +
+    'your own agents/locations arrays. The simulation is held in memory until save_simulation is called.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: 'Unique name for this simulation (e.g. "village-1").' },
+      scenario: {
+        type: 'string',
+        enum: ['village', 'custom'],
+        description: '"village" uses the built-in scenario. "custom" requires agents and locations arrays.',
+      },
+      agents: {
+        type: 'array',
+        description: 'For custom scenario: NPC agent configs.',
+        items: {
+          type: 'object',
+          properties: {
+            agentId: { type: 'string' },
+            name: { type: 'string' },
+            initialLocation: { type: 'string' },
+            personality: { type: 'object' },
+          },
+          required: ['agentId', 'name', 'initialLocation'],
+        },
+      },
+      locations: {
+        type: 'array',
+        description: 'For custom scenario: simulation locations.',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            name: { type: 'string' },
+            description: { type: 'string' },
+            adjacentLocations: { type: 'array', items: { type: 'string' } },
+            capacity: { type: 'number' },
+          },
+          required: ['id', 'name', 'description', 'adjacentLocations', 'capacity'],
+        },
+      },
+      tick_interval_ms: { type: 'number', description: 'Delay between ticks in ms. Default: 0.' },
+      max_ticks: { type: 'number', description: 'Stop automatically after this many ticks.' },
+    },
+    required: ['name', 'scenario'],
+  },
+};
+
+export const TICK_SIMULATION: ToolDefinition = {
+  name: 'tick_simulation',
+  description:
+    'Advance a simulation by N ticks. Each tick runs all NPC cognitive cycles and ' +
+    'resolves their actions into world events. Returns a summary of the final state.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: 'Simulation name.' },
+      ticks: { type: 'number', description: 'Number of ticks to advance (1–1000). Default: 1.' },
+    },
+    required: ['name'],
+  },
+};
+
+export const SET_PARAMETER: ToolDefinition = {
+  name: 'set_parameter',
+  description:
+    'Adjust a run-time parameter for a simulation. ' +
+    'Supported keys: "tick_interval_ms" (number), "max_ticks" (number), ' +
+    '"npc_trait" (object { agentId, trait, value }).',
+  input_schema: {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: 'Simulation name.' },
+      key: { type: 'string', enum: ['tick_interval_ms', 'max_ticks', 'npc_trait'] },
+      value: { description: 'New value (number or object depending on key).' },
+    },
+    required: ['name', 'key', 'value'],
+  },
+};
+
+export const INSPECT_WORLD: ToolDefinition = {
+  name: 'inspect_world',
+  description:
+    'Return global world state of a simulation: current tick, all agent state dumps, ' +
+    'and a sample of world-model beliefs.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: 'Simulation name.' },
+    },
+    required: ['name'],
+  },
+};
+
+export const INSPECT_NPC: ToolDefinition = {
+  name: 'inspect_npc',
+  description:
+    'Return detailed state for a specific NPC: mood, personality traits, all drive states, ' +
+    'recent episodic memories, and trust scores toward other agents.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      simulation_name: { type: 'string', description: 'Simulation name.' },
+      agent_id: { type: 'string', description: 'Agent ID to inspect.' },
+    },
+    required: ['simulation_name', 'agent_id'],
+  },
+};
+
+export const SAVE_SIMULATION: ToolDefinition = {
+  name: 'save_simulation',
+  description: 'Persist the current state of a simulation to disk as simulations/<name>.json.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: 'Simulation name to save.' },
+    },
+    required: ['name'],
+  },
+};
+
+export const LOAD_SIMULATION: ToolDefinition = {
+  name: 'load_simulation',
+  description:
+    'Restore a previously saved simulation from disk into memory. ' +
+    'The simulation is recreated from its saved config (NPC cognitive state restarts fresh).',
+  input_schema: {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: 'Simulation name to load.' },
+    },
+    required: ['name'],
+  },
+};
+
+export const LIST_SIMULATIONS: ToolDefinition = {
+  name: 'list_simulations',
+  description:
+    'List all simulations — both active (in memory) and saved (on disk) — ' +
+    'with name, tick count, and status.',
+  input_schema: {
+    type: 'object',
+    properties: {},
+  },
+};
+
 // ── All tools ───────────────────────────────────────────────────
 
 export const ALL_INTERNAL_TOOLS: readonly ToolDefinition[] = [
@@ -677,4 +828,12 @@ export const ALL_INTERNAL_TOOLS: readonly ToolDefinition[] = [
   FRONTIER_DONE,
   CREATE_PROPOSAL,
   CHECK_PROPOSAL,
+  CREATE_SIMULATION,
+  TICK_SIMULATION,
+  SET_PARAMETER,
+  INSPECT_WORLD,
+  INSPECT_NPC,
+  SAVE_SIMULATION,
+  LOAD_SIMULATION,
+  LIST_SIMULATIONS,
 ];
