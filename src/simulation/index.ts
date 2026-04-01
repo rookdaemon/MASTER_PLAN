@@ -31,3 +31,4 @@ export { SimulationLoop } from './simulation-loop.js';
 
 // ── Demo scenarios ────────────────────────────────────────────────────────────
 export { createVillageConfig, VILLAGE_LOCATIONS } from './scenarios/village.js';
+export { createColonyConfig, COLONY_LOCATIONS } from './scenarios/colony.js';
