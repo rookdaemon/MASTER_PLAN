@@ -176,4 +176,30 @@ describe("parseCliArgs", () => {
       expect(opts.model).toBe("gpt-4o");
     });
   });
+
+  describe("--sim flag", () => {
+    it("sets mode to 'sim' when --sim is given", () => {
+      const opts = parseCliArgs([...BASE_ARGV, "--sim"]);
+      expect(opts.mode).toBe("sim");
+      expect(opts.simPort).toBeUndefined();
+    });
+
+    it("accepts an optional port number after --sim", () => {
+      const opts = parseCliArgs([...BASE_ARGV, "--sim", "3000"]);
+      expect(opts.mode).toBe("sim");
+      expect(opts.simPort).toBe(3000);
+    });
+
+    it("does not consume a non-numeric argument as port", () => {
+      const opts = parseCliArgs([...BASE_ARGV, "--sim", "--model", "gpt-4o"]);
+      expect(opts.mode).toBe("sim");
+      expect(opts.simPort).toBeUndefined();
+      expect(opts.model).toBe("gpt-4o");
+    });
+
+    it("--sim takes priority over agent-loop when no prompt is given", () => {
+      const opts = parseCliArgs([...BASE_ARGV, "--sim"]);
+      expect(opts.mode).toBe("sim");
+    });
+  });
 });

@@ -23,12 +23,13 @@ const DEFAULT_MODEL = "claude-sonnet-4-20250514";
 const DEFAULT_PROVIDER: LlmProvider = "anthropic";
 
 export interface CliOptions {
-  mode: "one-shot" | "agent-loop" | "web";
+  mode: "one-shot" | "agent-loop" | "web" | "sim";
   prompt?: string;
   model: string;
   provider: LlmProvider;
   stateDir?: string;
   webPort?: number;
+  simPort?: number;
 }
 
 /**
@@ -47,6 +48,8 @@ export function parseCliArgs(argv: readonly string[]): CliOptions {
   let stateDir: string | undefined;
   let webMode = false;
   let webPort: number | undefined;
+  let simMode = false;
+  let simPort: number | undefined;
 
   let i = 0;
   while (i < args.length) {
@@ -112,16 +115,30 @@ export function parseCliArgs(argv: readonly string[]): CliOptions {
       continue;
     }
 
+    if (arg === "--sim") {
+      simMode = true;
+      // Optional port argument (next arg is a number)
+      const next = args[i + 1];
+      if (next !== undefined && /^\d+$/.test(next)) {
+        simPort = parseInt(next, 10);
+        i += 2;
+      } else {
+        i += 1;
+      }
+      continue;
+    }
+
     // Ignore unknown args
     i++;
   }
 
   return {
-    mode: prompt !== undefined ? "one-shot" : webMode ? "web" : "agent-loop",
+    mode: prompt !== undefined ? "one-shot" : simMode ? "sim" : webMode ? "web" : "agent-loop",
     prompt,
     model,
     provider,
     stateDir,
     webPort,
+    simPort,
   };
 }
