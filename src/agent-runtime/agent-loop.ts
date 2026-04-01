@@ -602,6 +602,21 @@ export class AgentLoop implements IAgentLoop {
     dl?.phaseEnd('appraise', this._cycleCount, appraiseEnd.durationMs);
     this._phaseTimings.set('appraise', appraiseEnd.durationMs);
 
+    // Apply appraisal result to experiential state (valence/arousal shifts)
+    {
+      const r = appraisalResult as { netValenceShift?: number; netArousalShift?: number };
+      const valenceShift = r.netValenceShift ?? 0;
+      const arousalShift = r.netArousalShift ?? 0;
+      if (valenceShift !== 0 || arousalShift !== 0) {
+        expState = {
+          ...expState,
+          valence: Math.max(-1, Math.min(1, expState.valence + valenceShift)),
+          arousal: Math.max(0, Math.min(1, expState.arousal + arousalShift)),
+        };
+        dl?.log('emotion', 'Applied appraisal shifts', { valenceShift, arousalShift, valence: expState.valence, arousal: expState.arousal });
+      }
+    }
+
     // ── 3b. DRIVE TICK ───────────────────────────────────────
     //   Drives are motivational input to deliberation, so we run them
     //   before DELIBERATE so the current tick can act on drive-generated goals.
