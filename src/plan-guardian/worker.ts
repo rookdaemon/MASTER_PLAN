@@ -37,7 +37,13 @@ export async function runPlanningWorker(
   const firstViolations = validateText?.(firstText) ?? [];
 
   if (firstViolations.length === 0) {
-    const action = parseActionOutput(firstText, actionType, task.path, now);
+    let action;
+    try {
+      action = parseActionOutput(firstText, actionType, task.path, now);
+    } catch (parseErr) {
+      const parseMsg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+      throw new Error(`Failed to parse first attempt output: ${parseMsg}`);
+    }
     return {
       action,
       tokensUsed: { prompt: first.promptTokens, completion: first.completionTokens },
@@ -60,7 +66,13 @@ export async function runPlanningWorker(
     throw new Error(`Integrity retry failed: ${secondViolations.join('; ')}`);
   }
 
-  const action = parseActionOutput(secondText, actionType, task.path, now);
+  let action;
+  try {
+    action = parseActionOutput(secondText, actionType, task.path, now);
+  } catch (parseErr) {
+    const parseMsg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+    throw new Error(`Failed to parse second attempt output: ${parseMsg}`);
+  }
   return {
     action,
     tokensUsed: {

@@ -189,7 +189,13 @@ function runTextValidation(
   dag: IPlanDAG,
   config: GuardianConfig,
 ): string[] {
-  const action = parseActionOutput(text, actionType, targetPath, now);
+  let action;
+  try {
+    action = parseActionOutput(text, actionType, targetPath, now);
+  } catch (parseErr) {
+    const parseMsg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+    return [`Parse error: ${parseMsg}`];
+  }
   if (action.filesCreated.length === 0 && action.filesModified.length === 0) {
     return ['No plan-file/artifact writes parsed'];
   }
