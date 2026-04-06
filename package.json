@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/agent-runtime/main.ts",
+    "guardian": "tsx src/plan-guardian/main.ts",
+    "guardian:dry-run": "tsx src/plan-guardian/main.ts --dry-run",
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest"

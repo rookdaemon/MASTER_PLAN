@@ -7,7 +7,7 @@
  * Quality comes from prompt engineering and context assembly, not model size.
  *
  * Usage:
- *   npx tsx src/plan-guardian/main.ts                           # local 7B (default)
+ *   npx tsx src/plan-guardian/main.ts                           # local gemma4:e4b (default)
  *   npx tsx src/plan-guardian/main.ts --provider anthropic --model claude-sonnet-4-20250514
  *   npx tsx src/plan-guardian/main.ts --concurrency 30 --max-iterations 10
  *   npx tsx src/plan-guardian/main.ts --dry-run

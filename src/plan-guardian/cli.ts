@@ -23,7 +23,7 @@ export interface CliOptions {
 const DEFAULTS: CliOptions = {
   planDir: 'plan',
   provider: 'local',
-  model: 'qwen2.5:7b',
+  model: 'gemma4:e4b',
   concurrency: 20,
   maxIterations: Infinity,
   maxDepth: 8,

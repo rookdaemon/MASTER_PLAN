@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { parseCli } from '../cli.js';
 
 describe('parseCli', () => {
-  it('returns defaults with no args (local 7B)', () => {
+  it('returns defaults with no args (local gemma4:e4b)', () => {
     const opts = parseCli(['node', 'main.ts']);
     expect(opts.planDir).toBe('plan');
     expect(opts.provider).toBe('local');
-    expect(opts.model).toBe('qwen2.5:7b');
+    expect(opts.model).toBe('gemma4:e4b');
     expect(opts.concurrency).toBe(20);
     expect(opts.maxIterations).toBe(Infinity);
     expect(opts.dryRun).toBe(false);
