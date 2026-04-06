@@ -8,6 +8,7 @@
     "guardian": "tsx src/plan-guardian/main.ts",
     "guardian:dry-run": "tsx src/plan-guardian/main.ts --dry-run",
     "build": "tsc",
+    "lint": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },

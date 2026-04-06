@@ -66,6 +66,9 @@ async function main() {
     maxDepth: opts.maxDepth,
     dryRun: opts.dryRun,
     cycleThreshold: opts.cycleThreshold,
+    strictIntegrity: opts.strictIntegrity,
+    maxNewFilesPerAction: opts.maxNewFilesPerAction,
+    quarantineBranch: opts.quarantineBranch,
     provider,
     fs: new NodeFileSystem(),
     git: new NodeGitOperations(repoRoot),
@@ -75,6 +78,7 @@ async function main() {
   console.log(`[guardian] Starting Plan Guardian`);
   console.log(`[guardian] Provider: ${opts.provider}/${opts.model}`);
   console.log(`[guardian] Concurrency: ${opts.concurrency} | Max iterations: ${opts.maxIterations} | Dry run: ${opts.dryRun}`);
+  console.log(`[guardian] Strict integrity: ${opts.strictIntegrity} | Max new files/action: ${opts.maxNewFilesPerAction} | Quarantine branch: ${opts.quarantineBranch ?? 'none'}`);
 
   const results = await runScheduler(config, {
     onEpochStart(epoch, batchSize) {

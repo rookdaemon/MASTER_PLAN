@@ -105,8 +105,9 @@ export interface DispatchItem {
 
 export interface IGitOperations {
   add(paths: string[]): Promise<void>;
-  commit(message: string): Promise<string>;
+  commit(message: string, branch?: string): Promise<string>;
   status(): Promise<string>;
+  stagedPaths(): Promise<string[]>;
 }
 
 // ── Clock ───────────────────────────────────────────────────
@@ -125,6 +126,9 @@ export interface GuardianConfig {
   maxDepth: number;
   dryRun: boolean;
   cycleThreshold: number;
+  strictIntegrity: boolean;
+  maxNewFilesPerAction: number;
+  quarantineBranch?: string;
   /** Single provider for all actions — planning and execution alike. */
   provider: IInferenceProvider;
   fs: IFileSystem;

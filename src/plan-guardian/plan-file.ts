@@ -10,6 +10,7 @@
  */
 
 import type { PlanFile, PlanFrontmatter, PlanStatus } from './interfaces.js';
+import { normalizePlanPath } from './actions.js';
 
 const VALID_STATUSES: ReadonlySet<string> = new Set([
   'PLAN', 'ARCHITECT', 'IMPLEMENT', 'REVIEW', 'DONE',
@@ -141,19 +142,19 @@ function parseFrontmatter(raw: string): PlanFrontmatter {
 function setFrontmatterField(fm: PlanFrontmatter, key: string, value: string | string[]): void {
   switch (key) {
     case 'parent':
-      fm.parent = value as string;
+      fm.parent = normalizePlanPath(value as string);
       break;
     case 'root':
-      fm.root = value as string;
+      fm.root = normalizePlanPath(value as string);
       break;
     case 'children':
-      fm.children = value as string[];
+      fm.children = (value as string[]).map(normalizePlanPath);
       break;
     case 'blocked-by':
-      fm['blocked-by'] = value as string[];
+      fm['blocked-by'] = (value as string[]).map(normalizePlanPath);
       break;
     case 'depends-on':
-      fm['depends-on'] = value as string[];
+      fm['depends-on'] = (value as string[]).map(normalizePlanPath);
       break;
   }
 }

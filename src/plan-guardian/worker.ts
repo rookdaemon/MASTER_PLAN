@@ -12,6 +12,8 @@ import type { IPlanDAG, PlanFile, PlanningActionType, WorkerResult } from './int
 import { buildSystemPrompt, buildUserMessage } from './prompts.js';
 import { parseActionOutput } from './actions.js';
 
+export type ActionValidator = (actionText: string) => string[];
+
 export async function runPlanningWorker(
   task: PlanFile,
   actionType: PlanningActionType,
@@ -19,23 +21,52 @@ export async function runPlanningWorker(
   provider: IInferenceProvider,
   now: string,
   maxTokens: number = 4096,
+  validateText?: ActionValidator,
 ): Promise<WorkerResult> {
   const systemPrompt = buildSystemPrompt(actionType);
   const userMessage = buildUserMessage(task, dag, actionType, now);
 
-  const result = await provider.infer(
+  const first = await provider.infer(
     systemPrompt,
     [{ role: 'user', content: userMessage }],
     [],
     maxTokens,
   );
 
-  const text = result.text ?? '';
-  const action = parseActionOutput(text, actionType, task.path, now);
+  const firstText = first.text ?? '';
+  const firstViolations = validateText?.(firstText) ?? [];
 
+  if (firstViolations.length === 0) {
+    const action = parseActionOutput(firstText, actionType, task.path, now);
+    return {
+      action,
+      tokensUsed: { prompt: first.promptTokens, completion: first.completionTokens },
+      latencyMs: first.latencyMs,
+    };
+  }
+
+  const repairMessage = `${userMessage}\n\nREPAIR REQUIRED\nYour last output violated integrity constraints:\n${firstViolations.map(v => `- ${v}`).join('\n')}\n\nRegenerate output with the exact same action type and valid references only.`;
+
+  const second = await provider.infer(
+    systemPrompt,
+    [{ role: 'user', content: repairMessage }],
+    [],
+    maxTokens,
+  );
+
+  const secondText = second.text ?? '';
+  const secondViolations = validateText?.(secondText) ?? [];
+  if (secondViolations.length > 0) {
+    throw new Error(`Integrity retry failed: ${secondViolations.join('; ')}`);
+  }
+
+  const action = parseActionOutput(secondText, actionType, task.path, now);
   return {
     action,
-    tokensUsed: { prompt: result.promptTokens, completion: result.completionTokens },
-    latencyMs: result.latencyMs,
+    tokensUsed: {
+      prompt: first.promptTokens + second.promptTokens,
+      completion: first.completionTokens + second.completionTokens,
+    },
+    latencyMs: first.latencyMs + second.latencyMs,
   };
 }

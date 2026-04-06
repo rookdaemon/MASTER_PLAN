@@ -18,6 +18,9 @@ export interface CliOptions {
   maxDepth: number;
   dryRun: boolean;
   cycleThreshold: number;
+  strictIntegrity: boolean;
+  maxNewFilesPerAction: number;
+  quarantineBranch?: string;
 }
 
 const DEFAULTS: CliOptions = {
@@ -29,6 +32,9 @@ const DEFAULTS: CliOptions = {
   maxDepth: 8,
   dryRun: false,
   cycleThreshold: 3,
+  strictIntegrity: true,
+  maxNewFilesPerAction: 5,
+  quarantineBranch: undefined,
 };
 
 const VALID_PROVIDERS = new Set<string>(['anthropic', 'openai', 'local']);
@@ -68,6 +74,20 @@ export function parseCli(argv: string[]): CliOptions {
         break;
       case '--cycle-threshold':
         opts.cycleThreshold = parseInt(next(), 10);
+        break;
+      case '--strict-integrity': {
+        const value = next().toLowerCase();
+        if (value !== 'true' && value !== 'false') {
+          throw new Error('--strict-integrity must be true or false');
+        }
+        opts.strictIntegrity = value === 'true';
+        break;
+      }
+      case '--max-new-files':
+        opts.maxNewFilesPerAction = parseInt(next(), 10);
+        break;
+      case '--quarantine-branch':
+        opts.quarantineBranch = next();
         break;
       default:
         throw new Error(`Unknown argument: ${arg}`);

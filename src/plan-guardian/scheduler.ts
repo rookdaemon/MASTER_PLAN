@@ -22,6 +22,12 @@ import { buildDAG } from './dag.js';
 import { prioritize, selectIndependentBatch } from './priority.js';
 import { runPlanningWorker } from './worker.js';
 import { runExecutionWorker } from './executor.js';
+import {
+  buildSnapshotWithActions,
+  validateActionIntegrity,
+  validateGraphIntegrity,
+} from './integrity.js';
+import { normalizePlanPath, parseActionOutput } from './actions.js';
 
 export interface EpochResult {
   epoch: number;
@@ -64,26 +70,20 @@ export async function runEpoch(
   const { fs, git, clock, planDir, concurrency, provider, dryRun } = config;
   const now = clock.now();
 
-  // 1. Rebuild DAG from files
   const dag = await buildDAG(fs, planDir);
-
-  // 2. Prioritize
   const candidates = prioritize(dag, now);
   if (candidates.length === 0) {
     return { epoch, dispatched: 0, completed: 0, failed: 0, commits: [], totalTokens: { prompt: 0, completion: 0 } };
   }
 
-  // 3. Select independent batch
   const batch = selectIndependentBatch(candidates, concurrency);
   callbacks.onEpochStart?.(epoch, batch.length);
 
-  // 4. Fan-out workers in parallel — same provider for all actions
-  const workerPromises = batch.map(item => runWorker(item, dag, provider, now));
+  const workerPromises = batch.map(item => runWorker(item, dag, provider, now, config));
   const settled = await Promise.allSettled(workerPromises);
 
-  // 5. Collect results
+  const successful: WorkerResult[] = [];
   const commits: string[] = [];
-  let completed = 0;
   let failed = 0;
   const totalTokens = { prompt: 0, completion: 0 };
 
@@ -91,23 +91,59 @@ export async function runEpoch(
     const outcome = settled[i];
     if (outcome.status === 'fulfilled') {
       const result = outcome.value;
-      completed++;
+      successful.push(result);
       totalTokens.prompt += result.tokensUsed.prompt;
       totalTokens.completion += result.tokensUsed.completion;
       callbacks.onWorkerComplete?.(result);
-
-      if (!dryRun) {
-        const hash = await commitAction(result.action, fs, git);
-        commits.push(hash);
-        callbacks.onCommit?.(hash, `[guardian] ${result.action.type}: ${result.action.summary}`);
-      }
     } else {
       failed++;
       callbacks.onWorkerError?.(batch[i].task.path, outcome.reason as Error);
     }
   }
 
-  const epochResult: EpochResult = { epoch, dispatched: batch.length, completed, failed, commits, totalTokens };
+  if (!dryRun && successful.length > 0) {
+    const baselineNodes = dag.nodes;
+    for (const result of successful) {
+      const verdict = validateActionIntegrity(result.action, baselineNodes, config);
+      if (config.strictIntegrity && !verdict.valid) {
+        throw new Error(`Integrity violation in ${result.action.targetPath}: ${verdict.errors.join('; ')}`);
+      }
+    }
+
+    const snapshot = buildSnapshotWithActions(
+      baselineNodes,
+      successful.map(r => r.action),
+    );
+    const graphVerdict = validateGraphIntegrity(snapshot, planDir);
+    if (config.strictIntegrity && !graphVerdict.valid) {
+      throw new Error(`Epoch graph integrity failed: ${graphVerdict.errors.join('; ')}`);
+    }
+
+    const allFiles = collectFiles(successful.map(r => r.action));
+    await writeAllFiles(fs, allFiles);
+    await git.add([...allFiles.keys()]);
+
+    const staged = (await git.stagedPaths()).map(normalizePlanPath).sort();
+    const expected = [...allFiles.keys()].map(normalizePlanPath).sort();
+    const extras = staged.filter(p => !expected.includes(p));
+    if (extras.length > 0) {
+      throw new Error(`Refusing commit: unrelated staged files detected: ${extras.join(', ')}`);
+    }
+
+    const message = `[guardian] epoch ${epoch}: ${successful.length} action(s)`;
+    const hash = await git.commit(message, config.quarantineBranch);
+    commits.push(hash);
+    callbacks.onCommit?.(hash, message);
+  }
+
+  const epochResult: EpochResult = {
+    epoch,
+    dispatched: batch.length,
+    completed: successful.length,
+    failed,
+    commits,
+    totalTokens,
+  };
   callbacks.onEpochEnd?.(epochResult);
   return epochResult;
 }
@@ -119,8 +155,8 @@ async function runWorker(
   dag: IPlanDAG,
   provider: IInferenceProvider,
   now: string,
+  config: GuardianConfig,
 ): Promise<WorkerResult> {
-  // Deterministic status-update when all children DONE — no LLM needed
   if (item.actionType === 'status-update') {
     const children = dag.childrenOf(item.task.path);
     if (children.length > 0 && children.every(c => c.status === 'DONE')) {
@@ -132,7 +168,35 @@ async function runWorker(
     return runExecutionWorker(item.task, provider, now);
   }
 
-  return runPlanningWorker(item.task, item.actionType, dag, provider, now);
+  const validateText = config.strictIntegrity
+    ? (text: string): string[] => {
+        try {
+          return runTextValidation(text, item.actionType, item.task.path, now, dag, config);
+        } catch (err) {
+          return [err instanceof Error ? err.message : String(err)];
+        }
+      }
+    : undefined;
+
+  return runPlanningWorker(item.task, item.actionType, dag, provider, now, 4096, validateText);
+}
+
+function runTextValidation(
+  text: string,
+  actionType: DispatchItem['actionType'],
+  targetPath: string,
+  now: string,
+  dag: IPlanDAG,
+  config: GuardianConfig,
+): string[] {
+  const action = parseActionOutput(text, actionType, targetPath, now);
+  if (action.filesCreated.length === 0 && action.filesModified.length === 0) {
+    return ['No plan-file/artifact writes parsed'];
+  }
+
+  const baseline = dag.nodes;
+  const verdict = validateActionIntegrity(action, baseline, config);
+  return verdict.errors;
 }
 
 function makeDeterministicStatusUpdate(item: DispatchItem, now: string): WorkerResult {
@@ -174,22 +238,17 @@ function makeDeterministicStatusUpdate(item: DispatchItem, now: string): WorkerR
   };
 }
 
-async function commitAction(
-  action: PlanningAction,
-  fs: IFileSystem,
-  git: IGitOperations,
-): Promise<string> {
-  const allFiles: string[] = [];
-
-  for (const f of action.filesCreated) {
-    await fs.writeFile(f.path, f.content, 'utf-8');
-    allFiles.push(f.path);
+function collectFiles(actions: readonly PlanningAction[]): Map<string, string> {
+  const files = new Map<string, string>();
+  for (const action of actions) {
+    for (const f of action.filesCreated) files.set(normalizePlanPath(f.path), f.content);
+    for (const f of action.filesModified) files.set(normalizePlanPath(f.path), f.content);
   }
-  for (const f of action.filesModified) {
-    await fs.writeFile(f.path, f.content, 'utf-8');
-    allFiles.push(f.path);
-  }
+  return files;
+}
 
-  await git.add(allFiles);
-  return git.commit(`[guardian] ${action.type}: ${action.summary}`);
+async function writeAllFiles(fs: IFileSystem, files: ReadonlyMap<string, string>): Promise<void> {
+  for (const [path, content] of files) {
+    await fs.writeFile(path, content, 'utf-8');
+  }
 }

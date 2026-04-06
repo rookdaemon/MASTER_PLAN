@@ -9,6 +9,13 @@
 
 import type { PlanningAction, PlanningActionType, FileWrite } from './interfaces.js';
 
+export function normalizePlanPath(path: string): string {
+  const p = path.trim().replace(/\\/g, '/').replace(/^\.\//, '');
+  if (p.startsWith('plan/')) return p;
+  if (/^\d+(\.\d+)*-/.test(p) || p === 'root.md') return `plan/${p}`;
+  return p;
+}
+
 const PLAN_FILE_RE = /```plan-file:([^\n]+)\n([\s\S]*?)```/g;
 const ARTIFACT_RE = /```artifact:([^\n]+)\n([\s\S]*?)```/g;
 const DELETE_RE = /<!-- DELETE: ([^\s]+) -->/g;
@@ -71,7 +78,7 @@ function extractBlocks(text: string, regex: RegExp): FileWrite[] {
   regex.lastIndex = 0;
   while ((match = regex.exec(text)) !== null) {
     blocks.push({
-      path: match[1].trim(),
+      path: normalizePlanPath(match[1].trim()),
       content: match[2],
     });
   }
@@ -83,7 +90,7 @@ function extractDeletes(text: string): string[] {
   let match: RegExpExecArray | null;
   DELETE_RE.lastIndex = 0;
   while ((match = DELETE_RE.exec(text)) !== null) {
-    deletes.push(match[1].trim());
+    deletes.push(normalizePlanPath(match[1].trim()));
   }
   return deletes;
 }

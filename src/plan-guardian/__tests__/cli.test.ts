@@ -10,6 +10,9 @@ describe('parseCli', () => {
     expect(opts.concurrency).toBe(20);
     expect(opts.maxIterations).toBe(Infinity);
     expect(opts.dryRun).toBe(false);
+    expect(opts.strictIntegrity).toBe(true);
+    expect(opts.maxNewFilesPerAction).toBe(5);
+    expect(opts.quarantineBranch).toBeUndefined();
   });
 
   it('parses all flags', () => {
@@ -23,6 +26,9 @@ describe('parseCli', () => {
       '--max-depth', '6',
       '--dry-run',
       '--cycle-threshold', '5',
+      '--strict-integrity', 'false',
+      '--max-new-files', '9',
+      '--quarantine-branch', 'guardian/autogen',
     ]);
     expect(opts.planDir).toBe('./myplan');
     expect(opts.provider).toBe('anthropic');
@@ -32,11 +38,19 @@ describe('parseCli', () => {
     expect(opts.maxDepth).toBe(6);
     expect(opts.dryRun).toBe(true);
     expect(opts.cycleThreshold).toBe(5);
+    expect(opts.strictIntegrity).toBe(false);
+    expect(opts.maxNewFilesPerAction).toBe(9);
+    expect(opts.quarantineBranch).toBe('guardian/autogen');
   });
 
   it('rejects invalid provider', () => {
     expect(() => parseCli(['node', 'main.ts', '--provider', 'invalid']))
       .toThrow('Invalid provider');
+  });
+
+  it('rejects invalid strict-integrity value', () => {
+    expect(() => parseCli(['node', 'main.ts', '--strict-integrity', 'maybe']))
+      .toThrow('--strict-integrity must be true or false');
   });
 
   it('rejects unknown flags', () => {
