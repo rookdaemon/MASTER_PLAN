@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { parseCli } from '../cli.js';
 
 describe('parseCli', () => {
-  it('returns defaults with no args (local gemma4:e4b)', () => {
+  it('returns defaults with no args (openrouter)', () => {
     const opts = parseCli(['node', 'main.ts']);
     expect(opts.planDir).toBe('plan');
-    expect(opts.provider).toBe('local');
-    expect(opts.model).toBe('gemma4:e4b');
+    expect(opts.provider).toBe('openrouter');
+    expect(opts.model).toBe('gpt-oss-120b:free');
     expect(opts.concurrency).toBe(20);
     expect(opts.maxIterations).toBe(Infinity);
     expect(opts.dryRun).toBe(false);
@@ -19,7 +19,7 @@ describe('parseCli', () => {
     const opts = parseCli([
       'node', 'main.ts',
       '--plan-dir', './myplan',
-      '--provider', 'anthropic',
+      '--provider', 'openrouter',
       '--model', 'claude-sonnet-4-20250514',
       '--concurrency', '30',
       '--max-iterations', '10',
@@ -31,7 +31,7 @@ describe('parseCli', () => {
       '--quarantine-branch', 'guardian/autogen',
     ]);
     expect(opts.planDir).toBe('./myplan');
-    expect(opts.provider).toBe('anthropic');
+    expect(opts.provider).toBe('openrouter');
     expect(opts.model).toBe('claude-sonnet-4-20250514');
     expect(opts.concurrency).toBe(30);
     expect(opts.maxIterations).toBe(10);

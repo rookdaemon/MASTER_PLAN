@@ -7,8 +7,9 @@
  * Quality comes from prompt engineering and context assembly, not model size.
  *
  * Usage:
- *   npx tsx src/plan-guardian/main.ts                           # local gemma4:e4b (default)
+ *   npx tsx src/plan-guardian/main.ts                           # openrouter gpt-oss-120b:free (default)
  *   npx tsx src/plan-guardian/main.ts --provider anthropic --model claude-sonnet-4-20250514
+ *   npx tsx src/plan-guardian/main.ts --provider openrouter --model google/gemma-3-27b-it
  *   npx tsx src/plan-guardian/main.ts --concurrency 30 --max-iterations 10
  *   npx tsx src/plan-guardian/main.ts --dry-run
  *
@@ -16,41 +17,12 @@
  */
 
 import { resolve } from 'node:path';
-import { parseCli, type LlmProvider } from './cli.js';
+import { parseCli } from './cli.js';
 import { runScheduler } from './scheduler.js';
 import { NodeFileSystem } from '../agent-runtime/filesystem.js';
 import { NodeGitOperations } from './git-state.js';
-import { AnthropicInferenceProvider } from '../llm-substrate/anthropic-inference-provider.js';
-import { OllamaInferenceProvider } from '../llm-substrate/ollama-inference-provider.js';
-import { ApiKeyAuthProvider, NoopAuthProvider } from '../llm-substrate/auth-providers.js';
-import type { IInferenceProvider } from '../llm-substrate/inference-provider.js';
 import type { GuardianConfig } from './interfaces.js';
-
-const PROVIDER_ENDPOINTS: Record<LlmProvider, string> = {
-  anthropic: 'https://api.anthropic.com/v1',
-  openai: 'https://api.openai.com/v1',
-  local: process.env['LLM_ENDPOINT'] ?? 'http://localhost:11434/v1',
-};
-
-function buildProvider(providerType: LlmProvider, model: string): IInferenceProvider {
-  const endpoint = PROVIDER_ENDPOINTS[providerType];
-  const thinkingBudget = parseInt(process.env['THINKING_BUDGET_TOKENS'] ?? '0', 10);
-
-  switch (providerType) {
-    case 'anthropic': {
-      const apiKey = process.env['LLM_API_KEY'];
-      if (!apiKey) throw new Error('LLM_API_KEY required for Anthropic provider');
-      return new AnthropicInferenceProvider(model, new ApiKeyAuthProvider('anthropic', apiKey), endpoint, thinkingBudget);
-    }
-    case 'openai':
-    case 'local':
-    default: {
-      const apiKey = process.env['LLM_API_KEY'];
-      const auth = apiKey ? new ApiKeyAuthProvider(providerType, apiKey) : new NoopAuthProvider();
-      return new OllamaInferenceProvider(model, auth, endpoint);
-    }
-  }
-}
+import { buildProvider } from './provider-factory.js';
 
 async function main() {
   const opts = parseCli(process.argv);

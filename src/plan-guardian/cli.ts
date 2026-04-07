@@ -7,7 +7,7 @@
  * Domain: Plan Guardian
  */
 
-export type LlmProvider = 'anthropic' | 'openai' | 'local';
+export type LlmProvider = 'anthropic' | 'openai' | 'openrouter' | 'local';
 
 export interface CliOptions {
   planDir: string;
@@ -25,8 +25,8 @@ export interface CliOptions {
 
 const DEFAULTS: CliOptions = {
   planDir: 'plan',
-  provider: 'local',
-  model: 'gemma4:e4b',
+  provider: 'openrouter',
+  model: 'gpt-oss-120b:free',
   concurrency: 20,
   maxIterations: Infinity,
   maxDepth: 8,
@@ -37,7 +37,7 @@ const DEFAULTS: CliOptions = {
   quarantineBranch: undefined,
 };
 
-const VALID_PROVIDERS = new Set<string>(['anthropic', 'openai', 'local']);
+const VALID_PROVIDERS = new Set<string>(['anthropic', 'openai', 'openrouter', 'local']);
 
 export function parseCli(argv: string[]): CliOptions {
   const opts = { ...DEFAULTS };
