@@ -29,6 +29,12 @@ export const CONSUMER_PRIORITY: Record<ConsumerType, Priority> = {
 };
 
 /**
+ * Canonical dispatch order for priority tiers, from highest to lowest.
+ * Used by serveConsumersByPriority to ensure deterministic ordering.
+ */
+export const PRIORITY_ORDER: readonly Priority[] = ['critical', 'high', 'normal', 'low'];
+
+/**
  * Create a new resource depot with initial capacity and no inventory.
  */
 export function createDepot(
@@ -106,7 +112,7 @@ export function serveConsumersByPriority(
   }
 
   // Dispatch in strict descending priority order
-  for (const priority of ['critical', 'high', 'normal', 'low'] as Priority[]) {
+  for (const priority of PRIORITY_ORDER) {
     const consumers = priorityGroups.get(priority) ?? [];
     for (const consumer of consumers) {
       const consumerServed = new Map<MaterialType, number>();

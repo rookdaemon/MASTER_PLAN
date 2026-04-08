@@ -6,6 +6,7 @@ import {
   simulateDepot,
   serveConsumersByPriority,
   CONSUMER_PRIORITY,
+  PRIORITY_ORDER,
 } from '../../src/asteroid/depot.js';
 import type {
   ConsumerEndpoint,
@@ -214,6 +215,11 @@ describe('CONSUMER_PRIORITY', () => {
   it('maps manufacturing to normal', () => {
     expect(CONSUMER_PRIORITY['manufacturing']).toBe('normal');
   });
+
+  it('PRIORITY_ORDER starts with critical and ends with low', () => {
+    expect(PRIORITY_ORDER[0]).toBe('critical');
+    expect(PRIORITY_ORDER[PRIORITY_ORDER.length - 1]).toBe('low');
+  });
 });
 
 describe('serveConsumersByPriority', () => {
@@ -305,8 +311,9 @@ describe('simulateDepot priority integration', () => {
       },
     ];
     const depot = createDepot('priority-sim', testLocation, consumers, 1_000_000);
+    const SIMULATION_DAYS = 60;
 
-    const result = simulateDepot(depot, 60, (_day) => [
+    const result = simulateDepot(depot, SIMULATION_DAYS, (_day) => [
       { material: 'iron', purity: 0.96, massKg: 12, destinationDepot: 'priority-sim' },
     ]);
 
