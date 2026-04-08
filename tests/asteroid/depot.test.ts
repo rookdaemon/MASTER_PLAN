@@ -4,6 +4,8 @@ import {
   addToInventory,
   dispenseMaterial,
   simulateDepot,
+  serveConsumersByPriority,
+  CONSUMER_PRIORITY,
 } from '../../src/asteroid/depot.js';
 import type {
   ConsumerEndpoint,
@@ -197,5 +199,123 @@ describe('simulateDepot', () => {
     // With 30+ days buffer and 20-day interruption, should survive
     expect(result.maxGapDays).toBeLessThanOrEqual(30);
     expect(result.allConsumersServed).toBe(true);
+  });
+});
+
+describe('CONSUMER_PRIORITY', () => {
+  it('maps consciousness-platform to critical', () => {
+    expect(CONSUMER_PRIORITY['consciousness-platform']).toBe('critical');
+  });
+
+  it('maps propellant-depot to high', () => {
+    expect(CONSUMER_PRIORITY['propellant-depot']).toBe('high');
+  });
+
+  it('maps manufacturing to normal', () => {
+    expect(CONSUMER_PRIORITY['manufacturing']).toBe('normal');
+  });
+});
+
+describe('serveConsumersByPriority', () => {
+  it('serves critical consumers fully before normal consumers under scarcity', () => {
+    // Only enough iron for the critical consciousness consumer (10 kg),
+    // not for the normal manufacturing consumer (20 kg) as well.
+    const consumers: ConsumerEndpoint[] = [
+      {
+        id: 'manufacturing-first',
+        type: 'manufacturing',
+        planCard: '0.4.1.3',
+        demandForecast: [{ material: 'iron', dailyRateKg: 20 }],
+      },
+      {
+        id: 'consciousness-second',
+        type: 'consciousness-platform',
+        planCard: '0.4.1.1',
+        demandForecast: [{ material: 'iron', dailyRateKg: 10 }],
+      },
+    ];
+    const depot = createDepot('scarcity-depot', testLocation, consumers, 1_000_000);
+    depot.inventory.set('iron', 10); // exactly enough for consciousness only
+
+    const result = serveConsumersByPriority(depot);
+
+    // Consciousness platform received full allocation
+    expect(result.get('consciousness-second')?.get('iron')).toBe(10);
+    // Manufacturing received nothing (inventory exhausted by critical tier)
+    expect(result.get('manufacturing-first')?.get('iron')).toBe(0);
+  });
+
+  it('serves high-priority propellant-depot before normal manufacturing', () => {
+    const consumers: ConsumerEndpoint[] = [
+      {
+        id: 'manuf',
+        type: 'manufacturing',
+        planCard: '0.4.1.3',
+        demandForecast: [{ material: 'nickel', dailyRateKg: 15 }],
+      },
+      {
+        id: 'prop',
+        type: 'propellant-depot',
+        planCard: '0.4.1.2',
+        demandForecast: [{ material: 'nickel', dailyRateKg: 10 }],
+      },
+    ];
+    const depot = createDepot('prop-depot', testLocation, consumers, 1_000_000);
+    depot.inventory.set('nickel', 10); // only enough for propellant-depot
+
+    const result = serveConsumersByPriority(depot);
+
+    expect(result.get('prop')?.get('nickel')).toBe(10);
+    expect(result.get('manuf')?.get('nickel')).toBe(0);
+  });
+
+  it('returns zero dispensed for consumers with no matching inventory', () => {
+    const consumers: ConsumerEndpoint[] = [
+      {
+        id: 'cp',
+        type: 'consciousness-platform',
+        planCard: '0.4.1.1',
+        demandForecast: [{ material: 'lh2', dailyRateKg: 5 }],
+      },
+    ];
+    const depot = createDepot('empty-depot', testLocation, consumers, 1_000_000);
+    // inventory starts at 0
+
+    const result = serveConsumersByPriority(depot);
+
+    expect(result.get('cp')?.get('lh2')).toBe(0);
+  });
+});
+
+describe('simulateDepot priority integration', () => {
+  it('consciousness-platform has no gap while manufacturing starves under limited supply', () => {
+    // Iron supply: 12 kg/day — just enough for consciousness (10) but not manufacturing (20)
+    const consumers: ConsumerEndpoint[] = [
+      {
+        id: 'manuf',
+        type: 'manufacturing',
+        planCard: '0.4.1.3',
+        demandForecast: [{ material: 'iron', dailyRateKg: 20 }],
+      },
+      {
+        id: 'cp',
+        type: 'consciousness-platform',
+        planCard: '0.4.1.1',
+        demandForecast: [{ material: 'iron', dailyRateKg: 10 }],
+      },
+    ];
+    const depot = createDepot('priority-sim', testLocation, consumers, 1_000_000);
+
+    const result = simulateDepot(depot, 60, (_day) => [
+      { material: 'iron', purity: 0.96, massKg: 12, destinationDepot: 'priority-sim' },
+    ]);
+
+    const cpGaps = result.supplyGaps.filter((g) => g.consumerId === 'cp');
+    const manufGaps = result.supplyGaps.filter((g) => g.consumerId === 'manuf');
+
+    // Consciousness platform should have no supply gaps
+    expect(cpGaps).toHaveLength(0);
+    // Manufacturing should have a persistent gap (only 2 kg/day left after cp takes 10)
+    expect(manufGaps.length).toBeGreaterThan(0);
   });
 });

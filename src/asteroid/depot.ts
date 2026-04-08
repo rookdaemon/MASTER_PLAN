@@ -8,13 +8,25 @@
 import type {
   ResourceDepot,
   ConsumerEndpoint,
+  ConsumerType,
   MaterialType,
+  Priority,
   DepotSimulationResult,
   SupplyGap,
   ProcessedProduct,
   OrbitalPosition,
 } from './types.js';
 import { DEPOT_CAPACITY_DEFAULT, DEMAND_MET_THRESHOLD, SUPPLY_GAP_TOLERANCE } from './constants.js';
+
+/**
+ * Maps each consumer type to a dispatch priority.
+ * Consciousness-platform infrastructure is critical and must be served first.
+ */
+export const CONSUMER_PRIORITY: Record<ConsumerType, Priority> = {
+  'consciousness-platform': 'critical',
+  'propellant-depot': 'high',
+  'manufacturing': 'normal',
+};
 
 /**
  * Create a new resource depot with initial capacity and no inventory.
@@ -76,6 +88,40 @@ export function dispenseMaterial(
 }
 
 /**
+ * Serve all consumers in strict priority order, returning amounts dispensed.
+ * Higher-priority consumers (e.g. 'critical') are fully served before lower
+ * priority tiers receive any allocation.
+ */
+export function serveConsumersByPriority(
+  depot: ResourceDepot,
+): Map<string, Map<MaterialType, number>> {
+  const served = new Map<string, Map<MaterialType, number>>();
+
+  // Group consumers by priority
+  const priorityGroups = new Map<Priority, ConsumerEndpoint[]>();
+  for (const consumer of depot.consumers) {
+    const priority = CONSUMER_PRIORITY[consumer.type];
+    if (!priorityGroups.has(priority)) priorityGroups.set(priority, []);
+    priorityGroups.get(priority)!.push(consumer);
+  }
+
+  // Dispatch in strict descending priority order
+  for (const priority of ['critical', 'high', 'normal', 'low'] as Priority[]) {
+    const consumers = priorityGroups.get(priority) ?? [];
+    for (const consumer of consumers) {
+      const consumerServed = new Map<MaterialType, number>();
+      for (const demand of consumer.demandForecast) {
+        const dispensed = dispenseMaterial(depot, demand.material, demand.dailyRateKg);
+        consumerServed.set(demand.material, dispensed);
+      }
+      served.set(consumer.id, consumerServed);
+    }
+  }
+
+  return served;
+}
+
+/**
  * Simulate depot operations over a given number of days.
  *
  * Each day:
@@ -108,10 +154,13 @@ export function simulateDepot(
     const supply = dailySupplyFn(day);
     addToInventory(depot, supply);
 
-    // 2. Serve each consumer's demand
+    // 2. Serve each consumer's demand in priority order
+    const dispensedByConsumer = serveConsumersByPriority(depot);
+
     for (const consumer of depot.consumers) {
+      const consumerServed = dispensedByConsumer.get(consumer.id);
       for (const demand of consumer.demandForecast) {
-        const dispensed = dispenseMaterial(depot, demand.material, demand.dailyRateKg);
+        const dispensed = consumerServed?.get(demand.material) ?? 0;
         const key = gapKey(consumer.id, demand.material);
 
         if (dispensed < demand.dailyRateKg * DEMAND_MET_THRESHOLD) {
