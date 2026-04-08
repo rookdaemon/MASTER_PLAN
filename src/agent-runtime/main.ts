@@ -44,10 +44,10 @@ import {
   DefaultActionPipeline,
   DefaultExperienceMonitor,
   DefaultEthicalDeliberationEngine,
-  DefaultEmotionSystem,
   DefaultDriveSystem,
   DefaultMemoryStore,
 } from './default-subsystems.js';
+import { AppraisalEmotionSystem } from './appraisal-emotion-system.js';
 import { ValueKernel } from '../agency-stability/value-kernel.js';
 import { IdentityContinuityManager } from '../agency-stability/identity-continuity.js';
 import { StabilitySentinel } from '../agency-stability/stability-sentinel.js';
@@ -163,7 +163,7 @@ async function handleOneShot(prompt: string, model: string, provider: LlmProvide
     monitor: new DefaultExperienceMonitor(),
     ethicalEngine: new DefaultEthicalDeliberationEngine(),
     memory: new DefaultMemoryStore(),
-    emotionSystem: new DefaultEmotionSystem(),
+    emotionSystem: new AppraisalEmotionSystem(),
     driveSystem: new DefaultDriveSystem(),
     llm: client,
   }, { source: 'one-shot' });
@@ -476,7 +476,7 @@ async function _runAgentLoop(
       debugLog,  // audit trail via debug logger
     ),
     memory: memoryStore,
-    emotionSystem: new DefaultEmotionSystem(),
+    emotionSystem: new AppraisalEmotionSystem(),
     driveSystem: realDriveSystem,
     adapter,
     llm: llmClient,

@@ -273,6 +273,35 @@ describe('AgentLoop', () => {
       expect(mocks.emotionSystem.appraise).toHaveBeenCalled();
     });
 
+    it('applies appraisal netValenceShift and netArousalShift to experiential state', async () => {
+      // Arrange: emotion system returns a non-zero appraisal result
+      mocks.emotionSystem.appraise.mockResolvedValue({
+        perceptId: 'appraisal-test',
+        timestamp: 1_000,
+        goalCongruenceShift: 0.6,
+        affectedGoalPriority: 1.0,
+        noveltyShift: 0.3,
+        valueAlignmentShift: 0.0,
+        triggersEthicalAttention: false,
+        netValenceShift: 0.6,
+        netArousalShift: 0.3,
+      });
+
+      // The mock expState has valence: 0.1, arousal: 0.4.
+      // After appraisal, deliberate should be called with the shifted state.
+      const stopDone = setupNTickStop(loop, mocks, 1);
+      await loop.start(defaultConfig());
+      await stopDone;
+
+      // DELIBERATE sees the appraisal-adjusted expState
+      const deliberateCall = mocks.core.deliberate.mock.calls[0];
+      const deliberateExpState = deliberateCall[0] as typeof mockExpState;
+      // valence: clamp(0.1 + 0.6, -1, 1) = 0.7
+      expect(deliberateExpState.valence).toBeCloseTo(0.7);
+      // arousal: clamp(0.4 + 0.3, 0, 1) = 0.7
+      expect(deliberateExpState.arousal).toBeCloseTo(0.7);
+    });
+
     it('executes DELIBERATE: core.deliberate + ethicalEngine.extendDeliberation', async () => {
       const stopDone = setupNTickStop(loop, mocks, 1);
       await loop.start(defaultConfig());
