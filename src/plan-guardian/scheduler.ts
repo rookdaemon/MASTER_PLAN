@@ -178,7 +178,15 @@ async function runWorker(
       }
     : undefined;
 
-  return runPlanningWorker(item.task, item.actionType, dag, provider, now, 4096, validateText);
+  return runPlanningWorker(
+    item.task,
+    item.actionType,
+    dag,
+    provider,
+    now,
+    config.maxTokensPerCall,
+    validateText,
+  );
 }
 
 function runTextValidation(

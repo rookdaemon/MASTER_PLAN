@@ -11,6 +11,7 @@
 
 import type { IInferenceProvider } from '../llm-substrate/inference-provider.js';
 import type { IFileSystem } from '../agent-runtime/filesystem.js';
+import type { ModelMetadata } from './model-metadata.js';
 
 // ── Plan File Model ──────────────────────────────────────────
 
@@ -122,13 +123,16 @@ export interface GuardianConfig {
   planDir: string;
   repoRoot: string;
   concurrency: number;
+  requestedConcurrency: number;
   maxIterations: number;
   maxDepth: number;
   dryRun: boolean;
   cycleThreshold: number;
   strictIntegrity: boolean;
   maxNewFilesPerAction: number;
+  maxTokensPerCall: number;
   quarantineBranch?: string;
+  modelMetadata?: ModelMetadata;
   /** Single provider for all actions — planning and execution alike. */
   provider: IInferenceProvider;
   fs: IFileSystem;

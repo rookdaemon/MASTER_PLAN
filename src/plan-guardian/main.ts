@@ -23,24 +23,34 @@ import { NodeFileSystem } from '../agent-runtime/filesystem.js';
 import { NodeGitOperations } from './git-state.js';
 import type { GuardianConfig } from './interfaces.js';
 import { buildProvider } from './provider-factory.js';
+import { fetchModelMetadata, deriveExecutionBudget } from './model-metadata.js';
+import { GuardianDebugLog } from './debug-log.js';
 
 async function main() {
   const opts = parseCli(process.argv);
   const repoRoot = resolve('.');
 
+  const debugLog = new GuardianDebugLog(resolve('.guardian', 'guardian-debug.log'));
+  debugLog.rotateOnStart();
+
   const provider = buildProvider(opts.provider, opts.model);
+  const metadata = await fetchModelMetadata(opts.provider, opts.model);
+  const budget = deriveExecutionBudget(opts.concurrency, metadata);
 
   const config: GuardianConfig = {
     planDir: opts.planDir,
     repoRoot,
-    concurrency: opts.concurrency,
+    concurrency: budget.concurrency,
+    requestedConcurrency: opts.concurrency,
     maxIterations: opts.maxIterations,
     maxDepth: opts.maxDepth,
     dryRun: opts.dryRun,
     cycleThreshold: opts.cycleThreshold,
     strictIntegrity: opts.strictIntegrity,
     maxNewFilesPerAction: opts.maxNewFilesPerAction,
+    maxTokensPerCall: budget.maxTokensPerCall,
     quarantineBranch: opts.quarantineBranch,
+    modelMetadata: metadata,
     provider,
     fs: new NodeFileSystem(),
     git: new NodeGitOperations(repoRoot),
@@ -49,24 +59,56 @@ async function main() {
 
   console.log(`[guardian] Starting Plan Guardian`);
   console.log(`[guardian] Provider: ${opts.provider}/${opts.model}`);
-  console.log(`[guardian] Concurrency: ${opts.concurrency} | Max iterations: ${opts.maxIterations} | Dry run: ${opts.dryRun}`);
+  console.log(`[guardian] Concurrency: ${config.concurrency} (requested ${config.requestedConcurrency}) | Max iterations: ${opts.maxIterations} | Dry run: ${opts.dryRun}`);
   console.log(`[guardian] Strict integrity: ${opts.strictIntegrity} | Max new files/action: ${opts.maxNewFilesPerAction} | Quarantine branch: ${opts.quarantineBranch ?? 'none'}`);
+  console.log(`[guardian] Max tokens/call: ${config.maxTokensPerCall}`);
+
+  debugLog.log('startup', 'guardian started', {
+    provider: opts.provider,
+    model: opts.model,
+    requestedConcurrency: config.requestedConcurrency,
+    effectiveConcurrency: config.concurrency,
+    maxTokensPerCall: config.maxTokensPerCall,
+    strictIntegrity: config.strictIntegrity,
+    quarantineBranch: config.quarantineBranch ?? null,
+    metadata,
+    budgetNotes: budget.notes,
+  });
 
   const results = await runScheduler(config, {
     onEpochStart(epoch, batchSize) {
       console.log(`[guardian] Epoch ${epoch}: dispatching ${batchSize} task(s)`);
+      debugLog.log('epoch', 'epoch start', { epoch, batchSize });
     },
     onWorkerComplete(result) {
       console.log(`[guardian]   ✓ ${result.action.type}: ${result.action.summary} (${result.tokensUsed.prompt + result.tokensUsed.completion} tokens, ${result.latencyMs}ms)`);
+      debugLog.log('worker', 'worker complete', {
+        actionType: result.action.type,
+        targetPath: result.action.targetPath,
+        summary: result.action.summary,
+        promptTokens: result.tokensUsed.prompt,
+        completionTokens: result.tokensUsed.completion,
+        latencyMs: result.latencyMs,
+      });
     },
     onWorkerError(task, error) {
       console.error(`[guardian]   ✗ ${task}: ${error.message}`);
+      debugLog.log('worker', 'worker error', { task, error: error.message });
     },
     onCommit(hash, message) {
       console.log(`[guardian]   → ${hash} ${message}`);
+      debugLog.log('commit', 'commit', { hash, message });
     },
     onEpochEnd(result) {
       console.log(`[guardian] Epoch ${result.epoch} done: ${result.completed} completed, ${result.failed} failed`);
+      debugLog.log('epoch', 'epoch end', {
+        epoch: result.epoch,
+        dispatched: result.dispatched,
+        completed: result.completed,
+        failed: result.failed,
+        commits: result.commits,
+        totalTokens: result.totalTokens,
+      });
     },
   });
 
@@ -76,9 +118,17 @@ async function main() {
   }), { prompt: 0, completion: 0 });
 
   console.log(`[guardian] Done. ${results.length} epoch(s), ${totalTokens.prompt + totalTokens.completion} total tokens.`);
+  debugLog.log('shutdown', 'guardian completed', {
+    epochs: results.length,
+    totalPromptTokens: totalTokens.prompt,
+    totalCompletionTokens: totalTokens.completion,
+    totalTokens: totalTokens.prompt + totalTokens.completion,
+  });
 }
 
 main().catch(err => {
+  const debugLog = new GuardianDebugLog(resolve('.guardian', 'guardian-debug.log'));
+  debugLog.log('fatal', 'guardian fatal error', { error: err instanceof Error ? err.message : String(err) });
   console.error(`[guardian] Fatal: ${err.message}`);
   process.exit(1);
 });
