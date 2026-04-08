@@ -40,6 +40,7 @@ export interface EpochResult {
 
 export interface SchedulerCallbacks {
   onEpochStart?(epoch: number, batchSize: number): void;
+  onWorkerStart?(task: string, actionType: DispatchItem['actionType']): void;
   onWorkerComplete?(result: WorkerResult): void;
   onWorkerError?(task: string, error: Error): void;
   onCommit?(hash: string, message: string): void;
@@ -79,7 +80,10 @@ export async function runEpoch(
   const batch = selectIndependentBatch(candidates, concurrency);
   callbacks.onEpochStart?.(epoch, batch.length);
 
-  const workerPromises = batch.map(item => runWorker(item, dag, provider, now, config));
+  const workerPromises = batch.map(item => {
+    callbacks.onWorkerStart?.(item.task.path, item.actionType);
+    return runWorker(item, dag, provider, now, config);
+  });
   const settled = await Promise.allSettled(workerPromises);
 
   const successful: WorkerResult[] = [];

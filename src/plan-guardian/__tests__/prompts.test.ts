@@ -64,6 +64,7 @@ describe('buildSystemPrompt', () => {
       const prompt = buildSystemPrompt(action);
       expect(prompt).toContain('Plan Guardian');
       expect(prompt).toContain('plan-file:');
+      expect(prompt).toContain('Filename rule:');
     });
 
     it(`contains action-specific instructions for ${action}`, () => {

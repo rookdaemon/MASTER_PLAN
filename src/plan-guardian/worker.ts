@@ -14,6 +14,12 @@ import { parseActionOutput } from './actions.js';
 
 export type ActionValidator = (actionText: string) => string[];
 
+const REPAIR_REMINDER = [
+  'Regenerate output with the exact same action type and valid references only.',
+  'For every plan-file block, the H1 numeric ID must exactly match the numeric prefix in the file path.',
+  'Example: `# 0.7.3.2 Child [PLAN]` must use `plan/0.7.3.2-child.md`, not `plan/0.7.3-2-child.md` or `plan/0.7.3-2-slug.md`.',
+].join('\n');
+
 export async function runPlanningWorker(
   task: PlanFile,
   actionType: PlanningActionType,
@@ -51,7 +57,7 @@ export async function runPlanningWorker(
     };
   }
 
-  const repairMessage = `${userMessage}\n\nREPAIR REQUIRED\nYour last output violated integrity constraints:\n${firstViolations.map(v => `- ${v}`).join('\n')}\n\nRegenerate output with the exact same action type and valid references only.`;
+  const repairMessage = `${userMessage}\n\nREPAIR REQUIRED\nYour last output violated integrity constraints:\n${firstViolations.map(v => `- ${v}`).join('\n')}\n\n${REPAIR_REMINDER}`;
 
   const second = await provider.infer(
     systemPrompt,

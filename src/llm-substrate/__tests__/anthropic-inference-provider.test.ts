@@ -183,4 +183,32 @@ describe('AnthropicInferenceProvider', () => {
     expect(result.text).toBeNull();
     expect(result.toolCalls).toHaveLength(1);
   });
+
+  it('times out stalled requests', async () => {
+    vi.useFakeTimers();
+    fetchSpy.mockImplementation((_url, init) => new Promise((_resolve, reject) => {
+      const signal = (init as { signal?: AbortSignal }).signal;
+      signal?.addEventListener('abort', () => {
+        const err = new Error('aborted');
+        err.name = 'AbortError';
+        reject(err);
+      });
+    }));
+
+    const provider = new AnthropicInferenceProvider(
+      'claude-opus-4-5',
+      new StubAuth(),
+      'https://api.anthropic.com/v1',
+      0,
+      () => Date.now(),
+      25,
+    );
+
+    const pending = provider.infer('sys', [{ role: 'user', content: 'hi' }], [], 100);
+    const expectation = expect(pending).rejects.toThrow(/timed out after 25ms/);
+    await vi.advanceTimersByTimeAsync(30);
+
+    await expectation;
+    vi.useRealTimers();
+  });
 });

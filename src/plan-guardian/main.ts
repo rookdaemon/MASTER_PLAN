@@ -80,6 +80,10 @@ async function main() {
       console.log(`[guardian] Epoch ${epoch}: dispatching ${batchSize} task(s)`);
       debugLog.log('epoch', 'epoch start', { epoch, batchSize });
     },
+    onWorkerStart(task, actionType) {
+      console.log(`[guardian]   → starting ${actionType}: ${task}`);
+      debugLog.log('worker', 'worker start', { task, actionType });
+    },
     onWorkerComplete(result) {
       console.log(`[guardian]   ✓ ${result.action.type}: ${result.action.summary} (${result.tokensUsed.prompt + result.tokensUsed.completion} tokens, ${result.latencyMs}ms)`);
       debugLog.log('worker', 'worker complete', {

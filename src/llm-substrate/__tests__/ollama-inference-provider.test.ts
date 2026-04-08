@@ -197,4 +197,31 @@ describe('OllamaInferenceProvider', () => {
     expect(result.promptTokens).toBe(42);
     expect(result.completionTokens).toBe(17);
   });
+
+  it('times out stalled requests', async () => {
+    vi.useFakeTimers();
+    fetchSpy.mockImplementation((_url, init) => new Promise((_resolve, reject) => {
+      const signal = (init as { signal?: AbortSignal }).signal;
+      signal?.addEventListener('abort', () => {
+        const err = new Error('aborted');
+        err.name = 'AbortError';
+        reject(err);
+      });
+    }));
+
+    const provider = new OllamaInferenceProvider(
+      'llama3',
+      new StubAuth(),
+      'http://localhost:11434/v1',
+      () => Date.now(),
+      25,
+    );
+
+    const pending = provider.infer('sys', [{ role: 'user', content: 'hi' }], [], 100);
+    const expectation = expect(pending).rejects.toThrow(/timed out after 25ms/);
+    await vi.advanceTimersByTimeAsync(30);
+
+    await expectation;
+    vi.useRealTimers();
+  });
 });

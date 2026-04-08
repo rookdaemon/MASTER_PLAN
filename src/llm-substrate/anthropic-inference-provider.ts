@@ -62,6 +62,7 @@ export class AnthropicInferenceProvider implements IInferenceProvider {
     private readonly endpoint: string,
     private readonly thinkingBudgetTokens: number = 0,
     private readonly now: () => number = () => Date.now(),
+    private readonly requestTimeoutMs: number = parseRequestTimeoutMs(),
   ) {}
 
   async probe(): Promise<{ reachable: boolean; latencyMs: number; error?: string }> {
@@ -128,11 +129,26 @@ export class AnthropicInferenceProvider implements IInferenceProvider {
       ...this.authProvider.getHeaders(),
     };
 
-    const response = await fetch(`${this.endpoint}/messages`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-    });
+    const { signal, cancel } = createRequestTimeout(this.requestTimeoutMs);
+
+    let response: Response;
+    try {
+      response = await fetch(`${this.endpoint}/messages`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+        signal,
+      });
+    } catch (err) {
+      if (isAbortError(err)) {
+        throw new Error(
+          `Inference request timed out after ${this.requestTimeoutMs}ms (${this.endpoint}/messages, model=${this.modelId})`
+        );
+      }
+      throw err;
+    } finally {
+      cancel();
+    }
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => "(could not read body)");
@@ -233,4 +249,23 @@ export class AnthropicInferenceProvider implements IInferenceProvider {
 
     return result;
   }
+}
+
+function parseRequestTimeoutMs(): number {
+  const raw = process.env['LLM_REQUEST_TIMEOUT_MS'];
+  const parsed = Number.parseInt(raw ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 120000;
+}
+
+function createRequestTimeout(timeoutMs: number): { signal: AbortSignal; cancel: () => void } {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return {
+    signal: controller.signal,
+    cancel: () => clearTimeout(timer),
+  };
+}
+
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && err.name === 'AbortError';
 }

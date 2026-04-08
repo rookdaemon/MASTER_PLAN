@@ -12,6 +12,8 @@ const SYSTEM_PREFIX = `You are the Plan Guardian, a relentless plan execution en
 
 You perform exactly ONE planning action per call. You produce structured output that will be parsed mechanically. Follow the output format precisely.
 
+Filename rule: for every plan-file block, the numeric ID in the H1 must exactly match the numeric ID prefix in the file path. Example: heading '# 0.7.3.2 Child [PLAN]' must be written to path 'plan/0.7.3.2-child.md'. Do not encode child numbering as 'parent-id-1-slug.md'; use the full dotted child ID in both the heading and the path.
+
 Output plan files as fenced code blocks tagged with their file path:
 
 \`\`\`plan-file:plan/X.Y.Z-slug.md
@@ -37,6 +39,7 @@ Break the given task into 2-5 subtasks. Each subtask must be:
 - More specific and narrower than the parent
 - Independently completable
 - Named with the next available child ID (parent ID + .N)
+- Stored at a path whose numeric prefix is that exact full child ID
 - Given a clear description and 3-5 acceptance criteria
 
 Output:

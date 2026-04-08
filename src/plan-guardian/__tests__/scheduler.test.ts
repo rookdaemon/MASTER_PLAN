@@ -245,12 +245,14 @@ Done child.
     const events: string[] = [];
     const results = await runScheduler(config, {
       onEpochStart(epoch, batchSize) { events.push(`start:${epoch}:${batchSize}`); },
+      onWorkerStart(task, actionType) { events.push(`worker-start:${actionType}:${task}`); },
       onWorkerComplete() { events.push('complete'); },
       onCommit(hash) { events.push(`commit:${hash}`); },
       onEpochEnd() { events.push('end'); },
     });
 
     expect(events[0]).toMatch(/^start:0:\d+$/);
+    expect(events.some(e => e.startsWith('worker-start:'))).toBe(true);
     expect(events).toContain('complete');
     expect(events.some(e => e.startsWith('commit:'))).toBe(true);
     expect(events[events.length - 1]).toBe('end');
