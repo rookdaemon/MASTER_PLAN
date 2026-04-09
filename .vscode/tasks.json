@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "vitest: plan-guardian",
+			"type": "shell",
+			"command": "npx vitest run src/plan-guardian",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		}
+	]
+}

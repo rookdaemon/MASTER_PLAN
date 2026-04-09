@@ -6,7 +6,11 @@ describe('parseCli', () => {
     const opts = parseCli(['node', 'main.ts']);
     expect(opts.planDir).toBe('plan');
     expect(opts.provider).toBe('openrouter');
-    expect(opts.model).toBe('gpt-oss-120b:free');
+    expect(opts.models).toEqual([
+      'nvidia/nemotron-3-super-120b-a12b:free',
+      'qwen/qwen3-coder:free',
+      'gpt-oss-120b:free',
+    ]);
     expect(opts.concurrency).toBe(20);
     expect(opts.maxIterations).toBe(Infinity);
     expect(opts.dryRun).toBe(false);
@@ -32,7 +36,7 @@ describe('parseCli', () => {
     ]);
     expect(opts.planDir).toBe('./myplan');
     expect(opts.provider).toBe('openrouter');
-    expect(opts.model).toBe('claude-sonnet-4-20250514');
+    expect(opts.models).toEqual(['claude-sonnet-4-20250514']);
     expect(opts.concurrency).toBe(30);
     expect(opts.maxIterations).toBe(10);
     expect(opts.maxDepth).toBe(6);

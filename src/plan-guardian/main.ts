@@ -24,6 +24,7 @@ import { NodeGitOperations } from './git-state.js';
 import type { GuardianConfig } from './interfaces.js';
 import { buildProvider } from './provider-factory.js';
 import { fetchModelMetadata, deriveExecutionBudget } from './model-metadata.js';
+import { PriorityModelSelector } from './model-selector.js';
 import { GuardianDebugLog } from './debug-log.js';
 
 async function main() {
@@ -33,8 +34,19 @@ async function main() {
   const debugLog = new GuardianDebugLog(resolve('.guardian', 'guardian-debug.log'));
   debugLog.rotateOnStart();
 
-  const provider = buildProvider(opts.provider, opts.model);
-  const metadata = await fetchModelMetadata(opts.provider, opts.model);
+  const provider = buildProvider(opts.provider, opts.models[0]);
+  const metadata = await fetchModelMetadata(opts.provider, opts.models[0]);
+
+  // opts.models is already priority-ordered (from --model flags or the CLI defaults).
+  const modelSelector =
+    opts.provider === 'openrouter' && opts.models.length > 1
+      ? new PriorityModelSelector(
+          opts.models.map(modelId => ({
+            modelId,
+            provider: buildProvider(opts.provider, modelId),
+          })),
+        )
+      : undefined;
   const budget = deriveExecutionBudget(opts.concurrency, metadata);
 
   const config: GuardianConfig = {
@@ -52,6 +64,7 @@ async function main() {
     quarantineBranch: opts.quarantineBranch,
     modelMetadata: metadata,
     provider,
+    modelSelector,
     fs: new NodeFileSystem(),
     git: new NodeGitOperations(repoRoot),
     clock: { now: () => new Date().toISOString() },
@@ -63,14 +76,17 @@ async function main() {
   };
 
   console.log(`[guardian] Starting Plan Guardian`);
-  console.log(`[guardian] Provider: ${opts.provider}/${opts.model}`);
+  console.log(`[guardian] Provider: ${opts.provider}/${opts.models[0]}`);
+  if (modelSelector) {
+    console.log(`[guardian] Model priority: ${modelSelector.modelIds.join(' → ')}`);
+  }
   console.log(`[guardian] Concurrency: ${config.concurrency} (requested ${config.requestedConcurrency}) | Max iterations: ${opts.maxIterations} | Dry run: ${opts.dryRun}`);
   console.log(`[guardian] Strict integrity: ${opts.strictIntegrity} | Max new files/action: ${opts.maxNewFilesPerAction} | Quarantine branch: ${opts.quarantineBranch ?? 'none'}`);
   console.log(`[guardian] Max tokens/call: ${config.maxTokensPerCall}`);
 
   debugLog.log('startup', 'guardian started', {
     provider: opts.provider,
-    model: opts.model,
+    models: opts.models,
     requestedConcurrency: config.requestedConcurrency,
     effectiveConcurrency: config.concurrency,
     maxTokensPerCall: config.maxTokensPerCall,

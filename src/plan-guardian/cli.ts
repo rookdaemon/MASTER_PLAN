@@ -2,7 +2,7 @@
  * CLI Argument Parser — Plan Guardian
  *
  * Pure function: argv → config values. No side effects.
- * Single provider — the system is designed so a 7B handles everything.
+ * Supports multiple --model flags to build a priority fallback list.
  *
  * Domain: Plan Guardian
  */
@@ -12,7 +12,8 @@ export type LlmProvider = 'anthropic' | 'openai' | 'openrouter' | 'local';
 export interface CliOptions {
   planDir: string;
   provider: LlmProvider;
-  model: string;
+  /** Priority-ordered model list; index 0 is most preferred. */
+  models: string[];
   concurrency: number;
   maxIterations: number;
   maxDepth: number;
@@ -26,7 +27,11 @@ export interface CliOptions {
 const DEFAULTS: CliOptions = {
   planDir: 'plan',
   provider: 'openrouter',
-  model: 'gpt-oss-120b:free',
+  models: [
+    'nvidia/nemotron-3-super-120b-a12b:free',
+    'qwen/qwen3-coder:free',
+    'gpt-oss-120b:free',
+  ],
   concurrency: 20,
   maxIterations: Infinity,
   maxDepth: 8,
@@ -40,7 +45,8 @@ const DEFAULTS: CliOptions = {
 const VALID_PROVIDERS = new Set<string>(['anthropic', 'openai', 'openrouter', 'local']);
 
 export function parseCli(argv: string[]): CliOptions {
-  const opts = { ...DEFAULTS };
+  const opts: CliOptions = { ...DEFAULTS, models: [...DEFAULTS.models] };
+  let modelsExplicit = false;
   const args = argv.slice(2);
 
   for (let i = 0; i < args.length; i++) {
@@ -58,7 +64,9 @@ export function parseCli(argv: string[]): CliOptions {
         opts.provider = validateProvider(next());
         break;
       case '--model':
-        opts.model = next();
+        // First explicit --model clears the defaults; subsequent ones append in priority order.
+        if (!modelsExplicit) { opts.models = []; modelsExplicit = true; }
+        opts.models.push(next());
         break;
       case '--concurrency':
         opts.concurrency = parseInt(next(), 10);
@@ -94,6 +102,7 @@ export function parseCli(argv: string[]): CliOptions {
     }
   }
 
+  if (opts.models.length === 0) throw new Error('At least one --model is required');
   return opts;
 }
 

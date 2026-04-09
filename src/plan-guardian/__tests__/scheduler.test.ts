@@ -422,10 +422,9 @@ Done child.
     });
 
     const results = await runScheduler(config).done;
-    expect(results).toHaveLength(3);
-    expect(results[0].rateLimitFailures).toBeGreaterThan(0);
-    expect(results[1].rateLimitFailures).toBeGreaterThan(0);
-    expect(results[2].rateLimitFailures).toBeGreaterThan(0);
+    expect(results).toHaveLength(1);
+    expect(results[0].epoch).toBe(0);
+    expect(results[0].rateLimitFailures).toBe(3);
     expect(time.sleepCalls).toEqual([5000, 10000]);
   });
 
@@ -451,7 +450,9 @@ Done child.
       sleeper: time.sleeper,
     });
 
-    await runScheduler(config).done;
+    const results = await runScheduler(config).done;
+    expect(results).toHaveLength(1);
+    expect(results[0].epoch).toBe(0);
     expect(time.sleepCalls).toEqual([10000]);
   });
 
@@ -472,7 +473,9 @@ Done child.
       sleeper: time.sleeper,
     });
 
-    await runScheduler(config).done;
+    const results = await runScheduler(config).done;
+    expect(results).toHaveLength(1);
+    expect(results[0].epoch).toBe(0);
     expect(time.sleepCalls).toEqual([2 * 60 * 60 * 1000]);
   });
 
@@ -496,7 +499,9 @@ Done child.
       sleeper: time.sleeper,
     });
 
-    await runScheduler(config).done;
+    const results = await runScheduler(config).done;
+    expect(results).toHaveLength(1);
+    expect(results[0].epoch).toBe(0);
     expect(time.sleepCalls).toEqual([10000]);
   });
 
@@ -617,7 +622,8 @@ Impl B.
     });
 
     const results = await runScheduler(config).done;
-    expect(results).toHaveLength(2);
+    expect(results).toHaveLength(1);
+    expect(results[0].epoch).toBe(0);
     expect(results[0].rateLimitFailures).toBeGreaterThan(0);
     expect(time.sleepCalls).toEqual([5000]);
     expect(seenTaskPrompts.some(prompt => prompt.includes('Path: plan/0.1.1-impl-b.md'))).toBe(false);

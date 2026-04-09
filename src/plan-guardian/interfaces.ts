@@ -12,6 +12,7 @@
 import type { IInferenceProvider } from '../llm-substrate/inference-provider.js';
 import type { IFileSystem } from '../agent-runtime/filesystem.js';
 import type { ModelMetadata } from './model-metadata.js';
+import type { IModelSelector } from './model-selector.js';
 
 // ── Plan File Model ──────────────────────────────────────────
 
@@ -140,8 +141,14 @@ export interface GuardianConfig {
   maxTokensPerCall: number;
   quarantineBranch?: string;
   modelMetadata?: ModelMetadata;
-  /** Single provider for all actions — planning and execution alike. */
+  /** Single provider used when no modelSelector is configured. */
   provider: IInferenceProvider;
+  /**
+   * Optional priority-ordered model selector. When present, replaces `provider`
+   * for all inference dispatch — the selector handles per-model rate-limit
+   * circuit breaking and automatic fallback to the next available model.
+   */
+  modelSelector?: IModelSelector;
   fs: IFileSystem;
   git: IGitOperations;
   clock: IClock;
