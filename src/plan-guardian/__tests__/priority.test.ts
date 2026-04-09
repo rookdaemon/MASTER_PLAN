@@ -82,10 +82,11 @@ describe('prioritize', () => {
     const paths = result.map(r => r.task.path);
     expect(paths).not.toContain('plan/0.1-beta.md');
     expect(paths).not.toContain('plan/root.md'); // DONE
-    // Parent-first gating: children are not eligible while parent is in progress.
-    expect(paths).toContain('plan/0.0-alpha.md');
-    expect(paths).not.toContain('plan/0.0.1-a1.md');
-    expect(paths).not.toContain('plan/0.0.2-a2.md');
+    // Alpha has children that are not DONE — it yields to its children instead of running consolidate.
+    expect(paths).not.toContain('plan/0.0-alpha.md');
+    // Children are now eligible since alpha has already been decomposed (has children).
+    expect(paths).toContain('plan/0.0.1-a1.md');
+    expect(paths).toContain('plan/0.0.2-a2.md');
   });
 
   it('returns empty when everything is DONE', async () => {

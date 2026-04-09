@@ -34,7 +34,9 @@ export function prioritize(dag: IPlanDAG, now: string): PrioritizedItem[] {
     return blockers.every(b => b.status === 'DONE');
   });
 
-  // Parent-first gating: do not start work on a child while any ancestor is still in progress.
+  // Parent-first gating: block a child only when an ancestor has no children yet
+  // (i.e., it hasn't been decomposed). Once an ancestor has children it has already
+  // set up the work breakdown, and its children should be free to proceed.
   const ancestorEligible = unblocked.filter(p => !hasActiveAncestor(p, dag));
 
   if (ancestorEligible.length === 0) {
@@ -50,7 +52,17 @@ export function prioritize(dag: IPlanDAG, now: string): PrioritizedItem[] {
     }];
   }
 
-  const scored = ancestorEligible.map(p => {
+  // A branch node whose children are still in progress yields to its children.
+  // Only schedule a branch for reconcile (lineage fix) or status-update (all done).
+  const actionable = ancestorEligible.filter(p => {
+    const children = dag.childrenOf(p.path);
+    if (children.length === 0) return true; // leaf — always actionable
+    if (children.every(c => c.status === 'DONE')) return true; // → status-update
+    if (hasLineageInconsistency(p, dag)) return true; // → reconcile
+    return false; // branch waiting for children — let children run
+  });
+
+  const scored = actionable.map(p => {
     const actionType = determineActionType(p, dag);
     const parentPath = dag.parentOf(p.path)?.path;
     return {
@@ -68,7 +80,9 @@ export function prioritize(dag: IPlanDAG, now: string): PrioritizedItem[] {
 function hasActiveAncestor(node: PlanFile, dag: IPlanDAG): boolean {
   let current = dag.parentOf(node.path);
   while (current) {
-    if (current.status !== 'DONE') {
+    // Only block if the ancestor is a leaf (no children yet) and not done.
+    // A branch that already has children has been decomposed — its children can proceed.
+    if (current.status !== 'DONE' && dag.childrenOf(current.path).length === 0) {
       return true;
     }
     current = dag.parentOf(current.path);
