@@ -425,7 +425,8 @@ Done child.
     expect(results).toHaveLength(1);
     expect(results[0].epoch).toBe(0);
     expect(results[0].rateLimitFailures).toBe(3);
-    expect(time.sleepCalls).toEqual([5000, 10000]);
+    const totalSleep = time.sleepCalls.reduce((a, b) => a + b, 0);
+    expect(totalSleep).toBe(5000 + 10000);
   });
 
   it('seeds initial backoff from metadata rpm', async () => {
@@ -453,7 +454,8 @@ Done child.
     const results = await runScheduler(config).done;
     expect(results).toHaveLength(1);
     expect(results[0].epoch).toBe(0);
-    expect(time.sleepCalls).toEqual([10000]);
+    const totalSleep = time.sleepCalls.reduce((a, b) => a + b, 0);
+    expect(totalSleep).toBe(10000);
   });
 
   it('honors Retry-After hint and caps at two hours', async () => {
@@ -476,7 +478,8 @@ Done child.
     const results = await runScheduler(config).done;
     expect(results).toHaveLength(1);
     expect(results[0].epoch).toBe(0);
-    expect(time.sleepCalls).toEqual([2 * 60 * 60 * 1000]);
+    const totalSleep = time.sleepCalls.reduce((a, b) => a + b, 0);
+    expect(totalSleep).toBe(2 * 60 * 60 * 1000);
   });
 
   it('uses X-RateLimit-Reset hint when present', async () => {
@@ -502,7 +505,8 @@ Done child.
     const results = await runScheduler(config).done;
     expect(results).toHaveLength(1);
     expect(results[0].epoch).toBe(0);
-    expect(time.sleepCalls).toEqual([10000]);
+    const totalSleep = time.sleepCalls.reduce((a, b) => a + b, 0);
+    expect(totalSleep).toBe(10000);
   });
 
   it('extracts provider rate-limit reason into epoch result', async () => {
@@ -625,7 +629,8 @@ Impl B.
     expect(results).toHaveLength(1);
     expect(results[0].epoch).toBe(0);
     expect(results[0].rateLimitFailures).toBeGreaterThan(0);
-    expect(time.sleepCalls).toEqual([5000]);
+    const totalSleep = time.sleepCalls.reduce((a, b) => a + b, 0);
+    expect(totalSleep).toBe(5000);
     expect(seenTaskPrompts.some(prompt => prompt.includes('Path: plan/0.1.1-impl-b.md'))).toBe(false);
   });
 });

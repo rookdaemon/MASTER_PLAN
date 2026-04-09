@@ -192,7 +192,13 @@ export function runScheduler(
         activeQueue.length,
         summarizeBlockedReasons(blockedTasks),
       );
-      await config.sleeper.sleep(delayMs);
+      // Sleep in small chunks so a soft-stop is honoured promptly.
+      const CHUNK_MS = 250;
+      let remaining = delayMs;
+      while (remaining > 0 && !stopRequested) {
+        await config.sleeper.sleep(Math.min(remaining, CHUNK_MS));
+        remaining -= CHUNK_MS;
+      }
     }
   }
 
