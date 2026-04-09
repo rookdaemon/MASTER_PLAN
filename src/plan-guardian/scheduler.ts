@@ -155,7 +155,8 @@ export async function runEpoch(
 
       // No-op writes (same file content) should not crash the guardian loop.
       if (staged.length > 0) {
-        const message = `[guardian] epoch ${epoch}: ${accepted.length} action(s)`;
+        const summaries = accepted.map(r => r.action.summary).join('; ');
+        const message = `[guardian] epoch ${epoch}: ${summaries}`;
         const hash = await git.commit(message, config.quarantineBranch);
         commits.push(hash);
         callbacks.onCommit?.(hash, message);
