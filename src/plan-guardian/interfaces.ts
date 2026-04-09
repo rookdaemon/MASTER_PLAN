@@ -118,6 +118,12 @@ export interface IClock {
   now(): string;
 }
 
+// ── Sleeper ─────────────────────────────────────────────────
+
+export interface ISleeper {
+  sleep(ms: number): Promise<void>;
+}
+
 // ── Guardian Configuration ──────────────────────────────────
 
 export interface GuardianConfig {
@@ -139,4 +145,5 @@ export interface GuardianConfig {
   fs: IFileSystem;
   git: IGitOperations;
   clock: IClock;
+  sleeper: ISleeper;
 }

@@ -16,9 +16,10 @@ function makeFs(files: Record<string, string>): InMemoryFileSystem {
 function mockProvider(response: string): IInferenceProvider {
   return {
     async probe() { return { reachable: true, latencyMs: 10 }; },
-    async infer(): Promise<InferenceResult> {
+    async infer(systemPrompt: string): Promise<InferenceResult> {
+      const text = systemPrompt.includes('SANITY_PASS_GATE') ? 'PASS' : response;
       return {
-        text: response,
+        text,
         toolCalls: [],
         promptTokens: 100,
         completionTokens: 200,
@@ -236,6 +237,33 @@ A task to decompose.
     expect(result.failed).toBe(0);
     expect(result.commits.length).toBe(0);
     expect(commits).toBe(0);
+  });
+
+  it('rejects file apply when sanity gate response is not exact PASS', async () => {
+    const provider: IInferenceProvider = {
+      async probe() { return { reachable: true, latencyMs: 10 }; },
+      async infer(systemPrompt: string): Promise<InferenceResult> {
+        const text = systemPrompt.includes('SANITY_PASS_GATE') ? 'FAIL: malformed card' : DECOMPOSE_RESPONSE;
+        return {
+          text,
+          toolCalls: [],
+          promptTokens: 10,
+          completionTokens: 10,
+          latencyMs: 10,
+        };
+      },
+    };
+
+    const fs = makeFs({ 'plan/root.md': ROOT, 'plan/0.0-alpha.md': ALPHA });
+    const git = new InMemoryGitOperations();
+    const config = makeConfig(fs, { git, provider });
+
+    const result = await runEpoch(0, config);
+    expect(result.dispatched).toBeGreaterThan(0);
+    expect(result.completed).toBe(0);
+    expect(result.failed).toBeGreaterThan(0);
+    expect(git.commits.length).toBe(0);
+    expect(fs.exists('plan/0.0.1-sub.md')).toBe(false);
   });
 });
 

@@ -36,6 +36,7 @@ export interface EpochResult {
   dispatched: number;
   completed: number;
   failed: number;
+  rateLimitFailures: number;
   commits: string[];
   totalTokens: { prompt: number; completion: number };
 }
@@ -47,9 +48,13 @@ export interface SchedulerCallbacks {
   onWorkerError?(task: string, error: Error): void;
   onCommit?(hash: string, message: string): void;
   onEpochEnd?(result: EpochResult): void;
+  onRateLimitBackoff?(delayMs: number, failures: number): void;
   /** Called once when a soft-stop is requested (e.g. ESC pressed). */
   onSoftStop?(): void;
 }
+
+const INITIAL_RATE_LIMIT_BACKOFF_MS = 5_000;
+const MAX_RATE_LIMIT_BACKOFF_MS = 2 * 60 * 60 * 1000;
 
 /** A handle returned by runScheduler that lets callers request a soft stop. */
 export interface SchedulerHandle {
@@ -64,16 +69,33 @@ export function runScheduler(
   callbacks: SchedulerCallbacks = {},
 ): SchedulerHandle {
   let stopRequested = false;
+  let nextBackoffMs = 0;
 
   const done = (async (): Promise<EpochResult[]> => {
   const results: EpochResult[] = [];
 
   for (let epoch = 0; epoch < config.maxIterations; epoch++) {
     if (stopRequested) break;
+
+    if (nextBackoffMs > 0) {
+      callbacks.onRateLimitBackoff?.(nextBackoffMs, 1);
+      await config.sleeper.sleep(nextBackoffMs);
+      if (stopRequested) break;
+    }
+
     const epochResult = await runEpoch(epoch, config, callbacks);
     results.push(epochResult);
 
     if (epochResult.dispatched === 0) break;
+
+    if (epochResult.rateLimitFailures > 0) {
+      nextBackoffMs = nextBackoffMs === 0
+        ? INITIAL_RATE_LIMIT_BACKOFF_MS
+        : Math.min(nextBackoffMs * 2, MAX_RATE_LIMIT_BACKOFF_MS);
+      callbacks.onRateLimitBackoff?.(nextBackoffMs, epochResult.rateLimitFailures);
+    } else {
+      nextBackoffMs = 0;
+    }
   }
 
   return results;
@@ -101,7 +123,15 @@ export async function runEpoch(
   const dag = await buildDAG(fs, planDir);
   const candidates = prioritize(dag, now);
   if (candidates.length === 0) {
-    return { epoch, dispatched: 0, completed: 0, failed: 0, commits: [], totalTokens: { prompt: 0, completion: 0 } };
+    return {
+      epoch,
+      dispatched: 0,
+      completed: 0,
+      failed: 0,
+      rateLimitFailures: 0,
+      commits: [],
+      totalTokens: { prompt: 0, completion: 0 },
+    };
   }
 
   const batch = selectIndependentBatch(candidates, concurrency);
@@ -116,6 +146,7 @@ export async function runEpoch(
   const successful: WorkerResult[] = [];
   const commits: string[] = [];
   let failed = 0;
+  let rateLimitFailures = 0;
   const totalTokens = { prompt: 0, completion: 0 };
 
   for (let i = 0; i < settled.length; i++) {
@@ -127,6 +158,9 @@ export async function runEpoch(
       totalTokens.completion += result.tokensUsed.completion;
     } else {
       failed++;
+      if (isRateLimitError(outcome.reason)) {
+        rateLimitFailures++;
+      }
       callbacks.onWorkerError?.(batch[i].task.path, outcome.reason as Error);
     }
   }
@@ -230,6 +264,7 @@ export async function runEpoch(
     dispatched: batch.length,
     completed: accepted.length,
     failed,
+    rateLimitFailures,
     commits,
     totalTokens,
   };
@@ -408,4 +443,12 @@ async function writeAllFiles(fs: IFileSystem, files: ReadonlyMap<string, string>
   for (const [path, content] of files) {
     await fs.writeFile(path, content, 'utf-8');
   }
+}
+
+function isRateLimitError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err ?? '');
+  const normalized = message.toLowerCase();
+  return normalized.includes('429')
+    || normalized.includes('too many requests')
+    || normalized.includes('rate limit');
 }

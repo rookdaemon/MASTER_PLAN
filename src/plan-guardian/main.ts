@@ -55,6 +55,11 @@ async function main() {
     fs: new NodeFileSystem(),
     git: new NodeGitOperations(repoRoot),
     clock: { now: () => new Date().toISOString() },
+    sleeper: {
+      sleep(ms: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      },
+    },
   };
 
   console.log(`[guardian] Starting Plan Guardian`);
