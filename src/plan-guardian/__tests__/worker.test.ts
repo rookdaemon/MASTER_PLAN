@@ -106,4 +106,95 @@ A task.
     await expect(runPlanningWorker(task, 'decompose', dag, provider, NOW))
       .rejects.toThrow('API rate limit');
   });
+
+  it('uses recursive repair prompts with latest integrity errors', async () => {
+    const validResponse = `\`\`\`plan-file:plan/0.0.1-sub.md
+---
+parent: plan/0.0-alpha.md
+root: plan/root.md
+---
+# 0.0.1 Sub [PLAN]
+
+A subtask.
+\`\`\`
+
+\`\`\`plan-file:plan/0.0-alpha.md
+---
+parent: plan/root.md
+root: plan/root.md
+children:
+  - plan/0.0.1-sub.md
+---
+# 0.0 Alpha [PLAN]
+
+A task.
+\`\`\``;
+
+    const outputs = ['bad-output-1', 'bad-output-2', validResponse];
+    const prompts: string[] = [];
+    const provider: IInferenceProvider = {
+      async probe() { return { reachable: true, latencyMs: 10 }; },
+      async infer(_system, messages): Promise<InferenceResult> {
+        prompts.push(messages[0].role === 'user' ? messages[0].content : '');
+        const text = outputs.shift() ?? validResponse;
+        return {
+          text,
+          toolCalls: [],
+          promptTokens: 10,
+          completionTokens: 20,
+          latencyMs: 5,
+        };
+      },
+    };
+
+    const fs = makeFs({
+      'plan/root.md': ROOT,
+      'plan/0.0-alpha.md': ALPHA,
+    });
+    const dag = await buildDAG(fs, 'plan');
+    const task = dag.nodes.get('plan/0.0-alpha.md')!;
+
+    const validateText = (text: string): string[] => {
+      if (text === 'bad-output-1') return ['first integrity issue'];
+      if (text === 'bad-output-2') return ['second integrity issue'];
+      return [];
+    };
+
+    const result = await runPlanningWorker(task, 'decompose', dag, provider, NOW, 4096, validateText);
+
+    expect(result.action.type).toBe('decompose');
+    expect(prompts).toHaveLength(3);
+    expect(prompts[1]).toContain('REPAIR REQUIRED (attempt 2)');
+    expect(prompts[1]).toContain('first integrity issue');
+    expect(prompts[2]).toContain('REPAIR REQUIRED (attempt 3)');
+    expect(prompts[2]).toContain('second integrity issue');
+  });
+
+  it('fails after exhausting recursive repair attempts', async () => {
+    const provider: IInferenceProvider = {
+      async probe() { return { reachable: true, latencyMs: 10 }; },
+      async infer(): Promise<InferenceResult> {
+        return {
+          text: 'still-invalid',
+          toolCalls: [],
+          promptTokens: 10,
+          completionTokens: 20,
+          latencyMs: 5,
+        };
+      },
+    };
+
+    const fs = makeFs({
+      'plan/root.md': ROOT,
+      'plan/0.0-alpha.md': ALPHA,
+    });
+    const dag = await buildDAG(fs, 'plan');
+    const task = dag.nodes.get('plan/0.0-alpha.md')!;
+
+    const validateText = (): string[] => ['persistent integrity issue'];
+
+    await expect(
+      runPlanningWorker(task, 'decompose', dag, provider, NOW, 4096, validateText),
+    ).rejects.toThrow(/Integrity retry failed after 3 attempts/);
+  });
 });
