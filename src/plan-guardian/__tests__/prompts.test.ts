@@ -56,7 +56,7 @@ Another leaf.
 
 describe('buildSystemPrompt', () => {
   const actionTypes: PlanningActionType[] = [
-    'decompose', 'research', 'refine', 'consolidate', 'promote', 'status-update', 'execute',
+    'decompose', 'research', 'refine', 'reconcile', 'consolidate', 'promote', 'status-update', 'execute',
   ];
 
   for (const action of actionTypes) {

@@ -63,6 +63,7 @@ export type PlanningActionType =
   | 'decompose'
   | 'research'
   | 'refine'
+  | 'reconcile'
   | 'consolidate'
   | 'promote'
   | 'status-update'

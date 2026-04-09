@@ -8,6 +8,7 @@
  */
 
 import type { IPlanDAG, PlanFile, PlanStatus, PlanningActionType, DispatchItem } from './interfaces.js';
+import { normalizePlanPath } from './actions.js';
 
 // ── Public API ───────────────────────────────────��──────────
 
@@ -33,7 +34,10 @@ export function prioritize(dag: IPlanDAG, now: string): PrioritizedItem[] {
     return blockers.every(b => b.status === 'DONE');
   });
 
-  if (unblocked.length === 0) {
+  // Parent-first gating: do not start work on a child while any ancestor is still in progress.
+  const ancestorEligible = unblocked.filter(p => !hasActiveAncestor(p, dag));
+
+  if (ancestorEligible.length === 0) {
     // Everything blocked — return shallowest as research candidate
     const sorted = [...allNonDone].sort((a, b) => a.depth - b.depth);
     const target = sorted[0];
@@ -46,7 +50,7 @@ export function prioritize(dag: IPlanDAG, now: string): PrioritizedItem[] {
     }];
   }
 
-  const scored = unblocked.map(p => {
+  const scored = ancestorEligible.map(p => {
     const actionType = determineActionType(p, dag);
     const parentPath = dag.parentOf(p.path)?.path;
     return {
@@ -59,6 +63,17 @@ export function prioritize(dag: IPlanDAG, now: string): PrioritizedItem[] {
 
   scored.sort((a, b) => b.score - a.score);
   return scored;
+}
+
+function hasActiveAncestor(node: PlanFile, dag: IPlanDAG): boolean {
+  let current = dag.parentOf(node.path);
+  while (current) {
+    if (current.status !== 'DONE') {
+      return true;
+    }
+    current = dag.parentOf(current.path);
+  }
+  return false;
 }
 
 export function selectIndependentBatch(
@@ -92,6 +107,7 @@ export function determineActionType(node: PlanFile, dag: IPlanDAG): PlanningActi
   if (children.length > 0) {
     const allDone = children.every(c => c.status === 'DONE');
     if (allDone) return 'status-update';
+    if (hasLineageInconsistency(node, dag)) return 'reconcile';
     // Branch with undone children — let children be worked on instead
     // But if this branch node is itself in PLAN, it might need consolidation
     return 'consolidate';
@@ -124,6 +140,7 @@ export function computeWriteSet(
       // New child files are not yet known but won't conflict since they don't exist
       return parentPath ? [targetPath, parentPath] : [targetPath];
     case 'consolidate':
+    case 'reconcile':
       // Writes: target + parent (conservative — may touch siblings)
       return parentPath ? [targetPath, parentPath] : [targetPath];
     case 'refine':
@@ -134,6 +151,19 @@ export function computeWriteSet(
     default:
       return [targetPath];
   }
+}
+
+function hasLineageInconsistency(node: PlanFile, dag: IPlanDAG): boolean {
+  const children = node.frontmatter.children ?? [];
+  for (const raw of children) {
+    const childPath = normalizePlanPath(raw);
+    const child = dag.nodes.get(childPath);
+    if (!child) return true;
+
+    const childParent = child.frontmatter.parent ? normalizePlanPath(child.frontmatter.parent) : null;
+    if (childParent !== node.path) return true;
+  }
+  return false;
 }
 
 // ── Internal ────────────────────────────────────────────────

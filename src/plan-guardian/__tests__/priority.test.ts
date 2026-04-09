@@ -82,8 +82,10 @@ describe('prioritize', () => {
     const paths = result.map(r => r.task.path);
     expect(paths).not.toContain('plan/0.1-beta.md');
     expect(paths).not.toContain('plan/root.md'); // DONE
-    // Deeper leaves should rank higher than shallow branch
-    expect(paths.indexOf('plan/0.0.1-a1.md')).toBeLessThan(paths.indexOf('plan/0.0-alpha.md'));
+    // Parent-first gating: children are not eligible while parent is in progress.
+    expect(paths).toContain('plan/0.0-alpha.md');
+    expect(paths).not.toContain('plan/0.0.1-a1.md');
+    expect(paths).not.toContain('plan/0.0.2-a2.md');
   });
 
   it('returns empty when everything is DONE', async () => {
@@ -262,6 +264,45 @@ Needs refinement.
     const arch = dag.nodes.get('plan/0.0.3-arch.md')!;
     expect(determineActionType(arch, dag)).toBe('refine');
   });
+
+  it('returns reconcile for branch with child parent mismatch', async () => {
+    const root = `---
+root: plan/root.md
+children:
+  - plan/0.0-parent.md
+---
+# 0 Root [PLAN]
+
+Root.
+`;
+    const parent = `---
+parent: plan/root.md
+root: plan/root.md
+children:
+  - plan/0.0.1-child.md
+---
+# 0.0 Parent [PLAN]
+
+Parent.
+`;
+    const child = `---
+parent: plan/0.0-other-parent.md
+root: plan/root.md
+---
+# 0.0.1 Child [PLAN]
+
+Child.
+`;
+
+    const fs = makeFs({
+      'plan/root.md': root,
+      'plan/0.0-parent.md': parent,
+      'plan/0.0.1-child.md': child,
+    });
+    const dag = await buildDAG(fs, 'plan');
+    const parentNode = dag.nodes.get('plan/0.0-parent.md')!;
+    expect(determineActionType(parentNode, dag)).toBe('reconcile');
+  });
 });
 
 describe('computeWriteSet', () => {
@@ -284,5 +325,11 @@ describe('computeWriteSet', () => {
   it('status-update only writes target', () => {
     const ws = computeWriteSet('status-update', 'plan/0.0-alpha.md', 'plan/root.md');
     expect(ws).toEqual(['plan/0.0-alpha.md']);
+  });
+
+  it('reconcile writes target + parent', () => {
+    const ws = computeWriteSet('reconcile', 'plan/0.0-alpha.md', 'plan/root.md');
+    expect(ws).toContain('plan/0.0-alpha.md');
+    expect(ws).toContain('plan/root.md');
   });
 });

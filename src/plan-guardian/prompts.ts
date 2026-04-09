@@ -72,6 +72,21 @@ Output:
 1. One plan-file block for the UPDATED task (same path, enriched content)
 2. Append a revision history entry with the current timestamp`,
 
+  reconcile: `ACTION: RECONCILE
+
+Repair structural consistency between this node, its parent/children, and close peers. Focus on frontmatter correctness and pruning stale links.
+
+You may:
+- Remove stale child references that point to missing or renamed files
+- Correct child parent links so parent/child reciprocity is consistent
+- Merge duplicate peer tasks into one canonical node and remove redundant references
+- Normalize child ordering for deterministic traversal
+
+Output:
+1. One plan-file block for the UPDATED target node
+2. One plan-file block per child/peer file that must be updated for reciprocity
+3. Optional delete markers for obsolete duplicate files: <!-- DELETE: plan/x.y.z-old.md -->`,
+
   consolidate: `ACTION: CONSOLIDATE
 
 Review the children of the given task and improve the decomposition. You may:
@@ -148,8 +163,8 @@ export function buildUserMessage(
     }
   }
 
-  // Children (full, for consolidate/status-update)
-  if (actionType === 'consolidate' || actionType === 'status-update') {
+  // Children (full, for reconcile/consolidate/status-update)
+  if (actionType === 'reconcile' || actionType === 'consolidate' || actionType === 'status-update') {
     const children = dag.childrenOf(target.path);
     if (children.length > 0) {
       parts.push(`## Children\n\n${children.map(c => `### ${c.numericId} ${c.title} [${c.status}]\n\n${firstParagraph(c.body)}`).join('\n\n')}`);

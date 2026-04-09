@@ -110,6 +110,8 @@ function buildSummary(
       return `research task for ${shortTarget}`;
     case 'refine':
       return `refined ${shortTarget}`;
+    case 'reconcile':
+      return `reconciled lineage around ${shortTarget}`;
     case 'consolidate':
       return `consolidated children of ${shortTarget}`;
     case 'promote':
