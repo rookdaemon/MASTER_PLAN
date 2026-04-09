@@ -13,6 +13,7 @@ import { buildSystemPrompt, buildUserMessage } from './prompts.js';
 import { parseActionOutput } from './actions.js';
 
 export type ActionValidator = (actionText: string) => string[];
+const MAX_REPAIR_ATTEMPTS = 3;
 
 const REPAIR_REMINDER = [
   'Regenerate output with the exact same action type and valid references only.',
@@ -32,59 +33,61 @@ export async function runPlanningWorker(
   const systemPrompt = buildSystemPrompt(actionType);
   const userMessage = buildUserMessage(task, dag, actionType, now);
 
-  const first = await provider.infer(
-    systemPrompt,
-    [{ role: 'user', content: userMessage }],
-    [],
-    maxTokens,
-  );
+  let prompt = userMessage;
+  let totalPromptTokens = 0;
+  let totalCompletionTokens = 0;
+  let totalLatencyMs = 0;
 
-  const firstText = first.text ?? '';
-  const firstViolations = validateText?.(firstText) ?? [];
+  for (let attempt = 1; attempt <= MAX_REPAIR_ATTEMPTS; attempt++) {
+    const response = await provider.infer(
+      systemPrompt,
+      [{ role: 'user', content: prompt }],
+      [],
+      maxTokens,
+    );
 
-  if (firstViolations.length === 0) {
-    let action;
-    try {
-      action = parseActionOutput(firstText, actionType, task.path, now);
-    } catch (parseErr) {
-      const parseMsg = parseErr instanceof Error ? parseErr.message : String(parseErr);
-      throw new Error(`Failed to parse first attempt output: ${parseMsg}`);
+    totalPromptTokens += response.promptTokens;
+    totalCompletionTokens += response.completionTokens;
+    totalLatencyMs += response.latencyMs;
+
+    const text = response.text ?? '';
+    const violations = validateText?.(text) ?? [];
+
+    if (violations.length === 0) {
+      let action;
+      try {
+        action = parseActionOutput(text, actionType, task.path, now);
+      } catch (parseErr) {
+        const parseMsg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+        throw new Error(`Failed to parse attempt ${attempt} output: ${parseMsg}`);
+      }
+
+      return {
+        action,
+        tokensUsed: { prompt: totalPromptTokens, completion: totalCompletionTokens },
+        latencyMs: totalLatencyMs,
+      };
     }
-    return {
-      action,
-      tokensUsed: { prompt: first.promptTokens, completion: first.completionTokens },
-      latencyMs: first.latencyMs,
-    };
+
+    if (attempt >= MAX_REPAIR_ATTEMPTS) {
+      throw new Error(`Integrity retry failed after ${MAX_REPAIR_ATTEMPTS} attempts: ${violations.join('; ')}`);
+    }
+
+    prompt = buildRepairPrompt(userMessage, attempt + 1, text, violations);
   }
 
-  const repairMessage = `${userMessage}\n\nREPAIR REQUIRED\nYour last output violated integrity constraints:\n${firstViolations.map(v => `- ${v}`).join('\n')}\n\n${REPAIR_REMINDER}`;
+  throw new Error('Unreachable: repair loop exited unexpectedly');
+}
 
-  const second = await provider.infer(
-    systemPrompt,
-    [{ role: 'user', content: repairMessage }],
-    [],
-    maxTokens,
-  );
+function buildRepairPrompt(
+  originalUserMessage: string,
+  attempt: number,
+  previousOutput: string,
+  violations: string[],
+): string {
+  const excerpt = previousOutput.length > 1200
+    ? `${previousOutput.slice(0, 1200)}\n...[truncated]`
+    : previousOutput;
 
-  const secondText = second.text ?? '';
-  const secondViolations = validateText?.(secondText) ?? [];
-  if (secondViolations.length > 0) {
-    throw new Error(`Integrity retry failed: ${secondViolations.join('; ')}`);
-  }
-
-  let action;
-  try {
-    action = parseActionOutput(secondText, actionType, task.path, now);
-  } catch (parseErr) {
-    const parseMsg = parseErr instanceof Error ? parseErr.message : String(parseErr);
-    throw new Error(`Failed to parse second attempt output: ${parseMsg}`);
-  }
-  return {
-    action,
-    tokensUsed: {
-      prompt: first.promptTokens + second.promptTokens,
-      completion: first.completionTokens + second.completionTokens,
-    },
-    latencyMs: first.latencyMs + second.latencyMs,
-  };
+  return `${originalUserMessage}\n\nREPAIR REQUIRED (attempt ${attempt})\nYour last output violated integrity constraints:\n${violations.map(v => `- ${v}`).join('\n')}\n\nPrevious output excerpt:\n${excerpt}\n\n${REPAIR_REMINDER}`;
 }

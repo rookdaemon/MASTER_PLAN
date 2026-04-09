@@ -98,52 +98,76 @@ export async function runEpoch(
       successful.push(result);
       totalTokens.prompt += result.tokensUsed.prompt;
       totalTokens.completion += result.tokensUsed.completion;
-      callbacks.onWorkerComplete?.(result);
     } else {
       failed++;
       callbacks.onWorkerError?.(batch[i].task.path, outcome.reason as Error);
     }
   }
 
+  let accepted: WorkerResult[] = successful;
+
   if (!dryRun && successful.length > 0) {
     const baselineNodes = dag.nodes;
+    const integrityAccepted: WorkerResult[] = [];
+
     for (const result of successful) {
       const verdict = validateActionIntegrity(result.action, baselineNodes, config);
       if (config.strictIntegrity && !verdict.valid) {
-        throw new Error(`Integrity violation in ${result.action.targetPath}: ${verdict.errors.join('; ')}`);
+        failed++;
+        callbacks.onWorkerError?.(
+          result.action.targetPath,
+          new Error(`Integrity violation in ${result.action.targetPath}: ${verdict.errors.join('; ')}`),
+        );
+        continue;
+      }
+      integrityAccepted.push(result);
+    }
+
+    accepted = integrityAccepted;
+
+    if (accepted.length > 0) {
+      const snapshot = buildSnapshotWithActions(
+        baselineNodes,
+        accepted.map(r => r.action),
+      );
+      const graphVerdict = validateGraphIntegrity(snapshot, planDir);
+      if (config.strictIntegrity && !graphVerdict.valid) {
+        const msg = `Epoch graph integrity failed: ${graphVerdict.errors.join('; ')}`;
+        for (const result of accepted) {
+          failed++;
+          callbacks.onWorkerError?.(result.action.targetPath, new Error(msg));
+        }
+        accepted = [];
       }
     }
 
-    const snapshot = buildSnapshotWithActions(
-      baselineNodes,
-      successful.map(r => r.action),
-    );
-    const graphVerdict = validateGraphIntegrity(snapshot, planDir);
-    if (config.strictIntegrity && !graphVerdict.valid) {
-      throw new Error(`Epoch graph integrity failed: ${graphVerdict.errors.join('; ')}`);
+    if (accepted.length > 0) {
+      const allFiles = collectFiles(accepted.map(r => r.action));
+      await writeAllFiles(fs, allFiles);
+      await git.add([...allFiles.keys()]);
+
+      const staged = (await git.stagedPaths()).map(normalizePlanPath).sort();
+      const expected = [...allFiles.keys()].map(normalizePlanPath).sort();
+      const extras = staged.filter(p => !expected.includes(p));
+      if (extras.length > 0) {
+        throw new Error(`Refusing commit: unrelated staged files detected: ${extras.join(', ')}`);
+      }
+
+      const message = `[guardian] epoch ${epoch}: ${accepted.length} action(s)`;
+      const hash = await git.commit(message, config.quarantineBranch);
+      commits.push(hash);
+      callbacks.onCommit?.(hash, message);
     }
+  }
 
-    const allFiles = collectFiles(successful.map(r => r.action));
-    await writeAllFiles(fs, allFiles);
-    await git.add([...allFiles.keys()]);
-
-    const staged = (await git.stagedPaths()).map(normalizePlanPath).sort();
-    const expected = [...allFiles.keys()].map(normalizePlanPath).sort();
-    const extras = staged.filter(p => !expected.includes(p));
-    if (extras.length > 0) {
-      throw new Error(`Refusing commit: unrelated staged files detected: ${extras.join(', ')}`);
-    }
-
-    const message = `[guardian] epoch ${epoch}: ${successful.length} action(s)`;
-    const hash = await git.commit(message, config.quarantineBranch);
-    commits.push(hash);
-    callbacks.onCommit?.(hash, message);
+  for (const result of accepted) {
+    callbacks.onWorkerComplete?.(result);
   }
 
   const epochResult: EpochResult = {
     epoch,
     dispatched: batch.length,
-    completed: successful.length,
+    completed: accepted.length,
     failed,
     commits,
     totalTokens,

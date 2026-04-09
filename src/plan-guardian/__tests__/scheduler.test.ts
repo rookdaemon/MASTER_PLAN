@@ -154,6 +154,40 @@ Done.
     expect(result.completed).toBe(0);
     expect(git.commits.length).toBe(0);
   });
+
+  it('does not throw process-fatal on strict graph integrity mismatch', async () => {
+    const rootWithBadChild = `---
+root: plan/root.md
+children:
+  - plan/0.0-alpha.md
+---
+# 0 Root [PLAN]
+
+Root.
+`;
+    const alphaWrongParent = `---
+parent: plan/0.0-wrong-parent.md
+root: plan/root.md
+---
+# 0.0 Alpha [PLAN]
+
+A task to decompose.
+`;
+
+    const fs = makeFs({
+      'plan/root.md': rootWithBadChild,
+      'plan/0.0-alpha.md': alphaWrongParent,
+    });
+    const git = new InMemoryGitOperations();
+    const config = makeConfig(fs, { git, strictIntegrity: true });
+
+    const result = await runEpoch(0, config);
+    expect(result.dispatched).toBeGreaterThan(0);
+    expect(result.completed).toBe(0);
+    expect(result.failed).toBeGreaterThan(0);
+    expect(result.commits.length).toBe(0);
+    expect(git.commits.length).toBe(0);
+  });
 });
 
 describe('runScheduler', () => {
