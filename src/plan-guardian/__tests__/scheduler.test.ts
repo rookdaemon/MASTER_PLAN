@@ -160,6 +160,7 @@ Done.
 root: plan/root.md
 children:
   - plan/0.0-alpha.md
+  - plan/0.1-beta.md
 ---
 # 0 Root [PLAN]
 
@@ -173,10 +174,19 @@ root: plan/root.md
 
 A task to decompose.
 `;
+    const betaWrongParent = `---
+parent: plan/0.1-missing-parent.md
+root: plan/root.md
+---
+# 0.1 Beta [PLAN]
+
+Broken parent linkage that should survive unrelated actions.
+`;
 
     const fs = makeFs({
       'plan/root.md': rootWithBadChild,
       'plan/0.0-alpha.md': alphaWrongParent,
+      'plan/0.1-beta.md': betaWrongParent,
     });
     const git = new InMemoryGitOperations();
     const config = makeConfig(fs, { git, strictIntegrity: true });
