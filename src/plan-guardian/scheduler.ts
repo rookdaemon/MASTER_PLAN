@@ -153,10 +153,13 @@ export async function runEpoch(
         throw new Error(`Refusing commit: unrelated staged files detected: ${extras.join(', ')}`);
       }
 
-      const message = `[guardian] epoch ${epoch}: ${accepted.length} action(s)`;
-      const hash = await git.commit(message, config.quarantineBranch);
-      commits.push(hash);
-      callbacks.onCommit?.(hash, message);
+      // No-op writes (same file content) should not crash the guardian loop.
+      if (staged.length > 0) {
+        const message = `[guardian] epoch ${epoch}: ${accepted.length} action(s)`;
+        const hash = await git.commit(message, config.quarantineBranch);
+        commits.push(hash);
+        callbacks.onCommit?.(hash, message);
+      }
     }
   }
 

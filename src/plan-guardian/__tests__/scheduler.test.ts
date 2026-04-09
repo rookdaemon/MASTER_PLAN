@@ -3,7 +3,7 @@ import { runScheduler, runEpoch } from '../scheduler.js';
 import { InMemoryFileSystem } from '../../agent-runtime/filesystem.js';
 import { InMemoryGitOperations } from '../git-state.js';
 import type { IInferenceProvider, InferenceResult } from '../../llm-substrate/inference-provider.js';
-import type { GuardianConfig } from '../interfaces.js';
+import type { GuardianConfig, IGitOperations } from '../interfaces.js';
 
 function makeFs(files: Record<string, string>): InMemoryFileSystem {
   const fs = new InMemoryFileSystem();
@@ -197,6 +197,45 @@ Broken parent linkage that should survive unrelated actions.
     expect(result.failed).toBeGreaterThan(0);
     expect(result.commits.length).toBe(0);
     expect(git.commits.length).toBe(0);
+  });
+
+  it('skips commit when writes stage no changes', async () => {
+    const noopResponse = `\`\`\`plan-file:plan/0.0-alpha.md
+---
+parent: plan/root.md
+root: plan/root.md
+---
+# 0.0 Alpha [PLAN]
+
+A task to decompose.
+\`\`\``;
+
+    const fs = makeFs({ 'plan/root.md': ROOT, 'plan/0.0-alpha.md': ALPHA });
+    let commits = 0;
+    const git: IGitOperations = {
+      async add() {},
+      async commit(message: string): Promise<string> {
+        commits++;
+        return `unexpected-${message}`;
+      },
+      async status(): Promise<string> {
+        return '';
+      },
+      async stagedPaths(): Promise<string[]> {
+        return [];
+      },
+    };
+    const config = makeConfig(fs, {
+      git,
+      provider: mockProvider(noopResponse),
+    });
+
+    const result = await runEpoch(0, config);
+    expect(result.dispatched).toBeGreaterThan(0);
+    expect(result.completed).toBeGreaterThan(0);
+    expect(result.failed).toBe(0);
+    expect(result.commits.length).toBe(0);
+    expect(commits).toBe(0);
   });
 });
 
