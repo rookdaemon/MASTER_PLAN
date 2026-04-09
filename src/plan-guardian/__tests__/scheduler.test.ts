@@ -245,7 +245,7 @@ describe('runScheduler', () => {
     const git = new InMemoryGitOperations();
     const config = makeConfig(fs, { git, maxIterations: 3 });
 
-    const results = await runScheduler(config);
+    const results = await runScheduler(config).done;
     // First epoch creates subtask, subsequent epochs work on it
     expect(results.length).toBeGreaterThanOrEqual(1);
     expect(results.length).toBeLessThanOrEqual(3);
@@ -262,7 +262,7 @@ Done.
     const fs = makeFs({ 'plan/root.md': allDone });
     const config = makeConfig(fs, { maxIterations: 10 });
 
-    const results = await runScheduler(config);
+    const results = await runScheduler(config).done;
     expect(results.length).toBe(1);
     expect(results[0].dispatched).toBe(0);
   });
@@ -310,7 +310,7 @@ Done child.
     const git = new InMemoryGitOperations();
     const config = makeConfig(fs, { git, provider: failProvider, maxIterations: 1 });
 
-    const results = await runScheduler(config);
+    const results = await runScheduler(config).done;
     expect(results[0].completed).toBe(1);
     expect(results[0].failed).toBe(0);
     // Verify the parent was updated to DONE
@@ -332,12 +332,28 @@ Done child.
       onWorkerComplete() { events.push('complete'); },
       onCommit(hash) { events.push(`commit:${hash}`); },
       onEpochEnd() { events.push('end'); },
-    });
+    }).done;
 
     expect(events[0]).toMatch(/^start:0:\d+$/);
     expect(events.some(e => e.startsWith('worker-start:'))).toBe(true);
     expect(events).toContain('complete');
     expect(events.some(e => e.startsWith('commit:'))).toBe(true);
     expect(events[events.length - 1]).toBe('end');
+  });
+
+  it('soft stop: stops after current epoch, fires onSoftStop', async () => {
+    const fs = makeFs({ 'plan/root.md': ROOT, 'plan/0.0-alpha.md': ALPHA });
+    const git = new InMemoryGitOperations();
+    const config = makeConfig(fs, { git, maxIterations: 100 });
+
+    let softStopFired = false;
+    const handle = runScheduler(config, {
+      onSoftStop() { softStopFired = true; },
+      onEpochEnd() { handle.stop(); }, // stop after first epoch
+    });
+
+    const results = await handle.done;
+    expect(softStopFired).toBe(true);
+    expect(results.length).toBe(1); // only one epoch ran
   });
 });

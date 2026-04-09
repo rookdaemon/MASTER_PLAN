@@ -45,15 +45,29 @@ export interface SchedulerCallbacks {
   onWorkerError?(task: string, error: Error): void;
   onCommit?(hash: string, message: string): void;
   onEpochEnd?(result: EpochResult): void;
+  /** Called once when a soft-stop is requested (e.g. ESC pressed). */
+  onSoftStop?(): void;
 }
 
-export async function runScheduler(
+/** A handle returned by runScheduler that lets callers request a soft stop. */
+export interface SchedulerHandle {
+  /** Request a clean exit after the current epoch finishes. */
+  stop(): void;
+  /** Resolves when the scheduler has fully exited. */
+  done: Promise<EpochResult[]>;
+}
+
+export function runScheduler(
   config: GuardianConfig,
   callbacks: SchedulerCallbacks = {},
-): Promise<EpochResult[]> {
+): SchedulerHandle {
+  let stopRequested = false;
+
+  const done = (async (): Promise<EpochResult[]> => {
   const results: EpochResult[] = [];
 
   for (let epoch = 0; epoch < config.maxIterations; epoch++) {
+    if (stopRequested) break;
     const epochResult = await runEpoch(epoch, config, callbacks);
     results.push(epochResult);
 
@@ -61,6 +75,17 @@ export async function runScheduler(
   }
 
   return results;
+  })();
+
+  return {
+    stop() {
+      if (!stopRequested) {
+        stopRequested = true;
+        callbacks.onSoftStop?.();
+      }
+    },
+    done,
+  };
 }
 
 export async function runEpoch(

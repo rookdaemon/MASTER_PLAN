@@ -75,7 +75,7 @@ async function main() {
     budgetNotes: budget.notes,
   });
 
-  const results = await runScheduler(config, {
+  const handle = runScheduler(config, {
     onEpochStart(epoch, batchSize) {
       console.log(`[guardian] Epoch ${epoch}: dispatching ${batchSize} task(s)`);
       debugLog.log('epoch', 'epoch start', { epoch, batchSize });
@@ -114,7 +114,30 @@ async function main() {
         totalTokens: result.totalTokens,
       });
     },
+    onSoftStop() {
+      console.log('[guardian] Soft stop requested — finishing current epoch then exiting...');
+      debugLog.log('shutdown', 'soft stop requested', {});
+    },
   });
+
+  // ESC key triggers a clean exit after the current epoch finishes.
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.on('data', (chunk: Buffer) => {
+      if (chunk[0] === 0x1b) { // ESC
+        handle.stop();
+      }
+    });
+  }
+
+  const results = await handle.done;
+
+  // Stop listening for keystrokes once the scheduler exits.
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(false);
+    process.stdin.pause();
+  }
 
   const totalTokens = results.reduce((acc, r) => ({
     prompt: acc.prompt + r.totalTokens.prompt,
