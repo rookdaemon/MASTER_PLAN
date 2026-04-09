@@ -13,6 +13,7 @@ import type {
   GuardianConfig,
   IGitOperations,
   PlanningAction,
+  PlanFile,
   WorkerResult,
   DispatchItem,
 } from './interfaces.js';
@@ -28,6 +29,7 @@ import {
   validateGraphIntegrity,
 } from './integrity.js';
 import { normalizePlanPath, parseActionOutput } from './actions.js';
+import { runSanityPass } from './sanity-pass.js';
 
 export interface EpochResult {
   epoch: number;
@@ -149,6 +151,36 @@ export async function runEpoch(
     }
 
     accepted = integrityAccepted;
+
+    if (accepted.length > 0 && config.strictIntegrity) {
+      const sanityAccepted: WorkerResult[] = [];
+      for (const result of accepted) {
+        // Deterministic status updates intentionally avoid model calls.
+        const modelGenerated = (result.tokensUsed.prompt + result.tokensUsed.completion) > 0;
+        if (!modelGenerated) {
+          sanityAccepted.push(result);
+          continue;
+        }
+
+        const sanityErrors = await runActionSanityPass(
+          result.action,
+          baselineNodes,
+          provider,
+          config.maxTokensPerCall,
+          config.planDir,
+        );
+        if (sanityErrors.length > 0) {
+          failed++;
+          callbacks.onWorkerError?.(
+            result.action.targetPath,
+            new Error(`Sanity PASS gate failed in ${result.action.targetPath}: ${sanityErrors.join('; ')}`),
+          );
+          continue;
+        }
+        sanityAccepted.push(result);
+      }
+      accepted = sanityAccepted;
+    }
 
     if (accepted.length > 0) {
       const snapshot = buildSnapshotWithActions(
@@ -316,6 +348,60 @@ function collectFiles(actions: readonly PlanningAction[]): Map<string, string> {
     for (const f of action.filesModified) files.set(normalizePlanPath(f.path), f.content);
   }
   return files;
+}
+
+async function runActionSanityPass(
+  action: PlanningAction,
+  baselineNodes: ReadonlyMap<string, PlanFile>,
+  provider: IInferenceProvider,
+  maxTokensPerCall: number,
+  planDir: string,
+): Promise<string[]> {
+  const errors: string[] = [];
+  const writes = [...action.filesCreated, ...action.filesModified];
+
+  for (const write of writes) {
+    const path = normalizePlanPath(write.path);
+    if (!path.endsWith('.md') || !path.startsWith(`${planDir}/`)) continue;
+
+    const baselineNode = baselineNodes.get(path);
+    const oldCard = baselineNode ? serializePlanNode(baselineNode) : '<NONE>';
+    const result = await runSanityPass(
+      provider,
+      {
+        path,
+        oldCard,
+        proposedCard: write.content,
+      },
+      Math.min(maxTokensPerCall, 256),
+    );
+
+    if (!result.pass) {
+      const compact = result.raw.length > 200 ? `${result.raw.slice(0, 200)}...` : result.raw;
+      errors.push(`${path}: expected PASS, got "${compact || '<empty>'}"`);
+    }
+  }
+
+  return errors;
+}
+
+function serializePlanNode(node: PlanFile): string {
+  const lines: string[] = [];
+  if (node.frontmatter.parent) lines.push(`parent: ${node.frontmatter.parent}`);
+  if (node.frontmatter.root) lines.push(`root: ${node.frontmatter.root}`);
+  if (node.frontmatter.children?.length) {
+    lines.push('children:');
+    for (const c of node.frontmatter.children) lines.push(`  - ${c}`);
+  }
+  if (node.frontmatter['blocked-by']?.length) {
+    lines.push('blocked-by:');
+    for (const b of node.frontmatter['blocked-by']) lines.push(`  - ${b}`);
+  }
+  if (node.frontmatter['depends-on']?.length) {
+    lines.push('depends-on:');
+    for (const d of node.frontmatter['depends-on']) lines.push(`  - ${d}`);
+  }
+  return `---\n${lines.join('\n')}\n---\n${node.body}`;
 }
 
 async function writeAllFiles(fs: IFileSystem, files: ReadonlyMap<string, string>): Promise<void> {
