@@ -1,52 +1,115 @@
 /**
  * IModelSelector — priority-ordered model circuit breaker.
  *
- * Maintains a priority-ordered list of inference providers and tracks
- * per-model rate-limit state. When a model returns a 429, it is backed off
- * exponentially (same constants as task-level backoff). The selector
- * automatically promotes the next available model by priority. When a
- * higher-priority model's backoff expires it is restored automatically — no
- * timers or polling, just lazy evaluation on the next `selectProvider` call.
+ * The public API is a single `execute<T>` method (Polly-style):
  *
- * This is the classic "priority circuit breaker" pattern used in resilience
- * libraries (Polly, Hystrix, Resilience4j). The state lives here so that
- * scheduler and provider layers stay clean and separate.
+ *   const outcome = await selector.execute(nowMs, provider =>
+ *     callProvider(provider, systemPrompt, messages),
+ *   );
+ *
+ * The selector picks the highest-priority non-blocked provider, calls `fn`,
+ * and returns `{ kind: 'ok', value, modelId }` on success. If the provider
+ * throws a 429-style error the model is backed off exponentially and
+ * `{ kind: 'rate-limited', resumeAtMs, reason }` is returned immediately.
+ * Non-rate-limit errors are re-thrown unchanged.
+ *
+ * `selectProvider` and `recordRateLimit` are private — callers have no way
+ * to misuse the circuit state.
  *
  * Domain: Plan Guardian
  */
 
 import type { IInferenceProvider } from '../llm-substrate/inference-provider.js';
 
-const INITIAL_BACKOFF_MS = 5_000;
-const MAX_BACKOFF_MS = 2 * 60 * 60 * 1000; // 2 hours
+// ── Constants ────────────────────────────────────────────────
+
+export const INITIAL_BACKOFF_MS = 5_000;
+export const MAX_BACKOFF_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+// ── Rate-limit error helpers ─────────────────────────────────
+
+export function isRateLimitError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err ?? '');
+  const normalized = message.toLowerCase();
+  return normalized.includes('429')
+    || normalized.includes('too many requests')
+    || normalized.includes('rate limit');
+}
+
+export function parseRateLimitBackoffHintMs(err: unknown, nowMs: number): number {
+  const message = err instanceof Error ? err.message : String(err ?? '');
+
+  // Prefer explicit reset timestamp hints when present.
+  const resetMatch = message.match(/x-ratelimit-reset\"?\s*[:=]\s*\"?([0-9]{10,13})/i);
+  if (resetMatch) {
+    const rawReset = Number.parseInt(resetMatch[1], 10);
+    if (Number.isFinite(rawReset) && rawReset > 0) {
+      // 10 digits => seconds epoch; 13 digits => milliseconds epoch.
+      const resetMs = rawReset < 1_000_000_000_000 ? rawReset * 1000 : rawReset;
+      const delta = resetMs - nowMs;
+      if (delta > 0) return clampBackoffMs(delta);
+    }
+  }
+
+  // Fallback: parse Retry-After (seconds).
+  const match = message.match(/retry-after\s*:\s*([0-9]+(?:\.[0-9]+)?)/i);
+  if (!match) return 0;
+  const seconds = Number.parseFloat(match[1]);
+  if (!Number.isFinite(seconds) || seconds <= 0) return 0;
+  return clampBackoffMs(Math.round(seconds * 1000));
+}
+
+export function extractRateLimitReason(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err ?? '');
+  const reasonMatch = message.match(/rate limit exceeded\s*:\s*([^\.\n\"]+)/i);
+  if (reasonMatch && reasonMatch[1].trim().length > 0) {
+    return reasonMatch[1].trim();
+  }
+  const bucketMatch = message.match(/free-models-per-min|requests-per-minute|requests-per-day/i);
+  if (bucketMatch) return bucketMatch[0];
+  return 'rate-limit';
+}
+
+export function clampBackoffMs(value: number): number {
+  return Math.max(INITIAL_BACKOFF_MS, Math.min(value, MAX_BACKOFF_MS));
+}
+
+// ── Public types ─────────────────────────────────────────────
 
 export interface SelectedProvider {
   modelId: string;
   provider: IInferenceProvider;
 }
 
+export type SelectorOutcome<T> =
+  | { kind: 'ok'; value: T; modelId: string }
+  | { kind: 'rate-limited'; resumeAtMs: number; reason: string };
+
 /**
- * Priority-ordered model selector with per-model circuit-breaker state.
+ * Priority-ordered model circuit breaker.
+ *
+ * The only public surface callers need:
+ * - `execute<T>(nowMs, fn)` — run work against the best available provider
+ * - `nextAvailableAtMs(nowMs)` — earliest time any provider will be unblocked
+ * - `modelIds` — ordered list for logging
  */
 export interface IModelSelector {
-  /**
-   * Returns the highest-priority model whose backoff has expired (or was never
-   * triggered). Returns `null` when every model is currently rate-limited.
-   */
-  selectProvider(nowMs: number): SelectedProvider | null;
-
-  /** Record a rate-limit hit for a model. Applies exponential backoff. */
-  recordRateLimit(modelId: string, hintMs: number, nowMs: number): void;
+  execute<T>(
+    nowMs: number,
+    fn: (provider: IInferenceProvider) => Promise<T>,
+  ): Promise<SelectorOutcome<T>>;
 
   /**
-   * Returns the earliest `nowMs` at which any blocked model becomes available.
-   * Returns `nowMs` if at least one model is already available.
+   * Earliest timestamp at which at least one provider will be available.
+   * Returns `nowMs` if a provider is available right now.
    */
   nextAvailableAtMs(nowMs: number): number;
 
-  /** All model IDs in descending priority order (index 0 = most preferred). */
+  /** Model IDs in descending priority order (index 0 = most preferred). */
   readonly modelIds: readonly string[];
 }
+
+// ── Implementation ───────────────────────────────────────────
 
 interface ModelCircuitState {
   lastDelayMs: number;
@@ -58,7 +121,7 @@ export class PriorityModelSelector implements IModelSelector {
 
   /**
    * @param models  Ordered most-preferred first. At least one entry required.
-   * @param initialBackoffMs  First backoff delay when a model hasn't been seen before.
+   * @param initialBackoffMs  First backoff delay when a model has never been seen.
    */
   constructor(
     private readonly models: ReadonlyArray<SelectedProvider>,
@@ -73,23 +136,33 @@ export class PriorityModelSelector implements IModelSelector {
     return this.models.map(m => m.modelId);
   }
 
-  selectProvider(nowMs: number): SelectedProvider | null {
-    for (const model of this.models) {
-      const state = this.circuit.get(model.modelId);
-      if (!state || state.resumeAtMs <= nowMs) {
-        return model;
-      }
+  async execute<T>(
+    nowMs: number,
+    fn: (provider: IInferenceProvider) => Promise<T>,
+  ): Promise<SelectorOutcome<T>> {
+    const selected = this.selectProvider(nowMs);
+    if (!selected) {
+      return {
+        kind: 'rate-limited',
+        resumeAtMs: this.nextAvailableAtMs(nowMs),
+        reason: 'all-models-rate-limited',
+      };
     }
-    return null; // all models currently backed off
-  }
-
-  recordRateLimit(modelId: string, hintMs: number, nowMs: number): void {
-    const previous = this.circuit.get(modelId);
-    const baseDelayMs = previous
-      ? Math.min(previous.lastDelayMs * 2, MAX_BACKOFF_MS)
-      : this.initialBackoffMs;
-    const delayMs = Math.min(Math.max(baseDelayMs, hintMs), MAX_BACKOFF_MS);
-    this.circuit.set(modelId, { lastDelayMs: delayMs, resumeAtMs: nowMs + delayMs });
+    try {
+      const value = await fn(selected.provider);
+      return { kind: 'ok', value, modelId: selected.modelId };
+    } catch (err) {
+      if (isRateLimitError(err)) {
+        const hintMs = parseRateLimitBackoffHintMs(err, nowMs);
+        this.recordRateLimit(selected.modelId, hintMs, nowMs);
+        return {
+          kind: 'rate-limited',
+          resumeAtMs: this.circuit.get(selected.modelId)!.resumeAtMs,
+          reason: extractRateLimitReason(err),
+        };
+      }
+      throw err;
+    }
   }
 
   nextAvailableAtMs(nowMs: number): number {
@@ -103,14 +176,32 @@ export class PriorityModelSelector implements IModelSelector {
     }
     return earliest;
   }
+
+  private selectProvider(nowMs: number): SelectedProvider | null {
+    for (const model of this.models) {
+      const state = this.circuit.get(model.modelId);
+      if (!state || state.resumeAtMs <= nowMs) {
+        return model;
+      }
+    }
+    return null;
+  }
+
+  private recordRateLimit(modelId: string, hintMs: number, nowMs: number): void {
+    const previous = this.circuit.get(modelId);
+    const baseDelayMs = previous
+      ? Math.min(previous.lastDelayMs * 2, MAX_BACKOFF_MS)
+      : this.initialBackoffMs;
+    const delayMs = Math.min(Math.max(baseDelayMs, hintMs), MAX_BACKOFF_MS);
+    this.circuit.set(modelId, { lastDelayMs: delayMs, resumeAtMs: nowMs + delayMs });
+  }
 }
+
+// ── Defaults ─────────────────────────────────────────────────
 
 /**
  * Priority list of OpenRouter free-tier models, most preferred first.
- * Used when `--provider openrouter` is selected.
- *
  * Add new model IDs here to include them in the fallback chain.
- * The first entry in the list that is not currently backed off is used.
  */
 export const DEFAULT_OPENROUTER_MODEL_PRIORITY: readonly string[] = [
   'nvidia/nemotron-3-super-120b-a12b:free',

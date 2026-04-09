@@ -30,6 +30,14 @@ import {
 } from './integrity.js';
 import { normalizePlanPath, parseActionOutput } from './actions.js';
 import { runSanityPass } from './sanity-pass.js';
+import {
+  isRateLimitError,
+  parseRateLimitBackoffHintMs,
+  extractRateLimitReason,
+  clampBackoffMs,
+  INITIAL_BACKOFF_MS as INITIAL_RATE_LIMIT_BACKOFF_MS,
+  MAX_BACKOFF_MS as MAX_RATE_LIMIT_BACKOFF_MS,
+} from './model-selector.js';
 
 export interface EpochResult {
   epoch: number;
@@ -62,9 +70,6 @@ export interface SchedulerCallbacks {
   /** Called once when a soft-stop is requested (e.g. ESC pressed). */
   onSoftStop?(): void;
 }
-
-const INITIAL_RATE_LIMIT_BACKOFF_MS = 5_000;
-const MAX_RATE_LIMIT_BACKOFF_MS = 2 * 60 * 60 * 1000;
 
 /** A handle returned by runScheduler that lets callers request a soft stop. */
 export interface SchedulerHandle {
@@ -184,7 +189,9 @@ export function runScheduler(
       break;
     }
 
-    const nextResumeAtMs = Math.min(...activeQueue.map(item => blockedTasks.get(item.path)?.resumeAtMs ?? nowMs));
+    const nextTaskResumeAtMs = Math.min(...activeQueue.map(item => blockedTasks.get(item.path)?.resumeAtMs ?? nowMs));
+    const nextModelResumeAtMs = config.modelSelector?.nextAvailableAtMs(nowMs) ?? nowMs;
+    const nextResumeAtMs = Math.max(nextTaskResumeAtMs, nextModelResumeAtMs);
     const delayMs = clampBackoffMs(Math.max(0, nextResumeAtMs - nowMs));
     if (delayMs > 0) {
       callbacks.onRateLimitBackoff?.(
@@ -290,7 +297,8 @@ export async function runEpoch(
     } else if (outcome.kind === 'rate-limited') {
       failed++;
       rateLimitFailures++;
-      const { hintMs, reason } = outcome;
+      const { resumeAtMs, reason } = outcome;
+      const hintMs = Math.max(0, resumeAtMs - nowMs);
       rateLimitBackoffHintMs = Math.max(rateLimitBackoffHintMs, hintMs);
       rateLimitReasonCounts.set(reason, (rateLimitReasonCounts.get(reason) ?? 0) + 1);
       rateLimitedTasks.push({ path: item.task.path, reason, hintMs });
@@ -336,11 +344,10 @@ export async function runEpoch(
           continue;
         }
 
-        const sanityProvider = config.modelSelector?.selectProvider(nowMs)?.provider ?? provider;
         const sanityErrors = await runActionSanityPass(
           result.action,
           baselineNodes,
-          sanityProvider,
+          provider,
           config.maxTokensPerCall,
           config.planDir,
         );
@@ -422,15 +429,16 @@ export async function runEpoch(
 // ── Internal ────────────────────────────────────────────────
 
 /**
- * Dispatch a single task, transparently rotating through models on rate-limit.
+ * Dispatch a single task through the model circuit breaker.
  *
- * When `config.modelSelector` is present, the function tries each available
- * model in priority order. Only when ALL models are exhausted does it return
- * `{ kind: 'rate-limited' }`. Non-rate-limit errors always surface immediately.
+ * Delegates entirely to `IModelSelector.execute` when a selector is configured,
+ * so rate-limit detection, backoff recording, and model selection are all
+ * encapsulated in the selector. Falls back to `baseProvider` directly when no
+ * selector is present.
  */
 type DispatchOutcome =
   | { kind: 'ok'; result: WorkerResult }
-  | { kind: 'rate-limited'; hintMs: number; reason: string }
+  | { kind: 'rate-limited'; resumeAtMs: number; reason: string }
   | { kind: 'error'; error: unknown };
 
 async function dispatchWithFallback(
@@ -443,41 +451,28 @@ async function dispatchWithFallback(
 ): Promise<DispatchOutcome> {
   const selector = config.modelSelector;
 
-  if (!selector) {
-    try {
-      return { kind: 'ok', result: await runWorker(item, dag, baseProvider, now, config) };
-    } catch (err) {
-      if (isRateLimitError(err)) {
-        return {
-          kind: 'rate-limited',
-          hintMs: parseRateLimitBackoffHintMs(err, nowMs),
-          reason: extractRateLimitReason(err),
-        };
-      }
-      return { kind: 'error', error: err };
+  if (selector) {
+    const outcome = await selector.execute(nowMs, provider =>
+      runWorker(item, dag, provider, now, config),
+    );
+    if (outcome.kind === 'ok') {
+      return { kind: 'ok', result: outcome.value };
     }
+    return outcome; // { kind: 'rate-limited', resumeAtMs, reason }
   }
 
-  // Walk the priority list until one model succeeds or all are exhausted.
-  const tried = new Set<string>();
-  for (;;) {
-    const selected = selector.selectProvider(nowMs);
-    if (!selected || tried.has(selected.modelId)) {
-      // Every model has been tried and rate-limited.
-      const hintMs = Math.max(0, selector.nextAvailableAtMs(nowMs) - nowMs);
-      return { kind: 'rate-limited', hintMs, reason: 'all-models-rate-limited' };
+  try {
+    return { kind: 'ok', result: await runWorker(item, dag, baseProvider, now, config) };
+  } catch (err) {
+    if (isRateLimitError(err)) {
+      const hintMs = parseRateLimitBackoffHintMs(err, nowMs);
+      return {
+        kind: 'rate-limited',
+        resumeAtMs: nowMs + (hintMs > 0 ? hintMs : INITIAL_RATE_LIMIT_BACKOFF_MS),
+        reason: extractRateLimitReason(err),
+      };
     }
-    tried.add(selected.modelId);
-    try {
-      return { kind: 'ok', result: await runWorker(item, dag, selected.provider, now, config) };
-    } catch (err) {
-      if (isRateLimitError(err)) {
-        selector.recordRateLimit(selected.modelId, parseRateLimitBackoffHintMs(err, nowMs), nowMs);
-        // Loop to try the next available model.
-      } else {
-        return { kind: 'error', error: err };
-      }
-    }
+    return { kind: 'error', error: err };
   }
 }
 
@@ -652,37 +647,6 @@ async function writeAllFiles(fs: IFileSystem, files: ReadonlyMap<string, string>
   }
 }
 
-function isRateLimitError(err: unknown): boolean {
-  const message = err instanceof Error ? err.message : String(err ?? '');
-  const normalized = message.toLowerCase();
-  return normalized.includes('429')
-    || normalized.includes('too many requests')
-    || normalized.includes('rate limit');
-}
-
-function parseRateLimitBackoffHintMs(err: unknown, nowMs: number): number {
-  const message = err instanceof Error ? err.message : String(err ?? '');
-
-  // Prefer explicit reset timestamp hints when present.
-  const resetMatch = message.match(/x-ratelimit-reset\"?\s*[:=]\s*\"?([0-9]{10,13})/i);
-  if (resetMatch) {
-    const rawReset = Number.parseInt(resetMatch[1], 10);
-    if (Number.isFinite(rawReset) && rawReset > 0) {
-      // 10 digits => seconds epoch; 13 digits => milliseconds epoch.
-      const resetMs = rawReset < 1_000_000_000_000 ? rawReset * 1000 : rawReset;
-      const delta = resetMs - nowMs;
-      if (delta > 0) return clampBackoffMs(delta);
-    }
-  }
-
-  // Fallback: parse Retry-After (seconds).
-  const match = message.match(/retry-after\s*:\s*([0-9]+(?:\.[0-9]+)?)/i);
-  if (!match) return 0;
-  const seconds = Number.parseFloat(match[1]);
-  if (!Number.isFinite(seconds) || seconds <= 0) return 0;
-  return clampBackoffMs(Math.round(seconds * 1000));
-}
-
 function getInitialRateLimitBackoffMs(config: GuardianConfig): number {
   const rpm = config.modelMetadata?.rateLimits?.requestsPerMinute;
   if (typeof rpm !== 'number' || !Number.isFinite(rpm) || rpm <= 0) {
@@ -690,23 +654,6 @@ function getInitialRateLimitBackoffMs(config: GuardianConfig): number {
   }
   const seeded = Math.ceil(60_000 / rpm);
   return clampBackoffMs(Math.max(INITIAL_RATE_LIMIT_BACKOFF_MS, seeded));
-}
-
-function clampBackoffMs(value: number): number {
-  return Math.max(INITIAL_RATE_LIMIT_BACKOFF_MS, Math.min(value, MAX_RATE_LIMIT_BACKOFF_MS));
-}
-
-function extractRateLimitReason(err: unknown): string {
-  const message = err instanceof Error ? err.message : String(err ?? '');
-  const reasonMatch = message.match(/rate limit exceeded\s*:\s*([^\.\n\"]+)/i);
-  if (reasonMatch && reasonMatch[1].trim().length > 0) {
-    return reasonMatch[1].trim();
-  }
-
-  const bucketMatch = message.match(/free-models-per-min|requests-per-minute|requests-per-day/i);
-  if (bucketMatch) return bucketMatch[0];
-
-  return 'rate-limit';
 }
 
 interface BlockedTaskState {
