@@ -91,6 +91,7 @@ function makeConfig(fs: InMemoryFileSystem, overrides: Partial<GuardianConfig> =
     fs,
     git: new InMemoryGitOperations(),
     clock: { now: () => '2026-04-06T12:00:00.000Z' },
+    sleeper: { sleep: async () => {} },
     ...overrides,
   };
 }
@@ -383,5 +384,72 @@ Done child.
     const results = await handle.done;
     expect(softStopFired).toBe(true);
     expect(results.length).toBe(1); // only one epoch ran
+  });
+
+  it('applies exponential backoff on repeated 429s', async () => {
+    const rateLimited: IInferenceProvider = {
+      async probe() { return { reachable: true, latencyMs: 10 }; },
+      async infer() { throw new Error('Ollama/OpenAI API error 429: Too Many Requests'); },
+    };
+
+    const sleepCalls: number[] = [];
+    const fs = makeFs({ 'plan/root.md': ROOT, 'plan/0.0-alpha.md': ALPHA });
+    const config = makeConfig(fs, {
+      provider: rateLimited,
+      maxIterations: 3,
+      sleeper: { sleep: async (ms: number) => { sleepCalls.push(ms); } },
+    });
+
+    const results = await runScheduler(config).done;
+    expect(results).toHaveLength(3);
+    expect(results[0].rateLimitFailures).toBeGreaterThan(0);
+    expect(results[1].rateLimitFailures).toBeGreaterThan(0);
+    expect(results[2].rateLimitFailures).toBeGreaterThan(0);
+    expect(sleepCalls).toEqual([5000, 10000]);
+  });
+
+  it('seeds initial backoff from metadata rpm', async () => {
+    const rateLimited: IInferenceProvider = {
+      async probe() { return { reachable: true, latencyMs: 10 }; },
+      async infer() { throw new Error('429 Too Many Requests'); },
+    };
+
+    const sleepCalls: number[] = [];
+    const fs = makeFs({ 'plan/root.md': ROOT, 'plan/0.0-alpha.md': ALPHA });
+    const config = makeConfig(fs, {
+      provider: rateLimited,
+      maxIterations: 2,
+      modelMetadata: {
+        provider: 'openrouter',
+        modelId: 'test-model',
+        source: 'openrouter',
+        notes: [],
+        rateLimits: { requestsPerMinute: 6 },
+      },
+      sleeper: { sleep: async (ms: number) => { sleepCalls.push(ms); } },
+    });
+
+    await runScheduler(config).done;
+    expect(sleepCalls).toEqual([10000]);
+  });
+
+  it('honors Retry-After hint and caps at two hours', async () => {
+    const hinted: IInferenceProvider = {
+      async probe() { return { reachable: true, latencyMs: 10 }; },
+      async infer() {
+        throw new Error('Ollama/OpenAI API error 429: Too Many Requests\nRetry-After: 999999');
+      },
+    };
+
+    const sleepCalls: number[] = [];
+    const fs = makeFs({ 'plan/root.md': ROOT, 'plan/0.0-alpha.md': ALPHA });
+    const config = makeConfig(fs, {
+      provider: hinted,
+      maxIterations: 2,
+      sleeper: { sleep: async (ms: number) => { sleepCalls.push(ms); } },
+    });
+
+    await runScheduler(config).done;
+    expect(sleepCalls).toEqual([2 * 60 * 60 * 1000]);
   });
 });

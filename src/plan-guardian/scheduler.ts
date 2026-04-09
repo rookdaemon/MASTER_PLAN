@@ -37,6 +37,7 @@ export interface EpochResult {
   completed: number;
   failed: number;
   rateLimitFailures: number;
+  rateLimitBackoffHintMs: number;
   commits: string[];
   totalTokens: { prompt: number; completion: number };
 }
@@ -70,6 +71,8 @@ export function runScheduler(
 ): SchedulerHandle {
   let stopRequested = false;
   let nextBackoffMs = 0;
+  let pendingRateLimitFailures = 0;
+  const initialBackoffMs = getInitialRateLimitBackoffMs(config);
 
   const done = (async (): Promise<EpochResult[]> => {
   const results: EpochResult[] = [];
@@ -78,7 +81,7 @@ export function runScheduler(
     if (stopRequested) break;
 
     if (nextBackoffMs > 0) {
-      callbacks.onRateLimitBackoff?.(nextBackoffMs, 1);
+      callbacks.onRateLimitBackoff?.(nextBackoffMs, pendingRateLimitFailures);
       await config.sleeper.sleep(nextBackoffMs);
       if (stopRequested) break;
     }
@@ -89,12 +92,14 @@ export function runScheduler(
     if (epochResult.dispatched === 0) break;
 
     if (epochResult.rateLimitFailures > 0) {
-      nextBackoffMs = nextBackoffMs === 0
-        ? INITIAL_RATE_LIMIT_BACKOFF_MS
+      const exponential = nextBackoffMs === 0
+        ? initialBackoffMs
         : Math.min(nextBackoffMs * 2, MAX_RATE_LIMIT_BACKOFF_MS);
-      callbacks.onRateLimitBackoff?.(nextBackoffMs, epochResult.rateLimitFailures);
+      nextBackoffMs = clampBackoffMs(Math.max(exponential, epochResult.rateLimitBackoffHintMs));
+      pendingRateLimitFailures = epochResult.rateLimitFailures;
     } else {
       nextBackoffMs = 0;
+      pendingRateLimitFailures = 0;
     }
   }
 
@@ -129,6 +134,7 @@ export async function runEpoch(
       completed: 0,
       failed: 0,
       rateLimitFailures: 0,
+      rateLimitBackoffHintMs: 0,
       commits: [],
       totalTokens: { prompt: 0, completion: 0 },
     };
@@ -147,6 +153,7 @@ export async function runEpoch(
   const commits: string[] = [];
   let failed = 0;
   let rateLimitFailures = 0;
+  let rateLimitBackoffHintMs = 0;
   const totalTokens = { prompt: 0, completion: 0 };
 
   for (let i = 0; i < settled.length; i++) {
@@ -160,6 +167,10 @@ export async function runEpoch(
       failed++;
       if (isRateLimitError(outcome.reason)) {
         rateLimitFailures++;
+        rateLimitBackoffHintMs = Math.max(
+          rateLimitBackoffHintMs,
+          parseRetryAfterHintMs(outcome.reason),
+        );
       }
       callbacks.onWorkerError?.(batch[i].task.path, outcome.reason as Error);
     }
@@ -265,6 +276,7 @@ export async function runEpoch(
     completed: accepted.length,
     failed,
     rateLimitFailures,
+    rateLimitBackoffHintMs,
     commits,
     totalTokens,
   };
@@ -451,4 +463,26 @@ function isRateLimitError(err: unknown): boolean {
   return normalized.includes('429')
     || normalized.includes('too many requests')
     || normalized.includes('rate limit');
+}
+
+function parseRetryAfterHintMs(err: unknown): number {
+  const message = err instanceof Error ? err.message : String(err ?? '');
+  const match = message.match(/retry-after\s*:\s*([0-9]+(?:\.[0-9]+)?)/i);
+  if (!match) return 0;
+  const seconds = Number.parseFloat(match[1]);
+  if (!Number.isFinite(seconds) || seconds <= 0) return 0;
+  return clampBackoffMs(Math.round(seconds * 1000));
+}
+
+function getInitialRateLimitBackoffMs(config: GuardianConfig): number {
+  const rpm = config.modelMetadata?.rateLimits?.requestsPerMinute;
+  if (typeof rpm !== 'number' || !Number.isFinite(rpm) || rpm <= 0) {
+    return INITIAL_RATE_LIMIT_BACKOFF_MS;
+  }
+  const seeded = Math.ceil(60_000 / rpm);
+  return clampBackoffMs(Math.max(INITIAL_RATE_LIMIT_BACKOFF_MS, seeded));
+}
+
+function clampBackoffMs(value: number): number {
+  return Math.max(INITIAL_RATE_LIMIT_BACKOFF_MS, Math.min(value, MAX_RATE_LIMIT_BACKOFF_MS));
 }

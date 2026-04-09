@@ -107,9 +107,11 @@ export class OllamaInferenceProvider implements IInferenceProvider {
     }
 
     if (!response.ok) {
+      const retryAfter = response.headers.get('retry-after');
       const errorBody = await response.text().catch(() => "(could not read body)");
+      const retryAfterSuffix = retryAfter ? `\nRetry-After: ${retryAfter}` : '';
       throw new Error(
-        `Ollama/OpenAI API error ${response.status}: ${response.statusText}\n${errorBody}`
+        `Ollama/OpenAI API error ${response.status}: ${response.statusText}${retryAfterSuffix}\n${errorBody}`
       );
     }
 
