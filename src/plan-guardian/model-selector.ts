@@ -140,29 +140,41 @@ export class PriorityModelSelector implements IModelSelector {
     nowMs: number,
     fn: (provider: IInferenceProvider) => Promise<T>,
   ): Promise<SelectorOutcome<T>> {
-    const selected = this.selectProvider(nowMs);
-    if (!selected) {
-      return {
-        kind: 'rate-limited',
-        resumeAtMs: this.nextAvailableAtMs(nowMs),
-        reason: 'all-models-rate-limited',
-      };
-    }
-    try {
-      const value = await fn(selected.provider);
-      return { kind: 'ok', value, modelId: selected.modelId };
-    } catch (err) {
-      if (isRateLimitError(err)) {
-        const hintMs = parseRateLimitBackoffHintMs(err, nowMs);
-        this.recordRateLimit(selected.modelId, hintMs, nowMs);
-        return {
-          kind: 'rate-limited',
-          resumeAtMs: this.circuit.get(selected.modelId)!.resumeAtMs,
-          reason: extractRateLimitReason(err),
-        };
+    // Try models in priority order. Only return rate-limited if all are either
+    // already blocked or fail with rate-limit errors.
+    let lastRateLimitReason = '';
+    let lastResumeAtMs = nowMs;
+
+    for (const model of this.models) {
+      const state = this.circuit.get(model.modelId);
+      // Skip already-blocked models for now; we'll handle all-blocked case below
+      if (state && state.resumeAtMs > nowMs) {
+        continue;
       }
-      throw err;
+      try {
+        const value = await fn(model.provider);
+        return { kind: 'ok', value, modelId: model.modelId };
+      } catch (err) {
+        if (isRateLimitError(err)) {
+          const hintMs = parseRateLimitBackoffHintMs(err, nowMs);
+          this.recordRateLimit(model.modelId, hintMs, nowMs);
+          lastRateLimitReason = extractRateLimitReason(err);
+          lastResumeAtMs = this.circuit.get(model.modelId)!.resumeAtMs;
+          // Continue to next model instead of returning immediately
+          continue;
+        }
+        // Non-rate-limit errors are re-thrown; caller handles them
+        throw err;
+      }
     }
+
+    // If we get here, either all models are blocked or all available models failed with rate-limit.
+    // Return the most recent rate-limit outcome.
+    return {
+      kind: 'rate-limited',
+      resumeAtMs: this.nextAvailableAtMs(nowMs),
+      reason: lastRateLimitReason || 'all-models-rate-limited',
+    };
   }
 
   nextAvailableAtMs(nowMs: number): number {

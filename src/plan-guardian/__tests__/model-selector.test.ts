@@ -65,18 +65,47 @@ describe('PriorityModelSelector', () => {
     expect(outcome).toEqual({ kind: 'ok', value: 'a', modelId: 'a' });
   });
 
+  it('tries next model when first fails with 429 in the same execute call', async () => {
+    // Within one execute call: model 0 fails with 429, model 1 succeeds
+    // This is the key retry behavior that makes the circuit breaker resilient
+    const sel = new PriorityModelSelector([
+      { modelId: 'a', provider: rateLimitedProvider('a') },
+      { modelId: 'b', provider: fakeProvider('b') },
+      { modelId: 'c', provider: fakeProvider('c') },
+    ]);
+    const outcome = await runId(sel);
+    // Should skip 'a' (failed with 429), try 'b' and succeed
+    expect(outcome).toEqual({ kind: 'ok', value: 'b', modelId: 'b' });
+    // Verify 'a' was recorded as blocked for the next call
+    const nextCall = await runId(sel, NOW);
+    expect(nextCall).toEqual({ kind: 'ok', value: 'b', modelId: 'b' });
+  });
+
   it('falls through to second model when first is rate-limited', async () => {
-    // First model: always 429; second model: ok
+    // Model 'a' always fails with 429; model 'b' always succeeds
+    // In a single execute call, 'a' fails, we try 'b' and succeed
     const sel = new PriorityModelSelector([
       { modelId: 'a', provider: rateLimitedProvider('a') },
       { modelId: 'b', provider: fakeProvider('b') },
     ]);
-    // First execute: hits 'a', gets 429 → records backoff, returns rate-limited
-    const first = await runId(sel);
-    expect(first.kind).toBe('rate-limited');
-    // Second execute (same nowMs, 'a' still blocked): uses 'b'
-    const second = await runId(sel);
-    expect(second).toEqual({ kind: 'ok', value: 'b', modelId: 'b' });
+    const outcome = await runId(sel);
+    // With the new retry logic: tries 'a' (fails), tries 'b' (succeeds)
+    expect(outcome).toEqual({ kind: 'ok', value: 'b', modelId: 'b' });
+  });
+
+  it('tries all models and returns rate-limited if all fail with 429', async () => {
+    // All three models fail with rate-limit
+    const sel = new PriorityModelSelector([
+      { modelId: 'a', provider: rateLimitedProvider('a') },
+      { modelId: 'b', provider: rateLimitedProvider('b') },
+      { modelId: 'c', provider: rateLimitedProvider('c') },
+    ]);
+    const outcome = await runId(sel);
+    expect(outcome.kind).toBe('rate-limited');
+    expect((outcome as any).reason).toBe('rate-limit'); // extracted from error message
+    // All three should be recorded as blocked
+    const nextAvail = sel.nextAvailableAtMs(NOW);
+    expect(nextAvail).toBeGreaterThan(NOW);
   });
 
   it('returns rate-limited when all models are blocked', async () => {
@@ -95,9 +124,11 @@ describe('PriorityModelSelector', () => {
       { modelId: 'b', provider: fakeProvider('b') },
     ]);
     const first = await runId(sel);
-    expect(first.kind).toBe('rate-limited'); // 'a' backed off ~5s
+    // 'a' fails with 429 once, then we try 'b' and succeed
+    expect(first).toEqual({ kind: 'ok', value: 'b', modelId: 'b' });
     const atNow = await runId(sel);
-    expect(atNow).toEqual({ kind: 'ok', value: 'b', modelId: 'b' }); // 'a' still blocked
+    // 'a' still blocked at NOW, so we use 'b'
+    expect(atNow).toEqual({ kind: 'ok', value: 'b', modelId: 'b' });
     // After backoff expires, 'a' is tried first and succeeds
     const after = await runId(sel, NOW + 10_000);
     expect(after).toEqual({ kind: 'ok', value: 'a', modelId: 'a' });
@@ -109,7 +140,8 @@ describe('PriorityModelSelector', () => {
       { modelId: 'b', provider: fakeProvider('b') },
     ]);
     const first = await runId(sel);
-    expect(first.kind).toBe('rate-limited'); // 'a' backed off 60s
+    // 'a' fails with Retry-After: 60, then we try 'b' and succeed
+    expect(first).toEqual({ kind: 'ok', value: 'b', modelId: 'b' });
     // At NOW + 5s: 'a' still blocked (5s < 60s)
     const at5s = await runId(sel, NOW + 5_000);
     expect(at5s).toEqual({ kind: 'ok', value: 'b', modelId: 'b' });
