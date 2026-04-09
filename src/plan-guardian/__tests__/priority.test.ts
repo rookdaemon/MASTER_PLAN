@@ -145,18 +145,43 @@ Also blocked (circular for test purposes).
   });
 
   it('prefers IMPLEMENT/REVIEW over PLAN (status progression)', async () => {
+    const root = `---
+root: plan/root.md
+children:
+  - plan/0.0-a1.md
+  - plan/0.1-a2.md
+---
+# 0 Root [DONE]
+
+Root.
+`;
+    const a1Plan = `---
+parent: plan/root.md
+root: plan/root.md
+---
+# 0.0 A1 [PLAN]
+
+Plan leaf.
+`;
+    const a2Implement = `---
+parent: plan/root.md
+root: plan/root.md
+---
+# 0.1 A2 [IMPLEMENT]
+
+Implement leaf.
+`;
+
     const fs = makeFs({
-      'plan/root.md': ROOT,
-      'plan/0.0-alpha.md': ALPHA,
-      'plan/0.1-beta.md': BETA,
-      'plan/0.0.1-a1.md': A1,
-      'plan/0.0.2-a2.md': A2,
+      'plan/root.md': root,
+      'plan/0.0-a1.md': a1Plan,
+      'plan/0.1-a2.md': a2Implement,
     });
     const dag = await buildDAG(fs, 'plan');
     const result = prioritize(dag, NOW);
-    // A2 is IMPLEMENT, A1 is PLAN — A2 should rank higher
-    const a1Idx = result.findIndex(r => r.task.path === 'plan/0.0.1-a1.md');
-    const a2Idx = result.findIndex(r => r.task.path === 'plan/0.0.2-a2.md');
+    // A2 is IMPLEMENT, A1 is PLAN — A2 should rank higher when both are eligible.
+    const a1Idx = result.findIndex(r => r.task.path === 'plan/0.0-a1.md');
+    const a2Idx = result.findIndex(r => r.task.path === 'plan/0.1-a2.md');
     expect(a2Idx).toBeLessThan(a1Idx);
   });
 });
