@@ -11,6 +11,7 @@
 
 import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { dirname } from "node:path";
 
 // ── Interface ────────────────────────────────────────────────
 
@@ -30,6 +31,10 @@ export class NodeFileSystem implements IFileSystem {
     return readFile(path, encoding as BufferEncoding);
   }
   async writeFile(path: string, content: string, encoding: string): Promise<void> {
+    const parent = dirname(path);
+    if (parent && parent !== '.') {
+      await mkdir(parent, { recursive: true });
+    }
     await writeFile(path, content, encoding as BufferEncoding);
   }
   exists(path: string): boolean {

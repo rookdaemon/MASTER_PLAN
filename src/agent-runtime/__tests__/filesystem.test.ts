@@ -5,7 +5,10 @@
  * contract, which is also used to test PersistenceManager without real disk I/O.
  */
 import { describe, it, expect } from "vitest";
-import { InMemoryFileSystem } from "../filesystem.js";
+import { mkdtemp, readFile as readNodeFile, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { InMemoryFileSystem, NodeFileSystem } from "../filesystem.js";
 
 describe("InMemoryFileSystem", () => {
   it("starts with no files", () => {
@@ -45,5 +48,20 @@ describe("InMemoryFileSystem", () => {
     await fs.writeFile("/f.txt", "v2", "utf-8");
     const content = await fs.readFile("/f.txt", "utf-8");
     expect(content).toBe("v2");
+  });
+});
+
+describe("NodeFileSystem", () => {
+  it("creates parent directories on nested write", async () => {
+    const root = await mkdtemp(join(tmpdir(), "node-fs-test-"));
+    try {
+      const fs = new NodeFileSystem();
+      const path = join(root, "artifacts", "deep", "result.json");
+      await fs.writeFile(path, '{"ok":true}', "utf-8");
+      const content = await readNodeFile(path, "utf-8");
+      expect(content).toBe('{"ok":true}');
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });
