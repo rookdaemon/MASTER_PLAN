@@ -10,7 +10,7 @@
 import type { IInferenceProvider } from '../llm-substrate/inference-provider.js';
 import type { IPlanDAG, PlanFile, PlanningActionType, WorkerResult } from './interfaces.js';
 import { buildSystemPrompt, buildUserMessage } from './prompts.js';
-import { parseActionOutput } from './actions.js';
+import { parseActionOutput, validateOutputBlocks } from './actions.js';
 
 export type ActionValidator = (actionText: string) => string[];
 const MAX_REPAIR_ATTEMPTS = 3;
@@ -51,7 +51,8 @@ export async function runPlanningWorker(
     totalLatencyMs += response.latencyMs;
 
     const text = response.text ?? '';
-    const violations = validateText?.(text) ?? [];
+    const structuralViolations = validateOutputBlocks(text);
+    const violations = [...structuralViolations, ...(validateText?.(text) ?? [])];
 
     if (violations.length === 0) {
       let action;

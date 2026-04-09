@@ -20,6 +20,67 @@ const PLAN_FILE_RE = /```plan-file:([^\n]+)\n([\s\S]*?)```/g;
 const ARTIFACT_RE = /```artifact:([^\n]+)\n([\s\S]*?)```/g;
 const DELETE_RE = /<!-- DELETE: ([^\s]+) -->/g;
 
+const VALID_STATUSES = new Set(['PLAN', 'ARCHITECT', 'IMPLEMENT', 'REVIEW', 'DONE']);
+
+/**
+ * Structural validator for raw LLM output.
+ *
+ * Checks every `plan-file:` block for:
+ * - `root:` frontmatter field presence
+ * - `parent:` frontmatter field presence (all non-root nodes)
+ * - H1 heading with a valid `[STATUS]` tag
+ * - H1 numeric ID matching the filename numeric prefix
+ *
+ * Returns a list of human-readable violation strings suitable for
+ * feeding back into the repair prompt.
+ */
+export function validateOutputBlocks(text: string): string[] {
+  const violations: string[] = [];
+  const re = /```plan-file:([^\n]+)\n([\s\S]*?)```/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = re.exec(text)) !== null) {
+    const rawPath = match[1].trim();
+    const content = match[2];
+    const normalizedPath = normalizePlanPath(rawPath);
+    const filename = normalizedPath.split('/').pop() ?? '';
+    const isRoot = filename === 'root.md';
+
+    // Required frontmatter fields
+    if (!content.includes('root:')) {
+      violations.push(`plan-file:${rawPath}: missing required frontmatter field "root:"`);
+    }
+    if (!isRoot && !content.includes('parent:')) {
+      violations.push(`plan-file:${rawPath}: missing required frontmatter field "parent:"`);
+    }
+
+    // H1 heading with valid [STATUS] tag
+    const h1Match = content.match(/^#\s+([\d.]+)\s+.*\[(\w+)\]\s*$/m);
+    if (!h1Match) {
+      violations.push(`plan-file:${rawPath}: H1 heading missing or has no [STATUS] tag`);
+    } else {
+      const headingStatus = h1Match[2];
+      if (!VALID_STATUSES.has(headingStatus)) {
+        violations.push(
+          `plan-file:${rawPath}: H1 has unknown status "[${headingStatus}]"; must be one of [${[...VALID_STATUSES].join('|')}]`,
+        );
+      }
+
+      // Numeric ID in heading must match filename prefix
+      const pathIdMatch = filename.match(/^([\d.]+)/);
+      const pathId = pathIdMatch?.[1]?.replace(/\.$/, '') ?? null;
+      const headingId = h1Match[1].replace(/\.$/, '');
+      if (pathId && headingId !== pathId) {
+        violations.push(
+          `plan-file:${rawPath}: H1 numeric id "${headingId}" does not match filename id "${pathId}"`,
+        );
+      }
+    }
+  }
+
+  return violations;
+}
+
 export function parseActionOutput(
   llmOutput: string,
   actionType: PlanningActionType,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseActionOutput } from '../actions.js';
+import { parseActionOutput, validateOutputBlocks } from '../actions.js';
 
 const NOW = '2026-04-06T12:00:00.000Z';
 
@@ -159,5 +159,93 @@ Updated.
     expect(action.filesModified).toHaveLength(1);
     // Delete directives are tracked in writeSet
     expect(action.writeSet).toContain('plan/0.0.3-old.md');
+  });
+});
+
+describe('validateOutputBlocks', () => {
+  const GOOD_OUTPUT = `\`\`\`plan-file:plan/0.0.1-setup.md
+---
+parent: plan/0.0-alpha.md
+root: plan/root.md
+---
+# 0.0.1 Setup [PLAN]
+
+Content.
+\`\`\``;
+
+  it('returns no violations for a well-formed block', () => {
+    expect(validateOutputBlocks(GOOD_OUTPUT)).toEqual([]);
+  });
+
+  it('reports missing root: field', () => {
+    const text = `\`\`\`plan-file:plan/0.0.1-setup.md
+---
+parent: plan/0.0-alpha.md
+---
+# 0.0.1 Setup [PLAN]
+\`\`\``;
+    const v = validateOutputBlocks(text);
+    expect(v.some(s => s.includes('"root:"'))).toBe(true);
+  });
+
+  it('reports missing parent: field for non-root node', () => {
+    const text = `\`\`\`plan-file:plan/0.0.1-setup.md
+---
+root: plan/root.md
+---
+# 0.0.1 Setup [PLAN]
+\`\`\``;
+    const v = validateOutputBlocks(text);
+    expect(v.some(s => s.includes('"parent:"'))).toBe(true);
+  });
+
+  it('does not require parent: for root.md', () => {
+    const text = `\`\`\`plan-file:plan/root.md
+---
+root: plan/root.md
+---
+# 0 Root [PLAN]
+\`\`\``;
+    expect(validateOutputBlocks(text)).toEqual([]);
+  });
+
+  it('reports missing or malformed H1 heading', () => {
+    const text = `\`\`\`plan-file:plan/0.0.1-setup.md
+---
+parent: plan/0.0-alpha.md
+root: plan/root.md
+---
+Some body without an H1.
+\`\`\``;
+    const v = validateOutputBlocks(text);
+    expect(v.some(s => s.includes('H1 heading'))).toBe(true);
+  });
+
+  it('reports unknown status tag', () => {
+    const text = `\`\`\`plan-file:plan/0.0.1-setup.md
+---
+parent: plan/0.0-alpha.md
+root: plan/root.md
+---
+# 0.0.1 Setup [INPROGRESS]
+\`\`\``;
+    const v = validateOutputBlocks(text);
+    expect(v.some(s => s.includes('unknown status'))).toBe(true);
+  });
+
+  it('reports H1 numeric id mismatch with filename', () => {
+    const text = `\`\`\`plan-file:plan/0.0.1-setup.md
+---
+parent: plan/0.0-alpha.md
+root: plan/root.md
+---
+# 0.0.2 Setup [PLAN]
+\`\`\``;
+    const v = validateOutputBlocks(text);
+    expect(v.some(s => s.includes('does not match filename id'))).toBe(true);
+  });
+
+  it('returns no violations when output has no plan-file blocks', () => {
+    expect(validateOutputBlocks('Some plain text with no blocks.')).toEqual([]);
   });
 });
