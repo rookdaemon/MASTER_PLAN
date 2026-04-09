@@ -193,8 +193,8 @@ const STATUS_SCORE: Record<PlanStatus, number> = {
 function priorityScore(p: PlanFile, dag: IPlanDAG, now: string): number {
   let score = 0;
 
-  // 1. Deeper tasks first (decompose before broaden)
-  score += p.depth * 10;
+  // 1. Breadth-first: shallower tasks score higher
+  score -= p.depth * 10;
 
   // 2. Leaves get a bonus (they need decomposition or promotion)
   if (p.isLeaf) score += 50;
