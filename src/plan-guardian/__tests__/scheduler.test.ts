@@ -96,6 +96,26 @@ function makeConfig(fs: InMemoryFileSystem, overrides: Partial<GuardianConfig> =
   };
 }
 
+function makeAdvancingClock(startIso: string): {
+  clock: GuardianConfig['clock'];
+  sleeper: GuardianConfig['sleeper'];
+  sleepCalls: number[];
+} {
+  let currentMs = Date.parse(startIso);
+  const sleepCalls: number[] = [];
+
+  return {
+    clock: { now: () => new Date(currentMs).toISOString() },
+    sleeper: {
+      sleep: async (ms: number) => {
+        sleepCalls.push(ms);
+        currentMs += ms;
+      },
+    },
+    sleepCalls,
+  };
+}
+
 describe('runEpoch', () => {
   it('runs one epoch: selects task, calls LLM, writes files, commits', async () => {
     const fs = makeFs({ 'plan/root.md': ROOT, 'plan/0.0-alpha.md': ALPHA });
@@ -392,12 +412,13 @@ Done child.
       async infer() { throw new Error('Ollama/OpenAI API error 429: Too Many Requests'); },
     };
 
-    const sleepCalls: number[] = [];
+    const time = makeAdvancingClock('2026-04-06T12:00:00.000Z');
     const fs = makeFs({ 'plan/root.md': ROOT, 'plan/0.0-alpha.md': ALPHA });
     const config = makeConfig(fs, {
       provider: rateLimited,
       maxIterations: 3,
-      sleeper: { sleep: async (ms: number) => { sleepCalls.push(ms); } },
+      clock: time.clock,
+      sleeper: time.sleeper,
     });
 
     const results = await runScheduler(config).done;
@@ -405,7 +426,7 @@ Done child.
     expect(results[0].rateLimitFailures).toBeGreaterThan(0);
     expect(results[1].rateLimitFailures).toBeGreaterThan(0);
     expect(results[2].rateLimitFailures).toBeGreaterThan(0);
-    expect(sleepCalls).toEqual([5000, 10000]);
+    expect(time.sleepCalls).toEqual([5000, 10000]);
   });
 
   it('seeds initial backoff from metadata rpm', async () => {
@@ -414,7 +435,7 @@ Done child.
       async infer() { throw new Error('429 Too Many Requests'); },
     };
 
-    const sleepCalls: number[] = [];
+    const time = makeAdvancingClock('2026-04-06T12:00:00.000Z');
     const fs = makeFs({ 'plan/root.md': ROOT, 'plan/0.0-alpha.md': ALPHA });
     const config = makeConfig(fs, {
       provider: rateLimited,
@@ -426,11 +447,12 @@ Done child.
         notes: [],
         rateLimits: { requestsPerMinute: 6 },
       },
-      sleeper: { sleep: async (ms: number) => { sleepCalls.push(ms); } },
+      clock: time.clock,
+      sleeper: time.sleeper,
     });
 
     await runScheduler(config).done;
-    expect(sleepCalls).toEqual([10000]);
+    expect(time.sleepCalls).toEqual([10000]);
   });
 
   it('honors Retry-After hint and caps at two hours', async () => {
@@ -441,15 +463,163 @@ Done child.
       },
     };
 
-    const sleepCalls: number[] = [];
+    const time = makeAdvancingClock('2026-04-06T12:00:00.000Z');
     const fs = makeFs({ 'plan/root.md': ROOT, 'plan/0.0-alpha.md': ALPHA });
     const config = makeConfig(fs, {
       provider: hinted,
       maxIterations: 2,
-      sleeper: { sleep: async (ms: number) => { sleepCalls.push(ms); } },
+      clock: time.clock,
+      sleeper: time.sleeper,
     });
 
     await runScheduler(config).done;
-    expect(sleepCalls).toEqual([2 * 60 * 60 * 1000]);
+    expect(time.sleepCalls).toEqual([2 * 60 * 60 * 1000]);
+  });
+
+  it('uses X-RateLimit-Reset hint when present', async () => {
+    const hinted: IInferenceProvider = {
+      async probe() { return { reachable: true, latencyMs: 10 }; },
+      async infer() {
+        throw new Error(
+          'Ollama/OpenAI API error 429: Too Many Requests\n' +
+          '{"error":{"metadata":{"headers":{"X-RateLimit-Reset":"1775476810000"}}}}',
+        );
+      },
+    };
+
+    const time = makeAdvancingClock('2026-04-06T12:00:00.000Z');
+    const fs = makeFs({ 'plan/root.md': ROOT, 'plan/0.0-alpha.md': ALPHA });
+    const config = makeConfig(fs, {
+      provider: hinted,
+      maxIterations: 2,
+      clock: time.clock,
+      sleeper: time.sleeper,
+    });
+
+    await runScheduler(config).done;
+    expect(time.sleepCalls).toEqual([10000]);
+  });
+
+  it('extracts provider rate-limit reason into epoch result', async () => {
+    const provider: IInferenceProvider = {
+      async probe() { return { reachable: true, latencyMs: 10 }; },
+      async infer() {
+        throw new Error(
+          'Ollama/OpenAI API error 429: Too Many Requests\n' +
+          '{"error":{"message":"Rate limit exceeded: free-models-per-min."}}',
+        );
+      },
+    };
+
+    const fs = makeFs({ 'plan/root.md': ROOT, 'plan/0.0-alpha.md': ALPHA });
+    const config = makeConfig(fs, {
+      provider,
+      maxIterations: 1,
+    });
+
+    const results = await runScheduler(config).done;
+    expect(results[0].rateLimitFailures).toBeGreaterThan(0);
+    expect(results[0].rateLimitReasons[0]).toBe('free-models-per-min');
+  });
+
+  it('stops further submissions in the epoch after the first rate limit', async () => {
+    const root = `---
+root: plan/root.md
+children:
+  - plan/0.0-parent-a.md
+  - plan/0.1-parent-b.md
+---
+# 0 Root [DONE]
+
+Root.
+`;
+    const parentA = `---
+parent: plan/root.md
+root: plan/root.md
+children:
+  - plan/0.0.1-impl-a.md
+---
+# 0.0 Parent A [ARCHITECT]
+
+Parent A.
+`;
+    const parentB = `---
+parent: plan/root.md
+root: plan/root.md
+children:
+  - plan/0.1.1-impl-b.md
+---
+# 0.1 Parent B [ARCHITECT]
+
+Parent B.
+`;
+    const implA = `---
+parent: plan/0.0-parent-a.md
+root: plan/root.md
+---
+# 0.0.1 Impl A [IMPLEMENT]
+
+Impl A.
+`;
+    const implB = `---
+parent: plan/0.1-parent-b.md
+root: plan/root.md
+---
+# 0.1.1 Impl B [IMPLEMENT]
+
+Impl B.
+`;
+
+    const executionResponse = `\`\`\`artifact:artifacts/output.txt
+ok
+\`\`\`
+
+\`\`\`plan-file:plan/0.1.1-impl-b.md
+---
+parent: plan/0.1-parent-b.md
+root: plan/root.md
+---
+# 0.1.1 Impl B [REVIEW]
+
+Impl B.
+\`\`\``;
+
+    const seenTaskPrompts: string[] = [];
+    const provider: IInferenceProvider = {
+      async probe() { return { reachable: true, latencyMs: 10 }; },
+      async infer(_systemPrompt, messages): Promise<InferenceResult> {
+        const prompt = messages[0]?.role === 'user' ? messages[0].content : '';
+        seenTaskPrompts.push(prompt);
+        if (prompt.includes('Path: plan/0.0.1-impl-a.md')) {
+          throw new Error('Ollama/OpenAI API error 429: Too Many Requests');
+        }
+        if (prompt.includes('SANITY_PASS_GATE')) {
+          return { text: 'PASS', toolCalls: [], promptTokens: 10, completionTokens: 10, latencyMs: 10 };
+        }
+        return { text: executionResponse, toolCalls: [], promptTokens: 10, completionTokens: 10, latencyMs: 10 };
+      },
+    };
+
+    const time = makeAdvancingClock('2026-04-06T12:00:00.000Z');
+    const fs = makeFs({
+      'plan/root.md': root,
+      'plan/0.0-parent-a.md': parentA,
+      'plan/0.1-parent-b.md': parentB,
+      'plan/0.0.1-impl-a.md': implA,
+      'plan/0.1.1-impl-b.md': implB,
+    });
+    const config = makeConfig(fs, {
+      provider,
+      maxIterations: 2,
+      concurrency: 2,
+      clock: time.clock,
+      sleeper: time.sleeper,
+    });
+
+    const results = await runScheduler(config).done;
+    expect(results).toHaveLength(2);
+    expect(results[0].rateLimitFailures).toBeGreaterThan(0);
+    expect(time.sleepCalls).toEqual([5000]);
+    expect(seenTaskPrompts.some(prompt => prompt.includes('Path: plan/0.1.1-impl-b.md'))).toBe(false);
   });
 });

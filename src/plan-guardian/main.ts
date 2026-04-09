@@ -119,6 +119,16 @@ async function main() {
         totalTokens: result.totalTokens,
       });
     },
+    onRateLimitBackoff(delayMs, failures, reasons) {
+      const seconds = Math.ceil(delayMs / 1000);
+      const reasonText = reasons.length > 0 ? ` | reason: ${reasons[0]}` : '';
+      console.log(`[guardian] Rate-limit backoff: waiting ${seconds}s after ${failures} rate-limit failure(s)${reasonText}`);
+      debugLog.log('backoff', 'rate-limit backoff', {
+        delayMs,
+        failures,
+        reasons,
+      });
+    },
     onSoftStop() {
       console.log('[guardian] Soft stop requested — finishing current epoch then exiting...');
       debugLog.log('shutdown', 'soft stop requested', {});

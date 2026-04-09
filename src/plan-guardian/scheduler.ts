@@ -38,8 +38,17 @@ export interface EpochResult {
   failed: number;
   rateLimitFailures: number;
   rateLimitBackoffHintMs: number;
+  rateLimitReasons: string[];
+  dispatchedTaskPaths: string[];
+  rateLimitedTasks: RateLimitedTask[];
   commits: string[];
   totalTokens: { prompt: number; completion: number };
+}
+
+export interface RateLimitedTask {
+  path: string;
+  reason: string;
+  hintMs: number;
 }
 
 export interface SchedulerCallbacks {
@@ -49,7 +58,7 @@ export interface SchedulerCallbacks {
   onWorkerError?(task: string, error: Error): void;
   onCommit?(hash: string, message: string): void;
   onEpochEnd?(result: EpochResult): void;
-  onRateLimitBackoff?(delayMs: number, failures: number): void;
+  onRateLimitBackoff?(delayMs: number, failures: number, reasons: readonly string[]): void;
   /** Called once when a soft-stop is requested (e.g. ESC pressed). */
   onSoftStop?(): void;
 }
@@ -70,36 +79,59 @@ export function runScheduler(
   callbacks: SchedulerCallbacks = {},
 ): SchedulerHandle {
   let stopRequested = false;
-  let nextBackoffMs = 0;
-  let pendingRateLimitFailures = 0;
+  const blockedTasks = new Map<string, BlockedTaskState>();
   const initialBackoffMs = getInitialRateLimitBackoffMs(config);
 
   const done = (async (): Promise<EpochResult[]> => {
   const results: EpochResult[] = [];
 
-  for (let epoch = 0; epoch < config.maxIterations; epoch++) {
+  let epoch = 0;
+  while (epoch < config.maxIterations) {
     if (stopRequested) break;
 
-    if (nextBackoffMs > 0) {
-      callbacks.onRateLimitBackoff?.(nextBackoffMs, pendingRateLimitFailures);
-      await config.sleeper.sleep(nextBackoffMs);
-      if (stopRequested) break;
+    const nowMs = getClockMs(config);
+
+    const epochResult = await runEpoch(epoch, config, callbacks, blockedTasks);
+
+    if (epochResult.dispatched === 0) {
+      if (blockedTasks.size === 0) {
+        results.push(epochResult);
+        break;
+      }
+
+      const nextResumeAtMs = Math.min(...[...blockedTasks.values()].map(task => task.resumeAtMs));
+      const delayMs = clampBackoffMs(Math.max(0, nextResumeAtMs - nowMs));
+      callbacks.onRateLimitBackoff?.(
+        delayMs,
+        blockedTasks.size,
+        summarizeBlockedReasons(blockedTasks),
+      );
+      await config.sleeper.sleep(delayMs);
+      continue;
     }
 
-    const epochResult = await runEpoch(epoch, config, callbacks);
     results.push(epochResult);
+    epoch += 1;
 
-    if (epochResult.dispatched === 0) break;
+    const rateLimitedPaths = new Set(epochResult.rateLimitedTasks.map(task => task.path));
+    for (const path of epochResult.dispatchedTaskPaths) {
+      if (!rateLimitedPaths.has(path)) {
+        blockedTasks.delete(path);
+      }
+    }
 
-    if (epochResult.rateLimitFailures > 0) {
-      const exponential = nextBackoffMs === 0
-        ? initialBackoffMs
-        : Math.min(nextBackoffMs * 2, MAX_RATE_LIMIT_BACKOFF_MS);
-      nextBackoffMs = clampBackoffMs(Math.max(exponential, epochResult.rateLimitBackoffHintMs));
-      pendingRateLimitFailures = epochResult.rateLimitFailures;
-    } else {
-      nextBackoffMs = 0;
-      pendingRateLimitFailures = 0;
+    for (const task of epochResult.rateLimitedTasks) {
+      const previous = blockedTasks.get(task.path);
+      const baseDelayMs = previous
+        ? Math.min(previous.lastDelayMs * 2, MAX_RATE_LIMIT_BACKOFF_MS)
+        : initialBackoffMs;
+      const delayMs = clampBackoffMs(Math.max(baseDelayMs, task.hintMs));
+      blockedTasks.set(task.path, {
+        path: task.path,
+        reason: task.reason,
+        lastDelayMs: delayMs,
+        resumeAtMs: nowMs + delayMs,
+      });
     }
   }
 
@@ -121,12 +153,18 @@ export async function runEpoch(
   epoch: number,
   config: GuardianConfig,
   callbacks: SchedulerCallbacks = {},
+  blockedTasks: ReadonlyMap<string, BlockedTaskState> = new Map(),
 ): Promise<EpochResult> {
   const { fs, git, clock, planDir, concurrency, provider, dryRun } = config;
   const now = clock.now();
+  const nowMs = Number.isFinite(Date.parse(now)) ? Date.parse(now) : Date.now();
 
   const dag = await buildDAG(fs, planDir);
-  const candidates = prioritize(dag, now);
+  const candidates = prioritize(dag, now)
+    .filter(candidate => {
+      const blocked = blockedTasks.get(candidate.task.path);
+      return !blocked || blocked.resumeAtMs <= nowMs;
+    });
   if (candidates.length === 0) {
     return {
       epoch,
@@ -135,6 +173,9 @@ export async function runEpoch(
       failed: 0,
       rateLimitFailures: 0,
       rateLimitBackoffHintMs: 0,
+      rateLimitReasons: [],
+      dispatchedTaskPaths: [],
+      rateLimitedTasks: [],
       commits: [],
       totalTokens: { prompt: 0, completion: 0 },
     };
@@ -143,36 +184,53 @@ export async function runEpoch(
   const batch = selectIndependentBatch(candidates, concurrency);
   callbacks.onEpochStart?.(epoch, batch.length);
 
-  const workerPromises = batch.map(item => {
-    callbacks.onWorkerStart?.(item.task.path, item.actionType);
-    return runWorker(item, dag, provider, now, config);
-  });
-  const settled = await Promise.allSettled(workerPromises);
-
   const successful: WorkerResult[] = [];
   const commits: string[] = [];
   let failed = 0;
   let rateLimitFailures = 0;
   let rateLimitBackoffHintMs = 0;
+  const rateLimitReasonCounts = new Map<string, number>();
+  const rateLimitedTasks: RateLimitedTask[] = [];
   const totalTokens = { prompt: 0, completion: 0 };
 
-  for (let i = 0; i < settled.length; i++) {
-    const outcome = settled[i];
-    if (outcome.status === 'fulfilled') {
-      const result = outcome.value;
+  const dispatchedTaskPaths: string[] = [];
+  let stopSubmittingForRateLimit = false;
+
+  for (let i = 0; i < batch.length; i++) {
+    const item = batch[i];
+    if (stopSubmittingForRateLimit) break;
+
+    callbacks.onWorkerStart?.(item.task.path, item.actionType);
+    dispatchedTaskPaths.push(item.task.path);
+
+    try {
+      const result = await runWorker(item, dag, provider, now, config);
       successful.push(result);
       totalTokens.prompt += result.tokensUsed.prompt;
       totalTokens.completion += result.tokensUsed.completion;
-    } else {
+    } catch (err) {
       failed++;
-      if (isRateLimitError(outcome.reason)) {
+      if (isRateLimitError(err)) {
         rateLimitFailures++;
-        rateLimitBackoffHintMs = Math.max(
-          rateLimitBackoffHintMs,
-          parseRetryAfterHintMs(outcome.reason),
-        );
+        const hintMs = parseRateLimitBackoffHintMs(err, nowMs);
+        rateLimitBackoffHintMs = Math.max(rateLimitBackoffHintMs, hintMs);
+        const reason = extractRateLimitReason(err);
+        rateLimitReasonCounts.set(reason, (rateLimitReasonCounts.get(reason) ?? 0) + 1);
+        rateLimitedTasks.push({
+          path: item.task.path,
+          reason,
+          hintMs,
+        });
+        for (let j = i + 1; j < batch.length; j++) {
+          rateLimitedTasks.push({
+            path: batch[j].task.path,
+            reason,
+            hintMs,
+          });
+        }
+        stopSubmittingForRateLimit = true;
       }
-      callbacks.onWorkerError?.(batch[i].task.path, outcome.reason as Error);
+      callbacks.onWorkerError?.(item.task.path, err as Error);
     }
   }
 
@@ -277,6 +335,11 @@ export async function runEpoch(
     failed,
     rateLimitFailures,
     rateLimitBackoffHintMs,
+    rateLimitReasons: [...rateLimitReasonCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([reason]) => reason),
+    dispatchedTaskPaths,
+    rateLimitedTasks,
     commits,
     totalTokens,
   };
@@ -465,8 +528,22 @@ function isRateLimitError(err: unknown): boolean {
     || normalized.includes('rate limit');
 }
 
-function parseRetryAfterHintMs(err: unknown): number {
+function parseRateLimitBackoffHintMs(err: unknown, nowMs: number): number {
   const message = err instanceof Error ? err.message : String(err ?? '');
+
+  // Prefer explicit reset timestamp hints when present.
+  const resetMatch = message.match(/x-ratelimit-reset\"?\s*[:=]\s*\"?([0-9]{10,13})/i);
+  if (resetMatch) {
+    const rawReset = Number.parseInt(resetMatch[1], 10);
+    if (Number.isFinite(rawReset) && rawReset > 0) {
+      // 10 digits => seconds epoch; 13 digits => milliseconds epoch.
+      const resetMs = rawReset < 1_000_000_000_000 ? rawReset * 1000 : rawReset;
+      const delta = resetMs - nowMs;
+      if (delta > 0) return clampBackoffMs(delta);
+    }
+  }
+
+  // Fallback: parse Retry-After (seconds).
   const match = message.match(/retry-after\s*:\s*([0-9]+(?:\.[0-9]+)?)/i);
   if (!match) return 0;
   const seconds = Number.parseFloat(match[1]);
@@ -485,4 +562,41 @@ function getInitialRateLimitBackoffMs(config: GuardianConfig): number {
 
 function clampBackoffMs(value: number): number {
   return Math.max(INITIAL_RATE_LIMIT_BACKOFF_MS, Math.min(value, MAX_RATE_LIMIT_BACKOFF_MS));
+}
+
+function extractRateLimitReason(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err ?? '');
+  const reasonMatch = message.match(/rate limit exceeded\s*:\s*([^\.\n\"]+)/i);
+  if (reasonMatch && reasonMatch[1].trim().length > 0) {
+    return reasonMatch[1].trim();
+  }
+
+  const bucketMatch = message.match(/free-models-per-min|requests-per-minute|requests-per-day/i);
+  if (bucketMatch) return bucketMatch[0];
+
+  return 'rate-limit';
+}
+
+interface BlockedTaskState {
+  path: string;
+  reason: string;
+  lastDelayMs: number;
+  resumeAtMs: number;
+}
+
+function getClockMs(config: GuardianConfig): number {
+  const now = config.clock.now();
+  const parsed = Date.parse(now);
+  return Number.isFinite(parsed) ? parsed : Date.now();
+}
+
+function summarizeBlockedReasons(blockedTasks: ReadonlyMap<string, BlockedTaskState>): string[] {
+  const reasonCounts = new Map<string, number>();
+  for (const blocked of blockedTasks.values()) {
+    reasonCounts.set(blocked.reason, (reasonCounts.get(blocked.reason) ?? 0) + 1);
+  }
+
+  return [...reasonCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([reason]) => reason);
 }
