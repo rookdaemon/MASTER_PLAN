@@ -287,13 +287,30 @@ A task to decompose.
     expect(commits).toBe(0);
   });
 
-  it('rejects file apply when sanity gate response is not exact PASS', async () => {
+  it('rejects file apply when sanity gate detects malformed plan cards', async () => {
+    const malformedResponse = `\`\`\`plan-file:plan/0.0.1-sub.md
+# 0.0.1 Sub [PLAN]
+
+Missing frontmatter.
+\`\`\`
+
+\`\`\`plan-file:plan/0.0-alpha.md
+---
+parent: plan/root.md
+root: plan/root.md
+children:
+  - plan/0.0.1-sub.md
+---
+# 0.0 Alpha [PLAN]
+
+A task with children.
+\`\`\``;
+
     const provider: IInferenceProvider = {
       async probe() { return { reachable: true, latencyMs: 10 }; },
-      async infer(systemPrompt: string): Promise<InferenceResult> {
-        const text = systemPrompt.includes('SANITY_PASS_GATE') ? 'FAIL: malformed card' : DECOMPOSE_RESPONSE;
+      async infer(): Promise<InferenceResult> {
         return {
-          text,
+          text: malformedResponse,
           toolCalls: [],
           promptTokens: 10,
           completionTokens: 10,

@@ -1,5 +1,5 @@
 /**
- * Sanity Pass Gate — model-verified pre-apply card validation.
+ * Sanity Pass Gate — deterministic pre-apply card validation.
  *
  * The gate evaluates each proposed plan-card change with a strict contract:
  * return exact text PASS to allow the write; any other output is a failure.
@@ -33,6 +33,17 @@ const SANITY_RULES = [
   'If OLD CARD is present, the PROPOSED CARD must not corrupt structure or remove required metadata unintentionally.',
 ].join('\n');
 
+const SENTINEL_PATTERNS = [
+  /\*\*\* Begin Patch/i,
+  /\*\*\* End Patch/i,
+  /Begin updated file/i,
+  /End updated file/i,
+  /<<<<<<<|=======|>>>>>>>/,
+];
+
+const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
+const H1_RE = /^#\s+([\d.]+)\s+.+\[(PLAN|ARCHITECT|IMPLEMENT|REVIEW|DONE)\]\s*$/m;
+
 export function buildSanityPassPrompt(input: SanityPassInput): string {
   return [
     'RULES',
@@ -51,18 +62,81 @@ export function buildSanityPassPrompt(input: SanityPassInput): string {
 }
 
 export async function runSanityPass(
-  provider: IInferenceProvider,
+  _provider: IInferenceProvider,
   input: SanityPassInput,
-  maxTokens: number,
+  _maxTokens: number,
 ): Promise<SanityPassResult> {
-  const userPrompt = buildSanityPassPrompt(input);
-  const response = await provider.infer(
-    SANITY_SYSTEM_PROMPT,
-    [{ role: 'user', content: userPrompt }],
-    [],
-    maxTokens,
-  );
+  const errors = validateSanityPassInput(input);
+  return {
+    pass: errors.length === 0,
+    raw: errors.length === 0 ? 'PASS' : errors.join('; '),
+  };
+}
 
-  const raw = (response.text ?? '').trim();
-  return { pass: raw === 'PASS', raw };
+function validateSanityPassInput(input: SanityPassInput): string[] {
+  const errors: string[] = [];
+  const proposed = input.proposedCard.trim();
+  if (proposed.length === 0) {
+    return ['Proposed card is empty'];
+  }
+
+  for (const pattern of SENTINEL_PATTERNS) {
+    if (pattern.test(input.proposedCard)) {
+      errors.push(`Proposed card contains sentinel text matching ${pattern}`);
+    }
+  }
+
+  const proposedFrontmatter = parseFrontmatter(input.proposedCard);
+  if (!proposedFrontmatter) {
+    errors.push('Proposed card must begin with YAML frontmatter delimited by --- lines');
+    return errors;
+  }
+
+  const h1Match = proposedFrontmatter.body.match(H1_RE);
+  if (!h1Match) {
+    errors.push('Top H1 line must include a numeric ID and [STATUS] tag');
+  }
+
+  const proposedRoot = proposedFrontmatter.fields.get('root');
+  if (!proposedRoot) {
+    errors.push('Proposed card must include root frontmatter');
+  }
+
+  const isRootCard = input.path.endsWith('/root.md') || input.path === 'plan/root.md';
+  if (!isRootCard && !proposedFrontmatter.fields.get('parent')) {
+    errors.push('Non-root card must include parent frontmatter');
+  }
+
+  const oldFrontmatter = parseFrontmatter(input.oldCard);
+  if (oldFrontmatter) {
+    const oldRoot = oldFrontmatter.fields.get('root');
+    if (oldRoot && proposedRoot !== oldRoot) {
+      errors.push(`Proposed card changed root from ${oldRoot} to ${proposedRoot ?? '<missing>'}`);
+    }
+
+    const oldParent = oldFrontmatter.fields.get('parent');
+    const proposedParent = proposedFrontmatter.fields.get('parent');
+    if (oldParent && proposedParent !== oldParent) {
+      errors.push(`Proposed card changed parent from ${oldParent} to ${proposedParent ?? '<missing>'}`);
+    }
+  }
+
+  return errors;
+}
+
+function parseFrontmatter(card: string): { fields: Map<string, string>; body: string } | null {
+  const match = card.match(FRONTMATTER_RE);
+  if (!match) {
+    return null;
+  }
+
+  const fields = new Map<string, string>();
+  for (const line of match[1].split(/\r?\n/)) {
+    const keyValueMatch = line.match(/^([A-Za-z][\w-]*):\s*(.+?)\s*$/);
+    if (keyValueMatch) {
+      fields.set(keyValueMatch[1], keyValueMatch[2]);
+    }
+  }
+
+  return { fields, body: match[2] };
 }
