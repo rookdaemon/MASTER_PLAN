@@ -107,18 +107,32 @@ export class OllamaInferenceProvider implements IInferenceProvider {
     }
 
     if (!response.ok) {
-      const retryAfter = response.headers.get('retry-after');
+      const retryAfter = response.headers?.get?.('retry-after');
+      const reset = response.headers?.get?.('x-ratelimit-reset');
+      const resetRequests = response.headers?.get?.('x-ratelimit-reset-requests');
+      const resetTokens = response.headers?.get?.('x-ratelimit-reset-tokens');
       const errorBody = await response.text().catch(() => "(could not read body)");
-      const retryAfterSuffix = retryAfter ? `\nRetry-After: ${retryAfter}` : '';
+      const hintLines: string[] = [];
+      if (retryAfter) hintLines.push(`Retry-After: ${retryAfter}`);
+      if (reset) hintLines.push(`X-RateLimit-Reset: ${reset}`);
+      if (resetRequests) hintLines.push(`X-RateLimit-Reset-Requests: ${resetRequests}`);
+      if (resetTokens) hintLines.push(`X-RateLimit-Reset-Tokens: ${resetTokens}`);
+      const hintSuffix = hintLines.length > 0 ? `\n${hintLines.join('\n')}` : '';
       throw new Error(
-        `Ollama/OpenAI API error ${response.status}: ${response.statusText}${retryAfterSuffix}\n${errorBody}`
+        `Ollama/OpenAI API error ${response.status}: ${response.statusText}${hintSuffix}\n${errorBody}`
       );
     }
 
     const data = await response.json() as {
-      choices: Array<{ message: { content: string } }>;
+      choices?: Array<{ message: { content: string } }>;
       usage?: { prompt_tokens: number; completion_tokens: number };
     };
+
+    if (!Array.isArray(data.choices) || data.choices.length === 0) {
+      throw new Error(
+        `Unexpected response shape from ${this.endpoint}: missing or empty "choices" array. Body: ${JSON.stringify(data).slice(0, 400)}`
+      );
+    }
 
     const rawText = data.choices[0]?.message?.content ?? "";
     const usage = data.usage ?? { prompt_tokens: 0, completion_tokens: 0 };

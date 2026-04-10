@@ -138,9 +138,11 @@ async function main() {
     onRateLimitBackoff(delayMs, failures, reasons) {
       const seconds = Math.ceil(delayMs / 1000);
       const reasonText = reasons.length > 0 ? ` | reason: ${reasons[0]}` : '';
-      console.log(`[guardian] Rate-limit backoff: waiting ${seconds}s after ${failures} rate-limit failure(s)${reasonText}`);
+      const untilIso = new Date(Date.now() + delayMs).toISOString();
+      console.log(`[guardian] Rate-limit backoff: waiting ${seconds}s (until ${untilIso}) after ${failures} rate-limit failure(s)${reasonText}`);
       debugLog.log('backoff', 'rate-limit backoff', {
         delayMs,
+        resumeAtIso: untilIso,
         failures,
         reasons,
       });
@@ -186,7 +188,8 @@ async function main() {
 
 main().catch(err => {
   const debugLog = new GuardianDebugLog(resolve('.guardian', 'guardian-debug.log'));
-  debugLog.log('fatal', 'guardian fatal error', { error: err instanceof Error ? err.message : String(err) });
-  console.error(`[guardian] Fatal: ${err.message}`);
+  const stack = err instanceof Error ? (err.stack ?? err.message) : String(err);
+  debugLog.log('fatal', 'guardian fatal error', { error: err instanceof Error ? err.message : String(err), stack });
+  console.error(`[guardian] Fatal: ${stack}`);
   process.exit(1);
 });

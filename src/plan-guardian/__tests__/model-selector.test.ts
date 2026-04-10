@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PriorityModelSelector } from '../model-selector.js';
+import { PriorityModelSelector, parseRateLimitBackoffHintMs } from '../model-selector.js';
 import type { IInferenceProvider, InferenceResult } from '../../llm-substrate/inference-provider.js';
 
 const NOW = Date.parse('2026-04-09T12:00:00.000Z');
@@ -62,7 +62,7 @@ describe('PriorityModelSelector', () => {
   it('uses the highest-priority model when none are blocked', async () => {
     const sel = makeSelector(['a', 'b', 'c']);
     const outcome = await runId(sel);
-    expect(outcome).toEqual({ kind: 'ok', value: 'a', modelId: 'a' });
+    expect(outcome).toMatchObject({ kind: 'ok', value: 'a', modelId: 'a' });
   });
 
   it('tries next model when first fails with 429 in the same execute call', async () => {
@@ -75,10 +75,12 @@ describe('PriorityModelSelector', () => {
     ]);
     const outcome = await runId(sel);
     // Should skip 'a' (failed with 429), try 'b' and succeed
-    expect(outcome).toEqual({ kind: 'ok', value: 'b', modelId: 'b' });
+    expect(outcome).toMatchObject({ kind: 'ok', value: 'b', modelId: 'b' });
+    expect(outcome.attemptedModels).toContain('a');
+    expect(outcome.attemptedModels).toContain('b');
     // Verify 'a' was recorded as blocked for the next call
     const nextCall = await runId(sel, NOW);
-    expect(nextCall).toEqual({ kind: 'ok', value: 'b', modelId: 'b' });
+    expect(nextCall).toMatchObject({ kind: 'ok', value: 'b', modelId: 'b' });
   });
 
   it('falls through to second model when first is rate-limited', async () => {
@@ -90,7 +92,8 @@ describe('PriorityModelSelector', () => {
     ]);
     const outcome = await runId(sel);
     // With the new retry logic: tries 'a' (fails), tries 'b' (succeeds)
-    expect(outcome).toEqual({ kind: 'ok', value: 'b', modelId: 'b' });
+    expect(outcome).toMatchObject({ kind: 'ok', value: 'b', modelId: 'b' });
+    expect(outcome.attemptedModels).toEqual(['a', 'b']);
   });
 
   it('tries all models and returns rate-limited if all fail with 429', async () => {
@@ -125,13 +128,13 @@ describe('PriorityModelSelector', () => {
     ]);
     const first = await runId(sel);
     // 'a' fails with 429 once, then we try 'b' and succeed
-    expect(first).toEqual({ kind: 'ok', value: 'b', modelId: 'b' });
+    expect(first).toMatchObject({ kind: 'ok', value: 'b', modelId: 'b' });
     const atNow = await runId(sel);
     // 'a' still blocked at NOW, so we use 'b'
-    expect(atNow).toEqual({ kind: 'ok', value: 'b', modelId: 'b' });
+    expect(atNow).toMatchObject({ kind: 'ok', value: 'b', modelId: 'b' });
     // After backoff expires, 'a' is tried first and succeeds
     const after = await runId(sel, NOW + 10_000);
-    expect(after).toEqual({ kind: 'ok', value: 'a', modelId: 'a' });
+    expect(after).toMatchObject({ kind: 'ok', value: 'a', modelId: 'a' });
   });
 
   it('respects Retry-After hint', async () => {
@@ -141,13 +144,13 @@ describe('PriorityModelSelector', () => {
     ]);
     const first = await runId(sel);
     // 'a' fails with Retry-After: 60, then we try 'b' and succeed
-    expect(first).toEqual({ kind: 'ok', value: 'b', modelId: 'b' });
+    expect(first).toMatchObject({ kind: 'ok', value: 'b', modelId: 'b' });
     // At NOW + 5s: 'a' still blocked (5s < 60s)
     const at5s = await runId(sel, NOW + 5_000);
-    expect(at5s).toEqual({ kind: 'ok', value: 'b', modelId: 'b' });
+    expect(at5s).toMatchObject({ kind: 'ok', value: 'b', modelId: 'b' });
     // At NOW + 60s: 'a' recovered and succeeds
     const at60s = await runId(sel, NOW + 60_000);
-    expect(at60s).toEqual({ kind: 'ok', value: 'a', modelId: 'a' });
+    expect(at60s).toMatchObject({ kind: 'ok', value: 'a', modelId: 'a' });
   });
 
   it('applies exponential backoff on repeated rate-limits', async () => {
@@ -239,6 +242,51 @@ describe('PriorityModelSelector', () => {
       },
     ]);
     await expect(runId(sel)).rejects.toThrow('Internal Server Error');
+  });
+
+  it('includes attempted models in the outcome', async () => {
+    const sel = new PriorityModelSelector([
+      { modelId: 'a', provider: rateLimitedProvider('a') },
+      { modelId: 'b', provider: rateLimitedProvider('b') },
+      { modelId: 'c', provider: fakeProvider('c') },
+    ]);
+    const outcome = await runId(sel);
+    expect(outcome.attemptedModels).toEqual(['a', 'b', 'c']);
+  });
+
+  it('preserves first detailed reason instead of generic fallback', async () => {
+    const detailedErrorProvider = (): IInferenceProvider => ({
+      async probe() { return { reachable: true, latencyMs: 1 }; },
+      async infer(): Promise<InferenceResult> {
+        throw new Error('429 Too Many Requests\nRate limit exceeded: free-models-per-day-high-balance');
+      },
+    });
+    const sel = new PriorityModelSelector([
+      { modelId: 'a', provider: detailedErrorProvider() },
+      { modelId: 'b', provider: rateLimitedProvider('b') }, // generic 429
+    ]);
+    const outcome = await runId(sel);
+    expect(outcome.kind).toBe('rate-limited');
+    // Should preserve the detailed reason from model 'a', not the generic one
+    if (outcome.kind === 'rate-limited') {
+      expect(outcome.reason).toBe('free-models-per-day-high-balance');
+    }
+  });
+
+  it('parses Retry-After HTTP-date header hint', () => {
+    const retryAt = new Date(NOW + 90_000).toUTCString();
+    const err = new Error(`429 Too Many Requests\nRetry-After: ${retryAt}`);
+    const hintedMs = parseRateLimitBackoffHintMs(err, NOW);
+    expect(hintedMs).toBeGreaterThanOrEqual(89_000);
+    expect(hintedMs).toBeLessThanOrEqual(91_000);
+  });
+
+  it('parses X-RateLimit-Reset-Requests epoch-seconds hint', () => {
+    const resetEpochSec = Math.floor((NOW + 120_000) / 1000);
+    const err = new Error(`429 Too Many Requests\nX-RateLimit-Reset-Requests: ${resetEpochSec}`);
+    const hintedMs = parseRateLimitBackoffHintMs(err, NOW);
+    expect(hintedMs).toBeGreaterThanOrEqual(119_000);
+    expect(hintedMs).toBeLessThanOrEqual(121_000);
   });
 });
 

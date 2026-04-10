@@ -298,6 +298,9 @@ export async function runEpoch(
       failed++;
       rateLimitFailures++;
       const { resumeAtMs, reason } = outcome;
+      const attemptedModels = ('attemptedModels' in outcome && Array.isArray((outcome as any).attemptedModels))
+        ? (outcome as any).attemptedModels as readonly string[]
+        : undefined;
       const hintMs = Math.max(0, resumeAtMs - nowMs);
       rateLimitBackoffHintMs = Math.max(rateLimitBackoffHintMs, hintMs);
       rateLimitReasonCounts.set(reason, (rateLimitReasonCounts.get(reason) ?? 0) + 1);
@@ -306,7 +309,8 @@ export async function runEpoch(
         rateLimitedTasks.push({ path: batch[j].task.path, reason, hintMs });
       }
       stopSubmittingForRateLimit = true;
-      callbacks.onWorkerError?.(item.task.path, new Error(`Rate limited: ${reason}`));
+      const modelsStr = attemptedModels && attemptedModels.length > 0 ? ` (tried: ${attemptedModels.join(' → ')})` : '';
+      callbacks.onWorkerError?.(item.task.path, new Error(`Rate limited: ${reason}${modelsStr}`));
     } else {
       failed++;
       callbacks.onWorkerError?.(item.task.path, outcome.error as Error);

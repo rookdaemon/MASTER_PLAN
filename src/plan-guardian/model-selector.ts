@@ -39,24 +39,49 @@ export function isRateLimitError(err: unknown): boolean {
 export function parseRateLimitBackoffHintMs(err: unknown, nowMs: number): number {
   const message = err instanceof Error ? err.message : String(err ?? '');
 
-  // Prefer explicit reset timestamp hints when present.
-  const resetMatch = message.match(/x-ratelimit-reset\"?\s*[:=]\s*\"?([0-9]{10,13})/i);
-  if (resetMatch) {
-    const rawReset = Number.parseInt(resetMatch[1], 10);
-    if (Number.isFinite(rawReset) && rawReset > 0) {
-      // 10 digits => seconds epoch; 13 digits => milliseconds epoch.
-      const resetMs = rawReset < 1_000_000_000_000 ? rawReset * 1000 : rawReset;
-      const delta = resetMs - nowMs;
-      if (delta > 0) return clampBackoffMs(delta);
-    }
+  // Prefer explicit reset headers when present.
+  const resetPatterns = [
+    /x-ratelimit-reset(?:-[a-z]+)?"?\s*[:=]\s*"?([^\n\r",}]+)/i,
+    /x-ratelimit-reset-(?:requests|tokens|day|minute)"?\s*[:=]\s*"?([^\n\r",}]+)/i,
+  ];
+  for (const pattern of resetPatterns) {
+    const match = message.match(pattern);
+    if (!match) continue;
+    const hintedMs = parseHeaderTimeValueToDelayMs(match[1]?.trim() ?? '', nowMs);
+    if (hintedMs > 0) return clampBackoffMs(hintedMs);
   }
 
-  // Fallback: parse Retry-After (seconds).
-  const match = message.match(/retry-after\s*:\s*([0-9]+(?:\.[0-9]+)?)/i);
-  if (!match) return 0;
-  const seconds = Number.parseFloat(match[1]);
-  if (!Number.isFinite(seconds) || seconds <= 0) return 0;
-  return clampBackoffMs(Math.round(seconds * 1000));
+  // Fallback: parse Retry-After as either seconds or HTTP-date.
+  const retryAfterMatch = message.match(/retry-after\s*:\s*([^\n\r]+)/i);
+  if (!retryAfterMatch) return 0;
+  const hintedMs = parseHeaderTimeValueToDelayMs(retryAfterMatch[1]?.trim() ?? '', nowMs);
+  if (hintedMs <= 0) return 0;
+  return clampBackoffMs(hintedMs);
+}
+
+function parseHeaderTimeValueToDelayMs(raw: string, nowMs: number): number {
+  if (!raw) return 0;
+
+  const numeric = Number.parseFloat(raw);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    // 13+ digits => epoch milliseconds
+    if (numeric >= 1_000_000_000_000) {
+      return Math.round(numeric - nowMs);
+    }
+    // 10+ digits => epoch seconds
+    if (numeric >= 1_000_000_000) {
+      return Math.round((numeric * 1000) - nowMs);
+    }
+    // Smaller positive numbers are treated as a delay in seconds.
+    return Math.round(numeric * 1000);
+  }
+
+  const parsedDateMs = Date.parse(raw);
+  if (!Number.isNaN(parsedDateMs)) {
+    return Math.round(parsedDateMs - nowMs);
+  }
+
+  return 0;
 }
 
 export function extractRateLimitReason(err: unknown): string {
@@ -82,8 +107,8 @@ export interface SelectedProvider {
 }
 
 export type SelectorOutcome<T> =
-  | { kind: 'ok'; value: T; modelId: string }
-  | { kind: 'rate-limited'; resumeAtMs: number; reason: string };
+  | { kind: 'ok'; value: T; modelId: string; attemptedModels?: readonly string[] }
+  | { kind: 'rate-limited'; resumeAtMs: number; reason: string; attemptedModels?: readonly string[] };
 
 /**
  * Priority-ordered model circuit breaker.
@@ -142,8 +167,8 @@ export class PriorityModelSelector implements IModelSelector {
   ): Promise<SelectorOutcome<T>> {
     // Try models in priority order. Only return rate-limited if all are either
     // already blocked or fail with rate-limit errors.
-    let lastRateLimitReason = '';
-    let lastResumeAtMs = nowMs;
+    const attemptedModels: string[] = [];
+    let primaryReason = ''; // Preserve the first detailed reason
 
     for (const model of this.models) {
       const state = this.circuit.get(model.modelId);
@@ -151,15 +176,21 @@ export class PriorityModelSelector implements IModelSelector {
       if (state && state.resumeAtMs > nowMs) {
         continue;
       }
+      
+      attemptedModels.push(model.modelId);
+      
       try {
         const value = await fn(model.provider);
-        return { kind: 'ok', value, modelId: model.modelId };
+        return { kind: 'ok', value, modelId: model.modelId, attemptedModels };
       } catch (err) {
         if (isRateLimitError(err)) {
           const hintMs = parseRateLimitBackoffHintMs(err, nowMs);
           this.recordRateLimit(model.modelId, hintMs, nowMs);
-          lastRateLimitReason = extractRateLimitReason(err);
-          lastResumeAtMs = this.circuit.get(model.modelId)!.resumeAtMs;
+          const reason = extractRateLimitReason(err);
+          // Preserve the first detailed reason; don't overwrite with generic fallbacks
+          if (!primaryReason || reason !== 'rate-limit') {
+            primaryReason = reason;
+          }
           // Continue to next model instead of returning immediately
           continue;
         }
@@ -169,11 +200,12 @@ export class PriorityModelSelector implements IModelSelector {
     }
 
     // If we get here, either all models are blocked or all available models failed with rate-limit.
-    // Return the most recent rate-limit outcome.
+    // Return the rate-limit outcome with the detailed reason from the first error.
     return {
       kind: 'rate-limited',
       resumeAtMs: this.nextAvailableAtMs(nowMs),
-      reason: lastRateLimitReason || 'all-models-rate-limited',
+      reason: primaryReason || 'all-models-rate-limited',
+      attemptedModels,
     };
   }
 

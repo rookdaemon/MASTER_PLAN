@@ -34,6 +34,9 @@ function makeOllamaResponse(content: string) {
 function makeErrorResponse(status = 500) {
   return {
     ok: false, status, statusText: 'Error',
+    headers: {
+      get: (_key: string) => null,
+    },
     text: async () => '{"error":"server error"}',
   };
 }
@@ -169,6 +172,34 @@ describe('OllamaInferenceProvider', () => {
     ).rejects.toThrow(/500/);
   });
 
+  it('includes rate-limit reset headers in 429 error text', async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      statusText: 'Too Many Requests',
+      headers: {
+        get: (key: string) => {
+          const lower = key.toLowerCase();
+          if (lower === 'retry-after') return '60';
+          if (lower === 'x-ratelimit-reset-requests') return '1744200600';
+          if (lower === 'x-ratelimit-reset-tokens') return '1744200600';
+          return null;
+        },
+      },
+      text: async () => '{"error":"rate limited"}',
+    });
+
+    const provider = new OllamaInferenceProvider('llama3', new StubAuth(), 'http://localhost:11434/v1');
+    try {
+      await provider.infer('sys', [{ role: 'user', content: 'hi' }], [], 100);
+      throw new Error('expected infer() to throw');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err ?? '');
+      expect(message).toMatch(/Retry-After: 60/);
+      expect(message).toMatch(/X-RateLimit-Reset-Requests: 1744200600/);
+    }
+  });
+
   it('probe() returns reachable:true on success', async () => {
     fetchSpy.mockResolvedValueOnce(makeOllamaResponse('pong'));
     const provider = new OllamaInferenceProvider('llama3', new StubAuth(), 'http://localhost:11434/v1');
@@ -196,6 +227,30 @@ describe('OllamaInferenceProvider', () => {
     const result = await provider.infer('sys', [{ role: 'user', content: 'hi' }], [], 100);
     expect(result.promptTokens).toBe(42);
     expect(result.completionTokens).toBe(17);
+  });
+
+  it('throws a descriptive error when choices is missing from response', async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ok: true, status: 200, statusText: 'OK',
+      json: async () => ({ object: 'chat.completion' }), // no choices field
+    });
+    const provider = new OllamaInferenceProvider('llama3', new StubAuth(), 'http://localhost:11434/v1');
+
+    await expect(
+      provider.infer('sys', [{ role: 'user', content: 'hi' }], [], 100)
+    ).rejects.toThrow(/missing or empty "choices" array/);
+  });
+
+  it('throws a descriptive error when choices is an empty array', async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ok: true, status: 200, statusText: 'OK',
+      json: async () => ({ choices: [] }),
+    });
+    const provider = new OllamaInferenceProvider('llama3', new StubAuth(), 'http://localhost:11434/v1');
+
+    await expect(
+      provider.infer('sys', [{ role: 'user', content: 'hi' }], [], 100)
+    ).rejects.toThrow(/missing or empty "choices" array/);
   });
 
   it('times out stalled requests', async () => {
