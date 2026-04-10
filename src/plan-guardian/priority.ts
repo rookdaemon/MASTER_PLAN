@@ -134,7 +134,7 @@ export function determineActionType(node: PlanFile, dag: IPlanDAG): PlanningActi
     case 'ARCHITECT':
       return 'refine';
     case 'IMPLEMENT':
-      return 'promote';
+      return 'execute';
     case 'REVIEW':
       return 'status-update';
     default:

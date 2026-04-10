@@ -291,6 +291,19 @@ Needs refinement.
     expect(determineActionType(arch, dag)).toBe('refine');
   });
 
+  it('returns execute for leaf in IMPLEMENT status', async () => {
+    const fs = makeFs({
+      'plan/root.md': ROOT,
+      'plan/0.0-alpha.md': ALPHA,
+      'plan/0.1-beta.md': BETA,
+      'plan/0.0.1-a1.md': A1,
+      'plan/0.0.2-a2.md': A2,
+    });
+    const dag = await buildDAG(fs, 'plan');
+    const implementLeaf = dag.nodes.get('plan/0.0.2-a2.md')!;
+    expect(determineActionType(implementLeaf, dag)).toBe('execute');
+  });
+
   it('returns reconcile for branch with child parent mismatch', async () => {
     const root = `---
 root: plan/root.md
