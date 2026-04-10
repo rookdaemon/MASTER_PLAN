@@ -32,8 +32,15 @@ export function isRateLimitError(err: unknown): boolean {
   const message = err instanceof Error ? err.message : String(err ?? '');
   const normalized = message.toLowerCase();
   return normalized.includes('429')
+    || normalized.includes(' 524')
+    || normalized.includes('code":524')
+    || normalized.includes('provider returned error')
+    || normalized.includes('gateway timeout')
+    || normalized.includes('cloudflare')
     || normalized.includes('too many requests')
-    || normalized.includes('rate limit');
+    || normalized.includes('rate limit')
+    || normalized.includes('temporarily unavailable')
+    || normalized.includes('upstream timed out');
 }
 
 export function parseRateLimitBackoffHintMs(err: unknown, nowMs: number): number {
@@ -89,6 +96,9 @@ export function extractRateLimitReason(err: unknown): string {
   const reasonMatch = message.match(/rate limit exceeded\s*:\s*([^\.\n\"]+)/i);
   if (reasonMatch && reasonMatch[1].trim().length > 0) {
     return reasonMatch[1].trim();
+  }
+  if (/\b524\b/.test(message) || /provider returned error/i.test(message) || /gateway timeout|upstream timed out/i.test(message)) {
+    return 'provider-timeout';
   }
   const bucketMatch = message.match(/free-models-per-min|requests-per-minute|requests-per-day/i);
   if (bucketMatch) return bucketMatch[0];

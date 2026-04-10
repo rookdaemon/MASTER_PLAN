@@ -456,13 +456,25 @@ async function dispatchWithFallback(
   const selector = config.modelSelector;
 
   if (selector) {
-    const outcome = await selector.execute(nowMs, provider =>
-      runWorker(item, dag, provider, now, config),
-    );
-    if (outcome.kind === 'ok') {
-      return { kind: 'ok', result: outcome.value };
+    try {
+      const outcome = await selector.execute(nowMs, provider =>
+        runWorker(item, dag, provider, now, config),
+      );
+      if (outcome.kind === 'ok') {
+        return { kind: 'ok', result: outcome.value };
+      }
+      return outcome; // { kind: 'rate-limited', resumeAtMs, reason }
+    } catch (err) {
+      if (isRateLimitError(err)) {
+        const hintMs = parseRateLimitBackoffHintMs(err, nowMs);
+        return {
+          kind: 'rate-limited',
+          resumeAtMs: nowMs + (hintMs > 0 ? hintMs : INITIAL_RATE_LIMIT_BACKOFF_MS),
+          reason: extractRateLimitReason(err),
+        };
+      }
+      return { kind: 'error', error: err };
     }
-    return outcome; // { kind: 'rate-limited', resumeAtMs, reason }
   }
 
   try {

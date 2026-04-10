@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PriorityModelSelector, parseRateLimitBackoffHintMs } from '../model-selector.js';
+import { PriorityModelSelector, parseRateLimitBackoffHintMs, isRateLimitError, extractRateLimitReason } from '../model-selector.js';
 import type { IInferenceProvider, InferenceResult } from '../../llm-substrate/inference-provider.js';
 
 const NOW = Date.parse('2026-04-09T12:00:00.000Z');
@@ -252,6 +252,29 @@ describe('PriorityModelSelector', () => {
     ]);
     const outcome = await runId(sel);
     expect(outcome.attemptedModels).toEqual(['a', 'b', 'c']);
+  });
+
+  it('treats provider 524 responses as transient and fails over', async () => {
+    const provider524: IInferenceProvider = {
+      async probe() { return { reachable: true, latencyMs: 1 }; },
+      async infer(): Promise<InferenceResult> {
+        throw new Error('Unexpected response shape from https://openrouter.ai/api/v1: missing or empty "choices" array. Body: {"error":{"message":"Provider returned error","code":524}}');
+      },
+    };
+    const sel = new PriorityModelSelector([
+      { modelId: 'a', provider: provider524 },
+      { modelId: 'b', provider: fakeProvider('b') },
+    ]);
+
+    const outcome = await runId(sel);
+    expect(outcome).toMatchObject({ kind: 'ok', value: 'b', modelId: 'b' });
+    expect(outcome.attemptedModels).toEqual(['a', 'b']);
+  });
+
+  it('classifies provider timeout reason for 524', () => {
+    const err = new Error('Provider returned error code 524');
+    expect(isRateLimitError(err)).toBe(true);
+    expect(extractRateLimitReason(err)).toBe('provider-timeout');
   });
 
   it('preserves first detailed reason instead of generic fallback', async () => {

@@ -4,6 +4,7 @@ import { InMemoryFileSystem } from '../../agent-runtime/filesystem.js';
 import { InMemoryGitOperations } from '../git-state.js';
 import type { IInferenceProvider, InferenceResult } from '../../llm-substrate/inference-provider.js';
 import type { GuardianConfig, IGitOperations } from '../interfaces.js';
+import type { IModelSelector } from '../model-selector.js';
 
 function makeFs(files: Record<string, string>): InMemoryFileSystem {
   const fs = new InMemoryFileSystem();
@@ -175,6 +176,32 @@ Done.
     expect(result.failed).toBeGreaterThan(0);
     expect(result.completed).toBe(0);
     expect(git.commits.length).toBe(0);
+  });
+
+  it('does not throw process-fatal when model selector throws provider errors', async () => {
+    const providerError = new Error('Provider returned error code 524');
+    const throwingSelector: IModelSelector = {
+      modelIds: ['a'],
+      async execute() {
+        throw providerError;
+      },
+      nextAvailableAtMs(nowMs: number) {
+        return nowMs + 5000;
+      },
+    };
+
+    const fs = makeFs({ 'plan/root.md': ROOT, 'plan/0.0-alpha.md': ALPHA });
+    const git = new InMemoryGitOperations();
+    const config = makeConfig(fs, {
+      git,
+      modelSelector: throwingSelector,
+    });
+
+    const result = await runEpoch(0, config);
+    expect(result.dispatched).toBeGreaterThan(0);
+    expect(result.failed).toBeGreaterThan(0);
+    expect(result.completed).toBe(0);
+    expect(result.commits.length).toBe(0);
   });
 
   it('does not throw process-fatal on strict graph integrity mismatch', async () => {
