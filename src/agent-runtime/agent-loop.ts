@@ -65,6 +65,9 @@ import type { InnerMonologueLogger } from './inner-monologue.js';
 
 export type OnTickCallback = (snap: DashboardSnapshot) => void;
 
+/** Maximum number of recent semantic memory topics to pass to assembleDriveContext. */
+const MAX_RECENT_MEMORY_TOPICS = 10;
+
 // ── AgentLoop ─────────────────────────────────────────────────
 
 export class AgentLoop implements IAgentLoop {
@@ -117,6 +120,10 @@ export class AgentLoop implements IAgentLoop {
   private _drivePersonality: DrivePersonalityParams | null = null;
   private _recentMonologueSummaries: string[] = [];
   private static readonly MAX_MONOLOGUE_HISTORY = 3;
+  /** Tool calls made during the most recently completed ACT phase. */
+  private _lastCycleToolCallCount = 0;
+  /** Tool calls accumulated in the current cycle's ACT phase (reset each tick before ACT). */
+  private _currentCycleToolCallCount = 0;
 
   // ── Tool-use subsystem references ──────────────────────────
   private _memorySystem: IMemorySystem | null = null;
@@ -624,6 +631,21 @@ export class AgentLoop implements IAgentLoop {
     this._driveInitiatedGoals = [];
 
     if (this._drivePersonality) {
+      // Derive active subtask depth: number of remaining (active + pending) subtasks
+      const activeTaskForDrive = this._taskJournal?.activeTask();
+      const activeSubtaskDepth = activeTaskForDrive
+        ? activeTaskForDrive.subtasks.filter(s => s.status === 'active' || s.status === 'pending').length
+        : 0;
+
+      // Derive recent memory topics (newest first, last MAX_RECENT_MEMORY_TOPICS)
+      const recentMemoryTopics = this._memorySystem
+        ? this._memorySystem.semantic.all()
+            .slice()
+            .sort((a, b) => b.lastReinforcedAt - a.lastReinforcedAt)
+            .slice(0, MAX_RECENT_MEMORY_TOPICS)
+            .map(e => e.topic)
+        : [];
+
       const driveContext = assembleDriveContext({
         expState,
         metrics: metricsAtOnset,
@@ -632,6 +654,9 @@ export class AgentLoop implements IAgentLoop {
         tickBudgetMs: this._config.tickBudgetMs,
         phaseElapsedMs: (perceiveEnd.durationMs) + (recallEnd.durationMs) + (appraiseEnd.durationMs),
         hasRealInput: rawInputs.length > 0,
+        toolCallCount: this._lastCycleToolCallCount,
+        activeSubtaskDepth,
+        recentMemoryTopics,
         personality: this._drivePersonality,
         now: Date.now(),
       });
@@ -786,6 +811,8 @@ export class AgentLoop implements IAgentLoop {
     // ── 5. ACT ───────────────────────────────────────────────
     budget.startPhase('act');
     dl?.phaseStart('act', this._cycleCount);
+    // Reset per-cycle tool call counter for this ACT phase
+    this._currentCycleToolCallCount = 0;
 
     const actionResult = this._actionPipeline.execute(ethicalJudgment.decision);
     dl?.log('action', `Action executed: ${ethicalJudgment.decision.action.type}`, {
@@ -884,6 +911,7 @@ export class AgentLoop implements IAgentLoop {
           this._makeExecuteFn(expState),
           {
             onToolCall: (name, args) => {
+              this._currentCycleToolCallCount++;
               mono?.toolCall(name, args);
               dl?.log('llm', `Conversational tool call: ${name}`, args);
             },
@@ -1001,6 +1029,8 @@ export class AgentLoop implements IAgentLoop {
     const actEnd = budget.endPhase('act');
     dl?.phaseEnd('act', this._cycleCount, actEnd.durationMs);
     this._phaseTimings.set('act', actEnd.durationMs);
+    // Snapshot tool call count for use in the next tick's drive context assembly
+    this._lastCycleToolCallCount = this._currentCycleToolCallCount;
 
     // ── 6. MONITOR ───────────────────────────────────────────
     //   Never skipped; never truncated.
@@ -1247,6 +1277,7 @@ export class AgentLoop implements IAgentLoop {
       this._makeExecuteFn(expState),
       {
         onToolCall: (name, args) => {
+          this._currentCycleToolCallCount++;
           mono?.toolCall(name, args);
           dl?.log('drive', `Tool call: ${name}`, args);
         },
