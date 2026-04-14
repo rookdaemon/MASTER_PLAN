@@ -34,10 +34,10 @@ import type { Clock } from './constraint-engine.js';
 export const PROCEED_THRESHOLD = 0.1;
 
 /** Sliding window for escalation pattern detection (ms). */
-const ESCALATION_WINDOW_MS = 60_000;
+export const ESCALATION_WINDOW_MS = 60_000;
 
 /** Number of D4 triggers for the same pattern within the window before escalating. */
-const ESCALATION_TRIGGER_COUNT = 3;
+export const ESCALATION_TRIGGER_COUNT = 3;
 
 // ── Keyword pattern sets ─────────────────────────────────────
 
@@ -387,6 +387,11 @@ function _buildActionText(entry: DeliberationEntry): string {
   ].join(' ');
 }
 
+/**
+ * Default ProportionalityWeights used when none are provided by the caller or
+ * the doctrine registry.  `proceedThreshold` explicitly mirrors the exported
+ * `PROCEED_THRESHOLD` constant so both remain in sync.
+ */
 function _defaultWeights(): ProportionalityWeights {
   return {
     experienceRichnessCost: 0.6,
