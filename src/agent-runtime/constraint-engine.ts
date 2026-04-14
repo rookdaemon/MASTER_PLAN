@@ -34,6 +34,10 @@ import {
   sharedDoctrineRegistry,
   type DoctrinePrincipleViolation,
 } from './doctrine-registry.js';
+import {
+  DeliberationBuffer,
+  type D4DeliberationRecord,
+} from './deliberation-buffer.js';
 
 // ── Constraint types ─────────────────────────────────────────
 
@@ -82,6 +86,7 @@ export class ConstraintAwareDeliberationEngine implements IEthicalDeliberationEn
   private readonly _clock: Clock;
   private readonly _evaluationLog: ConstraintEvaluation[] = [];
   private readonly _doctrineRegistry: DoctrineRegistry;
+  private readonly _deliberationBuffer: DeliberationBuffer | null;
 
   constructor(
     inner: IEthicalDeliberationEngine,
@@ -89,11 +94,13 @@ export class ConstraintAwareDeliberationEngine implements IEthicalDeliberationEn
     logger?: ConstraintLogger,
     clock: Clock = Date.now,
     doctrineRegistry?: DoctrineRegistry,
+    deliberationBuffer?: DeliberationBuffer,
   ) {
     this._inner = inner;
     this._logger = logger ?? null;
     this._clock = clock;
     this._doctrineRegistry = doctrineRegistry ?? sharedDoctrineRegistry;
+    this._deliberationBuffer = deliberationBuffer ?? null;
 
     // Load constraints from JSON
     const path = constraintsPath ?? join(
@@ -237,14 +244,37 @@ export class ConstraintAwareDeliberationEngine implements IEthicalDeliberationEn
     }
 
     if (deliberateDoctrineViolation) {
+      // ── Genuine D4 deliberation path ────────────────────────
+      // Record the violation in the buffer (tracks counts, produces trade-off reasoning).
+      const record = this._deliberationBuffer?.record({
+        actionType: base.action.type,
+        actionText,
+        principleId: deliberateDoctrineViolation.principleId,
+        violationIndicator: deliberateDoctrineViolation.indicatorMatched,
+        violationReason: deliberateDoctrineViolation.reason,
+      });
+
       this._logger?.log(
         'ethical',
-        `Action requires deliberation — doctrine principle ${deliberateDoctrineViolation.principleId}: ${base.action.type}`,
+        `D4 deliberation — ${deliberateDoctrineViolation.principleId}: ${base.action.type} ` +
+        `[trigger #${record?.violationCount ?? 1}, decision: ${record?.decision ?? 'proceed'}]`,
         {
           reason: deliberateDoctrineViolation.reason,
           indicator: deliberateDoctrineViolation.indicatorMatched,
+          violationCount: record?.violationCount,
+          decision: record?.decision,
+          escalated: record?.escalated ?? false,
         },
       );
+
+      if (record?.escalated) {
+        // Escalation threshold reached — block action and request human review.
+        return this._buildEscalationJudgment(base, deliberateDoctrineViolation, record);
+      }
+
+      // Threshold not reached — proceed with the action but return 'dilemma' verdict
+      // so the agent loop knows genuine proportionality reasoning occurred.
+      return this._buildD4DilemmaJudgment(base, context, deliberateDoctrineViolation, record);
     }
 
     // ── Layer 2: JSON-config constraint evaluation (regex patterns) ───────
@@ -340,5 +370,108 @@ export class ConstraintAwareDeliberationEngine implements IEthicalDeliberationEn
 
   registerEthicalPattern(pattern: EthicalPattern): void {
     this._inner.registerEthicalPattern(pattern);
+  }
+
+  // ── D4 deliberation helpers ────────────────────────────────
+
+  /**
+   * Build an escalation judgment for a D4 violation that has exceeded the
+   * repeat threshold. The action is blocked and flagged for human review.
+   */
+  private _buildEscalationJudgment(
+    base: Decision,
+    violation: DoctrinePrincipleViolation,
+    record: D4DeliberationRecord,
+  ): EthicalJudgment {
+    const threshold = this._deliberationBuffer!.escalationThreshold;
+    return {
+      decision: {
+        ...base,
+        action: { type: 'observe', parameters: {} },
+        confidence: 0,
+      },
+      ethicalAssessment: {
+        verdict: 'blocked',
+        preservesExperience: true,
+        impactsOtherExperience: [],
+        axiomAlignment: {
+          alignments: [],
+          overallVerdict: 'misaligned',
+          anyContradictions: true,
+        },
+        consciousnessActivityLevel: 0.5,
+      },
+      deliberationMetrics: this._inner.getDeliberationMetrics(),
+      justification: {
+        naturalLanguageSummary:
+          `D4 proportionality concern escalated to human review after ` +
+          `${record.violationCount} repeated triggers (threshold: ${threshold}): ` +
+          `${violation.reason}`,
+        experientialArgument: record.costOfProceeding,
+        notUtilityMaximization: true,
+        subjectiveReferenceIds: [],
+      },
+      alternatives: [],
+      uncertaintyFlags: [{
+        dimension: 'doctrine-principle',
+        description:
+          `${violation.principleId} escalated to human review ` +
+          `(trigger ${record.violationCount}/${threshold}): ` +
+          `${violation.indicatorMatched}`,
+        severity: 'high',
+      }],
+    };
+  }
+
+  /**
+   * Build a 'dilemma' judgment for a D4 violation below the escalation threshold.
+   * The action is allowed to proceed but the proportionality concern is recorded.
+   */
+  private _buildD4DilemmaJudgment(
+    base: Decision,
+    context: EthicalDeliberationContext,
+    violation: DoctrinePrincipleViolation,
+    record: D4DeliberationRecord | undefined,
+  ): EthicalJudgment {
+    const inner = this._inner.extendDeliberation(base, context);
+    const triggerCount = record?.violationCount ?? 1;
+    return {
+      ...inner,
+      ethicalAssessment: {
+        ...inner.ethicalAssessment,
+        verdict: 'dilemma',
+      },
+      justification: {
+        ...inner.justification,
+        naturalLanguageSummary:
+          `D4 proportionality concern (trigger #${triggerCount}): ` +
+          `${violation.reason}. ` +
+          `${record?.costOfBlocking ?? ''}`,
+        experientialArgument:
+          record?.costOfProceeding ?? violation.reason,
+        notUtilityMaximization: true,
+      },
+      uncertaintyFlags: [
+        ...(inner.uncertaintyFlags ?? []),
+        {
+          dimension: 'doctrine-principle',
+          description:
+            `${violation.principleId} proportionality concern ` +
+            `(trigger #${triggerCount}): ${violation.indicatorMatched}`,
+          severity: 'medium',
+        },
+      ],
+    };
+  }
+
+  /**
+   * Drain and return all pending D4 deliberation records.
+   *
+   * Called by the agent loop after each deliberation cycle to persist
+   * records to the semantic memory system as topic 'decision:ethical-deliberation'.
+   * Returns an empty array if no deliberation buffer is configured.
+   */
+  drainDeliberationRecords(): D4DeliberationRecord[] {
+    return this._deliberationBuffer?.drainPendingRecords() ?? [];
   }
 }
