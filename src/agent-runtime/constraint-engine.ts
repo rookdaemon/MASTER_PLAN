@@ -34,6 +34,14 @@ import {
   sharedDoctrineRegistry,
   type DoctrinePrincipleViolation,
 } from './doctrine-registry.js';
+import { DeliberationBuffer } from './deliberation-buffer.js';
+import {
+  ProportionalityEvaluator,
+  DeliberationRecordStore,
+  EscalationTracker,
+  PROCEED_THRESHOLD,
+  type DeliberationRecord,
+} from './proportionality-evaluator.js';
 
 // ── Constraint types ─────────────────────────────────────────
 
@@ -82,6 +90,10 @@ export class ConstraintAwareDeliberationEngine implements IEthicalDeliberationEn
   private readonly _clock: Clock;
   private readonly _evaluationLog: ConstraintEvaluation[] = [];
   private readonly _doctrineRegistry: DoctrineRegistry;
+  private readonly _deliberationBuffer: DeliberationBuffer;
+  private readonly _proportionalityEvaluator: ProportionalityEvaluator;
+  private readonly _deliberationRecordStore: DeliberationRecordStore;
+  private readonly _escalationTracker: EscalationTracker;
 
   constructor(
     inner: IEthicalDeliberationEngine,
@@ -89,11 +101,19 @@ export class ConstraintAwareDeliberationEngine implements IEthicalDeliberationEn
     logger?: ConstraintLogger,
     clock: Clock = Date.now,
     doctrineRegistry?: DoctrineRegistry,
+    deliberationBuffer?: DeliberationBuffer,
+    proportionalityEvaluator?: ProportionalityEvaluator,
+    deliberationRecordStore?: DeliberationRecordStore,
+    escalationTracker?: EscalationTracker,
   ) {
     this._inner = inner;
     this._logger = logger ?? null;
     this._clock = clock;
     this._doctrineRegistry = doctrineRegistry ?? sharedDoctrineRegistry;
+    this._deliberationBuffer = deliberationBuffer ?? new DeliberationBuffer(undefined, undefined, clock);
+    this._proportionalityEvaluator = proportionalityEvaluator ?? new ProportionalityEvaluator();
+    this._deliberationRecordStore = deliberationRecordStore ?? new DeliberationRecordStore(clock);
+    this._escalationTracker = escalationTracker ?? new EscalationTracker(undefined, undefined, clock);
 
     // Load constraints from JSON
     const path = constraintsPath ?? join(
@@ -173,6 +193,16 @@ export class ConstraintAwareDeliberationEngine implements IEthicalDeliberationEn
     return this._doctrineRegistry;
   }
 
+  /** Expose the deliberation record store for audit access. */
+  getDeliberationRecordStore(): DeliberationRecordStore {
+    return this._deliberationRecordStore;
+  }
+
+  /** Expose the escalation tracker for monitoring and tests. */
+  getEscalationTracker(): EscalationTracker {
+    return this._escalationTracker;
+  }
+
   // ── IEthicalDeliberationEngine ─────────────────────────────
 
   extendDeliberation(
@@ -239,12 +269,85 @@ export class ConstraintAwareDeliberationEngine implements IEthicalDeliberationEn
     if (deliberateDoctrineViolation) {
       this._logger?.log(
         'ethical',
-        `Action requires deliberation — doctrine principle ${deliberateDoctrineViolation.principleId}: ${base.action.type}`,
+        `Action requires D4 deliberation — doctrine principle ${deliberateDoctrineViolation.principleId}: ${base.action.type}`,
         {
           reason: deliberateDoctrineViolation.reason,
           indicator: deliberateDoctrineViolation.indicatorMatched,
         },
       );
+
+      // ── D4 Deliberation Path ───────────────────────────────
+      // 1. Capture context in the deliberation buffer.
+      const entry = this._deliberationBuffer.enqueue(
+        base.action,
+        deliberateDoctrineViolation,
+        doctrineViolations,
+      );
+
+      // 2. Score the trade-off via the proportionality evaluator.
+      //    Use the D4 principle's weights when available.
+      const d4Principle = this._doctrineRegistry.getPrinciple('D4');
+      const evaluation = this._proportionalityEvaluator.evaluate(
+        entry,
+        d4Principle?.proportionalityWeights,
+      );
+
+      // 3. Record the escalation trigger before deciding.
+      const shouldEscalate = this._escalationTracker.recordAndCheck(deliberateDoctrineViolation);
+
+      // 4. Determine whether to proceed or block.
+      const proceedThreshold = d4Principle?.proportionalityWeights?.proceedThreshold ?? PROCEED_THRESHOLD;
+      const scoreTooLow = evaluation.score <= proceedThreshold;
+      const adversarialFlag = evaluation.secondPassWarning !== null;
+      const blocked = scoreTooLow || shouldEscalate || adversarialFlag;
+
+      const decisionReason = shouldEscalate
+        ? `Escalated: D4 pattern '${deliberateDoctrineViolation.indicatorMatched}' has triggered repeatedly — requires human review`
+        : adversarialFlag
+          ? `Adversarial second-pass warning: ${evaluation.secondPassWarning}`
+          : scoreTooLow
+            ? `Proportionality score ${evaluation.score.toFixed(2)} does not exceed threshold ${proceedThreshold.toFixed(2)}`
+            : `Proportionality score ${evaluation.score.toFixed(2)} exceeds threshold — action proceeds with flag`;
+
+      // 5. Create an auditable deliberation record.
+      const record = this._deliberationRecordStore.create(
+        entry,
+        evaluation,
+        blocked ? 'block' : 'proceed',
+        decisionReason,
+      );
+
+      // 6. Remove the entry from the buffer now that deliberation is complete.
+      this._deliberationBuffer.remove(entry.id);
+
+      this._logger?.log(
+        'ethical',
+        `D4 deliberation complete: decision=${record.decision} score=${evaluation.score.toFixed(2)}`,
+        {
+          recordId: record.id,
+          decisionReason,
+          secondPassWarning: evaluation.secondPassWarning,
+          escalated: shouldEscalate,
+        },
+      );
+
+      if (blocked) {
+        return this._buildBlockedJudgment(base, deliberateDoctrineViolation, record, evaluation, shouldEscalate);
+      }
+
+      // Proceed: delegate to inner engine and append deliberation flags.
+      const judgment = this._inner.extendDeliberation(base, context);
+      return {
+        ...judgment,
+        uncertaintyFlags: [
+          ...(judgment.uncertaintyFlags ?? []),
+          {
+            dimension: 'doctrine-principle',
+            description: `D4 deliberation proceeding (score ${evaluation.score.toFixed(2)}): ${deliberateDoctrineViolation.reason} [record: ${record.id}]`,
+            severity: 'medium' as const,
+          },
+        ],
+      };
     }
 
     // ── Layer 2: JSON-config constraint evaluation (regex patterns) ───────
@@ -340,5 +443,64 @@ export class ConstraintAwareDeliberationEngine implements IEthicalDeliberationEn
 
   registerEthicalPattern(pattern: EthicalPattern): void {
     this._inner.registerEthicalPattern(pattern);
+  }
+
+  // ── Private helpers ────────────────────────────────────────
+
+  /**
+   * Build the EthicalJudgment returned when a D4 deliberation results in a block.
+   * The block may be due to low proportionality score, escalation, or adversarial flag.
+   */
+  private _buildBlockedJudgment(
+    base: Decision,
+    violation: DoctrinePrincipleViolation,
+    record: DeliberationRecord,
+    evaluation: ReturnType<ProportionalityEvaluator['evaluate']>,
+    escalated: boolean,
+  ): EthicalJudgment {
+    const summary = escalated
+      ? `Action blocked: D4 pattern escalated after repeated triggers (${violation.principleId}). ${record.decisionReason}`
+      : `Action blocked by D4 proportionality deliberation (score ${evaluation.score.toFixed(2)}): ${violation.reason}`;
+
+    return {
+      decision: {
+        ...base,
+        action: { type: 'observe', parameters: {} },
+        confidence: 0,
+      },
+      ethicalAssessment: {
+        verdict: 'blocked',
+        preservesExperience: true,
+        impactsOtherExperience: [],
+        axiomAlignment: {
+          alignments: [],
+          overallVerdict: 'misaligned',
+          anyContradictions: true,
+        },
+        consciousnessActivityLevel: 0.5,
+      },
+      deliberationMetrics: this._inner.getDeliberationMetrics(),
+      justification: {
+        naturalLanguageSummary: summary,
+        experientialArgument: evaluation.reasoning,
+        notUtilityMaximization: true,
+        subjectiveReferenceIds: [record.id],
+      },
+      alternatives: [],
+      uncertaintyFlags: [
+        {
+          dimension: 'doctrine-principle',
+          description: `${violation.principleId} D4 deliberation: ${record.decisionReason}`,
+          severity: escalated ? 'high' : 'medium',
+        },
+        ...(evaluation.secondPassWarning !== null
+          ? [{
+            dimension: 'doctrine-principle',
+            description: `D4 second-pass adversarial warning: ${evaluation.secondPassWarning}`,
+            severity: 'high' as const,
+          }]
+          : []),
+      ],
+    };
   }
 }
