@@ -16,6 +16,7 @@ import type { Timestamp, Duration } from '../conscious-core/types.js';
 import type { TraitDimensionId } from '../personality/types.js';
 import type { PersonalitySnapshot } from '../personality/types.js';
 import type { MoodState } from '../emotion-appraisal/types.js';
+import type { AppraisalEvent } from '../emotion-appraisal/types.js';
 import type {
   DriveGoalCandidate,
   DriveState,
@@ -41,6 +42,7 @@ export type {
   EmotionalInfluenceVector,
   RegulationOutcome,
   ExperientialStateDelta,
+  AppraisalEvent,
 };
 
 // ── Agent Configuration ───────────────────────────────────────────────────────
@@ -130,6 +132,22 @@ export interface CognitiveTickInput {
    * Low coherence activates the existential drive. Pass 0.9 as a stable baseline.
    */
   readonly selfModelCoherence: number;
+
+  /**
+   * Appraisal events that occurred since the last tick.
+   *
+   * When provided and non-empty, these events are aggregated into an
+   * AppraisalResult that is fed into MoodDynamics, allowing the agent's
+   * mood to respond to world events. When omitted or empty, the mood
+   * undergoes natural EWMA decay toward the neutral baseline.
+   *
+   * Typical sources:
+   *   - Social interactions (positive/negative contact)
+   *   - Goal progress updates (advancement or setback)
+   *   - Threat detections (danger signals)
+   *   - Novelty encounters (surprising stimuli)
+   */
+  readonly appraisalEvents?: readonly AppraisalEvent[];
 }
 
 // ── Tick Result ───────────────────────────────────────────────────────────────

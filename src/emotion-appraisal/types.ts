@@ -164,3 +164,51 @@ export interface IntegrityState {
   readonly integrationLevel: number;       // 0..1 relative to design spec
   readonly timestamp: Timestamp;
 }
+
+// ── AppraisalEvent ────────────────────────────────────────────────────────────
+
+/**
+ * Semantic category of an appraisal event.
+ *
+ * Used by upstream systems (cognitive-agent, simulated-agent, simulation world)
+ * to classify stimuli before they are aggregated into an AppraisalResult and
+ * fed into MoodDynamics.
+ */
+export type AppraisalEventKind =
+  | 'social-interaction'   // Positive or negative social contact
+  | 'goal-progress'        // Advancement toward or away from a goal
+  | 'threat-detection'     // Perceived danger or harm signal
+  | 'novelty-encounter';   // Unexpected or novel stimulus
+
+/**
+ * A lightweight, modality-agnostic event that can be translated into an
+ * AppraisalResult without requiring a full BoundPercept or active goal list.
+ *
+ * Used by:
+ *   - CognitiveAgent.tick() (NPC stack) — receives these from the game engine
+ *   - SimulatedAgent.tick() (simulation) — constructed from world event percepts
+ *
+ * See appraisal-event.ts for the aggregation function.
+ */
+export interface AppraisalEvent {
+  /** Semantic category of the event. */
+  readonly kind: AppraisalEventKind;
+
+  /**
+   * Net valence contribution of this event (−1..1).
+   * Positive = pleasant/beneficial, negative = unpleasant/threatening.
+   */
+  readonly valenceShift: number;
+
+  /**
+   * Net arousal contribution of this event (−0.5..0.5).
+   * Positive = activating (novel, intense), negative = calming (familiar, resolved).
+   */
+  readonly arousalShift: number;
+
+  /**
+   * Intensity multiplier (0..1). Scales both valence and arousal shifts.
+   * Defaults to 1.0 when omitted.
+   */
+  readonly intensity?: number;
+}
