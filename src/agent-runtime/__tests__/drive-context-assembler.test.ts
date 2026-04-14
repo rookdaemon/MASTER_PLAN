@@ -6,6 +6,8 @@
  *   - Falls back to (1 - selfModelCoherence) when activityLog is empty
  *   - Defaults to 0.7 when activityLog is empty (no-activity default)
  *   - Takes the max of avgRecentNovelty and (1 - selfModelCoherence)
+ *   - currentCognitiveLoad is a composite of tool-call ratio, time ratio, and task depth
+ *   - currentNovelty is an entropy-based estimate from topic diversity
  *   - Other DriveContext fields are assembled correctly
  */
 
@@ -75,6 +77,9 @@ function makeBaseOpts(overrides: Partial<Parameters<typeof assembleDriveContext>
     tickBudgetMs: 1000,
     phaseElapsedMs: 300,
     hasRealInput: false,
+    toolCallCount: 0,
+    activeSubtaskDepth: 0,
+    recentMemoryTopics: [],
     personality: makePersonality(),
     now: NOW,
     ...overrides,
@@ -163,30 +168,176 @@ describe('assembleDriveContext', () => {
     });
   });
 
-  describe('other fields', () => {
-    it('currentCognitiveLoad is elapsed/budget ratio', () => {
+  describe('currentCognitiveLoad — composite formula', () => {
+    it('is 0 when all inputs are minimal (no tool calls, no time elapsed, no task depth)', () => {
       const ctx = assembleDriveContext(makeBaseOpts({
+        toolCallCount: 0,
+        phaseElapsedMs: 0,
+        activeSubtaskDepth: 0,
         tickBudgetMs: 1000,
-        phaseElapsedMs: 400,
       }));
+      expect(ctx.currentCognitiveLoad).toBeCloseTo(0);
+    });
+
+    it('scales with tool call count (6 calls → toolCallRatio = 1)', () => {
+      const ctx = assembleDriveContext(makeBaseOpts({
+        toolCallCount: 6,
+        phaseElapsedMs: 0,
+        activeSubtaskDepth: 0,
+        tickBudgetMs: 1000,
+      }));
+      // 6/6 * 0.4 + 0 * 0.3 + 0 * 0.3 = 0.4
       expect(ctx.currentCognitiveLoad).toBeCloseTo(0.4);
     });
 
-    it('currentCognitiveLoad falls back to 0.3 when tickBudgetMs is zero', () => {
-      const ctx = assembleDriveContext(makeBaseOpts({ tickBudgetMs: 0 }));
-      expect(ctx.currentCognitiveLoad).toBe(0.3);
+    it('scales with time elapsed ratio', () => {
+      const ctx = assembleDriveContext(makeBaseOpts({
+        toolCallCount: 0,
+        phaseElapsedMs: 500,
+        activeSubtaskDepth: 0,
+        tickBudgetMs: 1000,
+      }));
+      // 0 * 0.4 + 0.5 * 0.3 + 0 * 0.3 = 0.15
+      expect(ctx.currentCognitiveLoad).toBeCloseTo(0.15);
     });
 
-    it('currentNovelty is 0.7 when hasRealInput is true', () => {
-      const ctx = assembleDriveContext(makeBaseOpts({ hasRealInput: true }));
-      expect(ctx.currentNovelty).toBe(0.7);
+    it('scales with active subtask depth', () => {
+      const ctx = assembleDriveContext(makeBaseOpts({
+        toolCallCount: 0,
+        phaseElapsedMs: 0,
+        activeSubtaskDepth: 4,
+        tickBudgetMs: 1000,
+      }));
+      // 0 * 0.4 + 0 * 0.3 + (4/4) * 0.3 = 0.3
+      expect(ctx.currentCognitiveLoad).toBeCloseTo(0.3);
     });
 
-    it('currentNovelty is 0.4 when hasRealInput is false', () => {
-      const ctx = assembleDriveContext(makeBaseOpts({ hasRealInput: false }));
-      expect(ctx.currentNovelty).toBe(0.4);
+    it('combines all three signals correctly', () => {
+      const ctx = assembleDriveContext(makeBaseOpts({
+        toolCallCount: 3,   // 3/6 = 0.5
+        phaseElapsedMs: 400, // 400/1000 = 0.4
+        activeSubtaskDepth: 2, // 2/4 = 0.5
+        tickBudgetMs: 1000,
+      }));
+      // 0.5 * 0.4 + 0.4 * 0.3 + 0.5 * 0.3 = 0.2 + 0.12 + 0.15 = 0.47
+      expect(ctx.currentCognitiveLoad).toBeCloseTo(0.47);
     });
 
+    it('clamps to 1 when inputs exceed expected range', () => {
+      const ctx = assembleDriveContext(makeBaseOpts({
+        toolCallCount: 12,  // exceeds max → clamped to 1
+        phaseElapsedMs: 2000, // exceeds budget → clamped to 1
+        activeSubtaskDepth: 8, // exceeds max → clamped to 1
+        tickBudgetMs: 1000,
+      }));
+      expect(ctx.currentCognitiveLoad).toBeCloseTo(1);
+    });
+
+    it('uses 0 for time component when tickBudgetMs is zero (avoids division by zero)', () => {
+      const ctx = assembleDriveContext(makeBaseOpts({
+        toolCallCount: 3,
+        phaseElapsedMs: 500,
+        activeSubtaskDepth: 0,
+        tickBudgetMs: 0,
+      }));
+      // 0.5 * 0.4 + 0 * 0.3 + 0 * 0.3 = 0.2
+      expect(ctx.currentCognitiveLoad).toBeCloseTo(0.2);
+    });
+
+    it('is higher with more signals than with fewer', () => {
+      const lowCtx = assembleDriveContext(makeBaseOpts({
+        toolCallCount: 1,
+        phaseElapsedMs: 100,
+        activeSubtaskDepth: 1,
+        tickBudgetMs: 1000,
+      }));
+      const highCtx = assembleDriveContext(makeBaseOpts({
+        toolCallCount: 5,
+        phaseElapsedMs: 700,
+        activeSubtaskDepth: 3,
+        tickBudgetMs: 1000,
+      }));
+      expect(highCtx.currentCognitiveLoad).toBeGreaterThan(lowCtx.currentCognitiveLoad);
+    });
+  });
+
+  describe('currentNovelty — entropy-based formula', () => {
+    it('is 0.2 (base) when there are no memory topics and no real input', () => {
+      const ctx = assembleDriveContext(makeBaseOpts({
+        recentMemoryTopics: [],
+        hasRealInput: false,
+      }));
+      // topicEntropy = 0, repetitionPenalty = 0, inputBoost = 0
+      // 0 * 0.6 - 0 * 0.3 + 0 + 0.2 = 0.2
+      expect(ctx.currentNovelty).toBeCloseTo(0.2);
+    });
+
+    it('adds 0.15 boost when hasRealInput is true (no topics)', () => {
+      const ctx = assembleDriveContext(makeBaseOpts({
+        recentMemoryTopics: [],
+        hasRealInput: true,
+      }));
+      // 0 * 0.6 - 0 * 0.3 + 0.15 + 0.2 = 0.35
+      expect(ctx.currentNovelty).toBeCloseTo(0.35);
+    });
+
+    it('increases with diverse topics (high entropy)', () => {
+      // 4 fully distinct topics → Shannon entropy = log2(4) = 2 bits; maxEntropy = log2(4)
+      // topicEntropy normalised = 1.0
+      const ctx = assembleDriveContext(makeBaseOpts({
+        recentMemoryTopics: ['alpha', 'beta', 'gamma', 'delta'],
+        hasRealInput: false,
+      }));
+      // 1.0 * 0.6 - 0 * 0.3 + 0 + 0.2 = 0.8
+      expect(ctx.currentNovelty).toBeCloseTo(0.8);
+    });
+
+    it('is lower with repeated topics (same-topic streak penalty)', () => {
+      // All topics the same → topicEntropy = 0; streak = 4 → penalty = max(0,4-1)/5 = 0.6
+      const ctx = assembleDriveContext(makeBaseOpts({
+        recentMemoryTopics: ['code', 'code', 'code', 'code'],
+        hasRealInput: false,
+      }));
+      // 0 * 0.6 - 0.6 * 0.3 + 0 + 0.2 = 0 - 0.18 + 0.2 = 0.02
+      expect(ctx.currentNovelty).toBeCloseTo(0.02);
+    });
+
+    it('is higher with diverse topics than with repeated topics', () => {
+      const diverseCtx = assembleDriveContext(makeBaseOpts({
+        recentMemoryTopics: ['topic-a', 'topic-b', 'topic-c', 'topic-d'],
+        hasRealInput: false,
+      }));
+      const repeatedCtx = assembleDriveContext(makeBaseOpts({
+        recentMemoryTopics: ['code', 'code', 'code', 'code'],
+        hasRealInput: false,
+      }));
+      expect(diverseCtx.currentNovelty).toBeGreaterThan(repeatedCtx.currentNovelty);
+    });
+
+    it('clamps to [0, 1]', () => {
+      const ctx = assembleDriveContext(makeBaseOpts({
+        recentMemoryTopics: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'],
+        hasRealInput: true,
+      }));
+      expect(ctx.currentNovelty).toBeGreaterThanOrEqual(0);
+      expect(ctx.currentNovelty).toBeLessThanOrEqual(1);
+    });
+
+    it('combines entropy and input boost additively', () => {
+      const withInput = assembleDriveContext(makeBaseOpts({
+        recentMemoryTopics: ['alpha', 'beta'],
+        hasRealInput: true,
+      }));
+      const withoutInput = assembleDriveContext(makeBaseOpts({
+        recentMemoryTopics: ['alpha', 'beta'],
+        hasRealInput: false,
+      }));
+      // inputBoost adds 0.15
+      expect(withInput.currentNovelty).toBeCloseTo(withoutInput.currentNovelty + 0.15);
+    });
+  });
+
+  describe('other fields', () => {
     it('recentActivity is capped to last 10 entries', () => {
       const log = Array.from({ length: 15 }, (_, i) => makeActivity(i / 15));
       const ctx = assembleDriveContext(makeBaseOpts({ activityLog: log }));
