@@ -383,7 +383,9 @@ export class ConstraintAwareDeliberationEngine implements IEthicalDeliberationEn
     violation: DoctrinePrincipleViolation,
     record: D4DeliberationRecord,
   ): EthicalJudgment {
-    const threshold = this._deliberationBuffer!.escalationThreshold;
+    // Use the buffer's threshold when available; fall back to the record's violation count
+    // (the record is only produced by the buffer, so this guard is defensive).
+    const threshold = this._deliberationBuffer?.escalationThreshold ?? record.violationCount;
     return {
       decision: {
         ...base,

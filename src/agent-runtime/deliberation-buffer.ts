@@ -91,7 +91,7 @@ export class DeliberationBuffer {
    *                             escalation is triggered. Defaults to 3.
    * @param clock                Injectable clock for deterministic tests.
    */
-  constructor(escalationThreshold = 3, clock: Clock = Date.now) {
+  constructor(escalationThreshold = 3, clock: Clock = () => Date.now()) {
     this._escalationThreshold = escalationThreshold;
     this._clock = clock;
   }
