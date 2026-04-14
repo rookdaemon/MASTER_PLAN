@@ -58,6 +58,74 @@ const TERMINAL_GOALS_SPEC: ReadonlyArray<{
   },
 ];
 
+// ── Private helpers ──────────────────────────────────────────────
+
+/** Clamp a value to [min, max]. */
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+/**
+ * Shannon entropy (bits) of a string array.
+ * Returns 0 for an empty array.
+ */
+function shannonEntropy(items: string[]): number {
+  if (items.length === 0) return 0;
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    counts.set(item, (counts.get(item) ?? 0) + 1);
+  }
+  let entropy = 0;
+  for (const count of counts.values()) {
+    const p = count / items.length;
+    entropy -= p * Math.log2(p);
+  }
+  return entropy;
+}
+
+/**
+ * Count how many items at the end of the array share the same value as the
+ * last item (i.e. the length of the terminal same-topic streak).
+ * Returns 0 for an empty array.
+ */
+function sameTopicStreak(items: string[]): number {
+  if (items.length === 0) return 0;
+  const last = items[items.length - 1];
+  let streak = 0;
+  for (let i = items.length - 1; i >= 0; i--) {
+    if (items[i] === last) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
+// ── Cognitive load formula constants ────────────────────────────
+/** Expected maximum tool calls in a single cycle (for ratio normalisation). */
+const TYPICAL_MAX_TOOL_CALLS_PER_CYCLE = 6;
+/** Expected maximum remaining subtasks that indicate full task depth. */
+const TYPICAL_MAX_REMAINING_SUBTASKS = 4;
+/** Weight of tool-call ratio in the cognitive load composite (0..1). */
+const TOOL_CALL_WEIGHT = 0.4;
+/** Weight of phase-elapsed ratio in the cognitive load composite (0..1). */
+const TIME_RATIO_WEIGHT = 0.3;
+/** Weight of task depth in the cognitive load composite (0..1). */
+const TASK_DEPTH_WEIGHT = 0.3;
+
+// ── Novelty formula constants ────────────────────────────────────
+/** Weight of normalised topic entropy in the novelty composite. */
+const ENTROPY_WEIGHT = 0.6;
+/** Weight of the repetition penalty in the novelty composite. */
+const REPETITION_PENALTY_WEIGHT = 0.3;
+/** Number of consecutive same-topic repetitions needed to reach full penalty. */
+const REPETITION_PENALTY_NORMALIZER = 5;
+/** Additive novelty boost when real (external) input is present. */
+const REAL_INPUT_BOOST = 0.15;
+/** Base novelty floor applied before all other components. */
+const NOVELTY_BASE_FLOOR = 0.2;
+
 // ── assembleDriveContext ─────────────────────────────────────────
 
 /**
@@ -71,6 +139,12 @@ export function assembleDriveContext(opts: {
   tickBudgetMs: number;
   phaseElapsedMs: number;
   hasRealInput: boolean;
+  /** Number of tool calls made during the most recently completed ACT phase. */
+  toolCallCount: number;
+  /** Number of remaining (active + pending) subtasks in the current active task. 0 if no task. */
+  activeSubtaskDepth: number;
+  /** Topics of recent semantic memory entries (newest first, last N). */
+  recentMemoryTopics: string[];
   personality: DrivePersonalityParams;
   now: number;
 }): DriveContext {
@@ -84,6 +158,37 @@ export function assembleDriveContext(opts: {
       Math.min(opts.activityLog.length, 10)
     : 0.7; // high uncertainty when no activity yet
 
+  // ── Cognitive Load — multi-signal composite ──────────────────
+  // Combines: tool-call intensity, phase elapsed ratio, and active task depth.
+  const toolCallRatio = clamp(opts.toolCallCount / TYPICAL_MAX_TOOL_CALLS_PER_CYCLE, 0, 1);
+  const timeRatio = opts.tickBudgetMs > 0
+    ? clamp(opts.phaseElapsedMs / opts.tickBudgetMs, 0, 1)
+    : 0;
+  const taskDepth = clamp(opts.activeSubtaskDepth / TYPICAL_MAX_REMAINING_SUBTASKS, 0, 1);
+  const currentCognitiveLoad =
+    toolCallRatio * TOOL_CALL_WEIGHT +
+    timeRatio     * TIME_RATIO_WEIGHT +
+    taskDepth     * TASK_DEPTH_WEIGHT;
+
+  // ── Novelty — entropy-based estimate ────────────────────────
+  // Topic entropy captures diversity of recent memory activity.
+  // A streak of identical topics penalises novelty; real input provides a boost.
+  const maxTopicEntropy = opts.recentMemoryTopics.length > 1
+    ? Math.log2(opts.recentMemoryTopics.length)
+    : 1; // avoid division by zero; single-item entropy is 0 anyway
+  const topicEntropy = shannonEntropy(opts.recentMemoryTopics) / maxTopicEntropy;
+  const streak = sameTopicStreak(opts.recentMemoryTopics);
+  // Only penalise repetition beyond the first occurrence (streak of 1 = no actual repeat).
+  const repetitionPenalty = clamp(Math.max(0, streak - 1) / REPETITION_PENALTY_NORMALIZER, 0, 1);
+  const inputBoost = opts.hasRealInput ? REAL_INPUT_BOOST : 0;
+  const currentNovelty = clamp(
+    topicEntropy * ENTROPY_WEIGHT -
+    repetitionPenalty * REPETITION_PENALTY_WEIGHT +
+    inputBoost +
+    NOVELTY_BASE_FLOOR,
+    0, 1,
+  );
+
   return {
     currentState: opts.expState,
     worldModelUncertainty: Math.max(
@@ -92,10 +197,8 @@ export function assembleDriveContext(opts: {
     ),
     timeSinceLastSocialInteraction: opts.now - opts.lastSocialInteractionAt,
     recentActivity: opts.activityLog.slice(-10),
-    currentCognitiveLoad: opts.tickBudgetMs > 0
-      ? Math.min(opts.phaseElapsedMs / opts.tickBudgetMs, 1)
-      : 0.3,
-    currentNovelty: opts.hasRealInput ? 0.7 : 0.4,
+    currentCognitiveLoad,
+    currentNovelty,
     selfModelCoherence: opts.metrics.selfModelCoherence,
     personality: opts.personality,
     now: opts.now,
