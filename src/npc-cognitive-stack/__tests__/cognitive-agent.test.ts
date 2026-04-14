@@ -191,6 +191,61 @@ describe('CognitiveAgent', () => {
       expect(result.influenceVector.deliberationConfidenceBias).toBeGreaterThanOrEqual(-0.3);
       expect(result.influenceVector.deliberationConfidenceBias).toBeLessThanOrEqual(0.3);
     });
+
+    // ── appraisalEvents ────────────────────────────────────────────────────────
+
+    it('positive appraisal events shift mood valence upward', () => {
+      const elevated = new CognitiveAgent(makeConfig({ initialMoodValence: 0.0 }));
+      const result = elevated.tick(makeInput({
+        appraisalEvents: [
+          { kind: 'social-interaction', valenceShift: 0.8, arousalShift: 0.1 },
+        ],
+      }));
+      expect(result.moodState.valence).toBeGreaterThan(0);
+    });
+
+    it('negative appraisal events (threat) shift mood valence downward', () => {
+      const result = agent.tick(makeInput({
+        appraisalEvents: [
+          { kind: 'threat-detection', valenceShift: -0.9, arousalShift: 0.3 },
+        ],
+      }));
+      expect(result.moodState.valence).toBeLessThan(0);
+    });
+
+    it('appraisalEvents produce larger mood shift than no events (same tick)', () => {
+      const withEvents = new CognitiveAgent(makeConfig({ initialMoodValence: 0.0 }));
+      const withoutEvents = new CognitiveAgent(makeConfig({ initialMoodValence: 0.0 }));
+
+      const resultWith = withEvents.tick(makeInput({
+        appraisalEvents: [{ kind: 'goal-progress', valenceShift: 0.7, arousalShift: 0 }],
+      }));
+      const resultWithout = withoutEvents.tick(makeInput());
+
+      expect(Math.abs(resultWith.moodState.valence))
+        .toBeGreaterThan(Math.abs(resultWithout.moodState.valence));
+    });
+
+    it('empty appraisalEvents array falls back to natural decay', () => {
+      const elevated = new CognitiveAgent(makeConfig({ initialMoodValence: 0.8 }));
+      const withEmpty  = elevated.tick(makeInput({ appraisalEvents: [] }));
+      const withOmitted = new CognitiveAgent(makeConfig({ initialMoodValence: 0.8 }))
+        .tick(makeInput());
+      // Both should produce the same decay (toward 0 baseline)
+      expect(withEmpty.moodState.valence).toBeCloseTo(withOmitted.moodState.valence, 5);
+    });
+
+    it('multiple appraisalEvents are averaged', () => {
+      // One event at +0.6 and one at −0.2 should average to +0.2 valence signal
+      const result = agent.tick(makeInput({
+        appraisalEvents: [
+          { kind: 'social-interaction', valenceShift: 0.6, arousalShift: 0 },
+          { kind: 'goal-progress',      valenceShift: -0.2, arousalShift: 0 },
+        ],
+      }));
+      // Starting from 0 with a +0.2 signal the mood should move into positive territory
+      expect(result.moodState.valence).toBeGreaterThan(0);
+    });
   });
 
   // ── getPersonality() ────────────────────────────────────────────────────────

@@ -38,6 +38,7 @@ import { EmotionalInfluence } from '../emotion-appraisal/emotional-influence.js'
 import { EmotionalRegulation } from '../emotion-appraisal/emotional-regulation.js';
 import { AppraisalEngine } from '../emotion-appraisal/appraisal-engine.js';
 import { ValenceMonitor } from '../emotion-appraisal/valence-monitor.js';
+import { appraisalResultFromEvents } from '../emotion-appraisal/appraisal-event.js';
 import type {
   IMoodDynamics,
   IEmotionalInfluence,
@@ -221,8 +222,11 @@ export class CognitiveAgent implements ICognitiveAgent {
     };
     const driveResult = this._drives.tick(state, driveContext);
 
-    // 4. Update mood — natural EWMA decay (no full appraisal pipeline needed)
-    const moodState = this._emotion.moodDynamics.update(null, moodParams);
+    // 4. Update mood — appraise events if provided, else natural EWMA decay
+    const appraisalResult = (input.appraisalEvents && input.appraisalEvents.length > 0)
+      ? appraisalResultFromEvents(input.appraisalEvents, now)
+      : null;
+    const moodState = this._emotion.moodDynamics.update(appraisalResult, moodParams);
 
     // 5. Compute emotional influence vector
     const influenceVector = this._emotion.emotionalInfluence.getInfluenceVector();

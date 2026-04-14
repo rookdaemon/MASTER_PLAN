@@ -2,9 +2,9 @@
  * SimulatedAgent — NPC facade (simulation/)
  *
  * Composes PersonalityModel + DriveSystem + SocialCognitionModule +
- * AppraisalEngine + MoodDynamics + MemorySystem into a single agent that:
+ * MoodDynamics + MemorySystem into a single agent that:
  *   - Receives percepts from the world
- *   - Appraises them emotionally (AppraisalEngine → MoodDynamics)
+ *   - Converts world-event percepts to AppraisalEvents → updates mood via MoodDynamics
  *   - Updates drives (DriveSystem)
  *   - Updates social models (SocialCognitionModule)
  *   - Records episodes to memory (MemorySystem)
@@ -16,21 +16,20 @@
 import { PersonalityModel } from '../personality/personality-model.js';
 import { DriveSystem } from '../intrinsic-motivation/drive-system.js';
 import { SocialCognitionModule } from '../social-cognition/social-cognition.js';
-import { AppraisalEngine } from '../emotion-appraisal/appraisal-engine.js';
 import { MoodDynamics } from '../emotion-appraisal/mood-dynamics.js';
 import { MemorySystem } from '../memory/memory-system.js';
+import { appraisalResultFromEvents } from '../emotion-appraisal/appraisal-event.js';
+import type { AppraisalEvent, AppraisalEventKind } from '../emotion-appraisal/types.js';
 
 import type { IPersonalityModel } from '../personality/interfaces.js';
 import type { IDriveSystem } from '../intrinsic-motivation/interfaces.js';
 import type { ISocialCognitionModule } from '../social-cognition/interfaces.js';
-import type { IAppraisalEngine } from '../emotion-appraisal/interfaces.js';
 import type { IMoodDynamics } from '../emotion-appraisal/interfaces.js';
 import type { IMemorySystem } from '../memory/interfaces.js';
 
 import type {
   ExperientialState,
   Percept,
-  BoundPercept,
   ContinuityToken,
 } from '../conscious-core/types.js';
 import type { DriveContext, DriveGoalCandidate, ActivityRecord } from '../intrinsic-motivation/types.js';
@@ -42,7 +41,6 @@ import type {
   LocationId,
   AgentConfig,
   SimulationAction,
-  ActionType,
   AgentTickResult,
   AgentStateDump,
 } from './types.js';
@@ -109,7 +107,6 @@ export class SimulatedAgent {
   private readonly _personality: IPersonalityModel;
   private readonly _drives: IDriveSystem;
   private readonly _social: ISocialCognitionModule;
-  private readonly _appraisal: IAppraisalEngine;
   private readonly _mood: IMoodDynamics;
   private readonly _memory: IMemorySystem;
 
@@ -140,7 +137,6 @@ export class SimulatedAgent {
     this._social = new SocialCognitionModule({ warmthDimension: warmth });
 
     // ── Emotion & appraisal ─────────────────────────────────────────────────
-    this._appraisal = new AppraisalEngine();
     this._mood = new MoodDynamics();
 
     // ── Memory ──────────────────────────────────────────────────────────────
@@ -233,8 +229,8 @@ export class SimulatedAgent {
 
     // 2. Appraise incoming percepts → update mood ───────────────────────────
     if (incomingPercepts.length > 0) {
-      const boundPercept = this._bindPercepts(incomingPercepts, now);
-      const appraisalResult = this._appraisal.appraise(boundPercept, [], []);
+      const events = this._perceptsToAppraisalEvents(incomingPercepts);
+      const appraisalResult = appraisalResultFromEvents(events, now);
       const moodParams = this._buildMoodParams();
       this._mood.update(appraisalResult, moodParams);
 
@@ -399,14 +395,6 @@ export class SimulatedAgent {
       arousal: clamp(arousal, 0, 1),
       unityIndex: 0.6,
       continuityToken: token,
-    };
-  }
-
-  private _bindPercepts(percepts: Percept[], now: number): BoundPercept {
-    return {
-      percepts,
-      bindingTimestamp: now,
-      coherence: 0.8,
     };
   }
 
@@ -638,6 +626,36 @@ export class SimulatedAgent {
       },
       timestamp: now,
     };
+  }
+
+  /**
+   * Map incoming percepts to AppraisalEvents using the world-event hints
+   * embedded by SimulationWorld.eventToPercept().
+   *
+   * Feature conventions (set by eventToPercept):
+   *   features.valenceHint  : number (−1..1) → maps to valenceShift
+   *   features.noveltyHint  : number (0..1)  → maps to arousalShift (normalised)
+   *   features.actorId      : string         → presence implies social event
+   */
+  private _perceptsToAppraisalEvents(percepts: Percept[]): AppraisalEvent[] {
+    return percepts.map(p => {
+      const valenceHint = (p.features['valenceHint'] as number | undefined) ?? 0;
+      const noveltyHint = (p.features['noveltyHint'] as number | undefined) ?? 0.5;
+
+      const kind: AppraisalEventKind =
+        valenceHint < -0.3                   ? 'threat-detection'   :
+        p.features['actorId'] !== undefined  ? 'social-interaction' :
+        noveltyHint > 0.7                    ? 'novelty-encounter'  :
+        'goal-progress';
+
+      return {
+        kind,
+        // valenceHint is already in the −1..1 range required by AppraisalEvent
+        valenceShift: valenceHint,
+        // noveltyHint 0..1 → arousalShift centred at 0 (novelty=0.5 → shift=0)
+        arousalShift: noveltyHint - 0.5,
+      };
+    });
   }
 
   /** Build a minimal appraisal result from empathic resonance shifts. */

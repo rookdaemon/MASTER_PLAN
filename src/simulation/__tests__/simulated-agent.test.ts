@@ -211,7 +211,93 @@ describe('SimulatedAgent.toStateDump()', () => {
   });
 });
 
-// ── Personality effect on mood volatility ─────────────────────────────────────
+// ── Mood responsiveness to world events ──────────────────────────────────────
+
+describe('Mood responsiveness to world events', () => {
+  it('positive-valence percept shifts mood valence above baseline', () => {
+    const agent = new SimulatedAgent(makeConfig());
+    const positivPercept = {
+      modality: 'social-event',
+      features: {
+        description: 'A joyful celebration.',
+        actorId: 'villager',
+        valenceHint: 0.8,
+        noveltyHint: 0.5,
+        goalCongruence: 0.8,
+        novelty: 0.5,
+      },
+      timestamp: Date.now(),
+    };
+    agent.tick(makeContext({ incomingPercepts: [positivPercept] }));
+    expect(agent.getMood().valence).toBeGreaterThan(0);
+  });
+
+  it('threat percept shifts mood valence below baseline', () => {
+    const agent = new SimulatedAgent(makeConfig());
+    const threatPercept = {
+      modality: 'social-event',
+      features: {
+        description: 'Danger nearby!',
+        actorId: 'enemy',
+        valenceHint: -0.8,
+        noveltyHint: 0.9,
+        goalCongruence: -0.8,
+        novelty: 0.9,
+      },
+      timestamp: Date.now(),
+    };
+    agent.tick(makeContext({ incomingPercepts: [threatPercept] }));
+    expect(agent.getMood().valence).toBeLessThan(0);
+  });
+
+  it('no percepts → mood decays toward neutral baseline over multiple ticks', () => {
+    // Start with elevated positive mood via a percept, then tick with no percepts
+    const agent = new SimulatedAgent(makeConfig());
+    const now = Date.now();
+    agent.tick(makeContext({
+      now,
+      incomingPercepts: [{
+        modality: 'social-event',
+        features: { description: 'Happy event.', actorId: 'friend', valenceHint: 0.9, noveltyHint: 0.5 },
+        timestamp: now,
+      }],
+    }));
+    const afterEvent = agent.getMood().valence;
+    expect(afterEvent).toBeGreaterThan(0);
+
+    // Decay back toward 0 with no events
+    for (let i = 1; i <= 20; i++) {
+      agent.tick(makeContext({ now: now + i * 1000, incomingPercepts: [] }));
+    }
+    // After 20 empty ticks, mood should have moved closer to 0 than the peak
+    expect(Math.abs(agent.getMood().valence)).toBeLessThan(Math.abs(afterEvent));
+  });
+
+  it('mood valence differs based on percept valenceHint sign', () => {
+    const positiveAgent = new SimulatedAgent(makeConfig({ agentId: 'pos' }));
+    const negativeAgent = new SimulatedAgent(makeConfig({ agentId: 'neg' }));
+    const now = Date.now();
+
+    positiveAgent.tick(makeContext({
+      now,
+      incomingPercepts: [{
+        modality: 'social-event',
+        features: { description: 'Good news.', actorId: 'herald', valenceHint: 0.7, noveltyHint: 0.5 },
+        timestamp: now,
+      }],
+    }));
+    negativeAgent.tick(makeContext({
+      now,
+      incomingPercepts: [{
+        modality: 'social-event',
+        features: { description: 'Bad news.', actorId: 'herald', valenceHint: -0.7, noveltyHint: 0.5 },
+        timestamp: now,
+      }],
+    }));
+
+    expect(positiveAgent.getMood().valence).toBeGreaterThan(negativeAgent.getMood().valence);
+  });
+});
 
 describe('Personality effects', () => {
   it('high-volatility agent shows larger mood shifts from identical percepts', () => {
