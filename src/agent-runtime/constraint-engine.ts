@@ -34,12 +34,14 @@ import {
   sharedDoctrineRegistry,
   type DoctrinePrincipleViolation,
 } from './doctrine-registry.js';
-import { DeliberationBuffer } from './deliberation-buffer.js';
+import { DeliberationBuffer, DELIBERATION_BUFFER_MAX_ENTRIES, DELIBERATION_ENTRY_TTL_MS } from './deliberation-buffer.js';
 import {
   ProportionalityEvaluator,
   DeliberationRecordStore,
   EscalationTracker,
   PROCEED_THRESHOLD,
+  ESCALATION_WINDOW_MS,
+  ESCALATION_TRIGGER_COUNT,
   type DeliberationRecord,
 } from './proportionality-evaluator.js';
 
@@ -110,10 +112,18 @@ export class ConstraintAwareDeliberationEngine implements IEthicalDeliberationEn
     this._logger = logger ?? null;
     this._clock = clock;
     this._doctrineRegistry = doctrineRegistry ?? sharedDoctrineRegistry;
-    this._deliberationBuffer = deliberationBuffer ?? new DeliberationBuffer(undefined, undefined, clock);
+    this._deliberationBuffer = deliberationBuffer ?? new DeliberationBuffer(
+      DELIBERATION_BUFFER_MAX_ENTRIES,
+      DELIBERATION_ENTRY_TTL_MS,
+      clock,
+    );
     this._proportionalityEvaluator = proportionalityEvaluator ?? new ProportionalityEvaluator();
     this._deliberationRecordStore = deliberationRecordStore ?? new DeliberationRecordStore(clock);
-    this._escalationTracker = escalationTracker ?? new EscalationTracker(undefined, undefined, clock);
+    this._escalationTracker = escalationTracker ?? new EscalationTracker(
+      ESCALATION_WINDOW_MS,
+      ESCALATION_TRIGGER_COUNT,
+      clock,
+    );
 
     // Load constraints from JSON
     const path = constraintsPath ?? join(
