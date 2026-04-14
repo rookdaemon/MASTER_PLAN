@@ -216,7 +216,7 @@ describe('SimulatedAgent.toStateDump()', () => {
 describe('Mood responsiveness to world events', () => {
   it('positive-valence percept shifts mood valence above baseline', () => {
     const agent = new SimulatedAgent(makeConfig());
-    const positivPercept = {
+    const positivePercept = {
       modality: 'social-event',
       features: {
         description: 'A joyful celebration.',
@@ -228,7 +228,7 @@ describe('Mood responsiveness to world events', () => {
       },
       timestamp: Date.now(),
     };
-    agent.tick(makeContext({ incomingPercepts: [positivPercept] }));
+    agent.tick(makeContext({ incomingPercepts: [positivePercept] }));
     expect(agent.getMood().valence).toBeGreaterThan(0);
   });
 
