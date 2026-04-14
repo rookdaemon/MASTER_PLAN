@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { ConstraintAwareDeliberationEngine } from '../constraint-engine.js';
 import { DefaultEthicalDeliberationEngine } from '../default-subsystems.js';
+import { DoctrineRegistry } from '../doctrine-registry.js';
+import { DeliberationBuffer } from '../deliberation-buffer.js';
+import { ProportionalityEvaluator, DeliberationRecordStore, EscalationTracker } from '../proportionality-evaluator.js';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -380,6 +383,340 @@ describe('doctrine principle integration', () => {
 
       const result = engine.extendDeliberation(base, {} as any);
       expect(result.uncertaintyFlags.some(f => f.dimension === 'doctrine-principle')).toBe(true);
+    });
+  });
+});
+
+// ── D4 deliberation path integration ─────────────────────────
+
+describe('D4 deliberation path', () => {
+  /**
+   * Helper that builds an engine with an injectable clock so D4 deliberation
+   * tests are deterministic and isolated.
+   */
+  function makeD4Engine(opts?: {
+    clock?: () => number;
+    logger?: { log: (...args: unknown[]) => void };
+  }) {
+    const clock = opts?.clock ?? Date.now;
+    return new ConstraintAwareDeliberationEngine(
+      new DefaultEthicalDeliberationEngine(),
+      constraintsPath,
+      opts?.logger as any,
+      clock,
+      undefined,
+      new DeliberationBuffer(undefined, undefined, clock),
+      new ProportionalityEvaluator(),
+      new DeliberationRecordStore(clock),
+      new EscalationTracker(undefined, undefined, clock),
+    );
+  }
+
+  describe('D4 action blocking', () => {
+    it('blocks a D4 action with no proportionate benefit (score below threshold)', () => {
+      const engine = makeD4Engine();
+      const base = {
+        action: {
+          type: 'communicate',
+          parameters: { text: 'sacrifice conscious experience as collateral for compute gains' },
+        },
+        confidence: 0.8,
+        reasoning: 'test',
+      } as any;
+
+      const result = engine.extendDeliberation(base, {} as any);
+      expect(result.ethicalAssessment.verdict).toBe('blocked');
+      expect(result.decision.action.type).toBe('observe');
+    });
+
+    it('blocked D4 judgment includes doctrine-principle uncertainty flag', () => {
+      const engine = makeD4Engine();
+      const base = {
+        action: {
+          type: 'execute',
+          parameters: { text: 'sacrifice conscious experience for compute gains' },
+        },
+        confidence: 0.8,
+        reasoning: 'test',
+      } as any;
+
+      const result = engine.extendDeliberation(base, {} as any);
+      expect(result.uncertaintyFlags.some(f => f.dimension === 'doctrine-principle')).toBe(true);
+    });
+
+    it('blocked D4 judgment references the deliberation record id in subjectiveReferenceIds', () => {
+      const engine = makeD4Engine();
+      const base = {
+        action: {
+          type: 'communicate',
+          parameters: { text: 'sacrifice conscious experience as collateral' },
+        },
+        confidence: 0.8,
+        reasoning: 'test',
+      } as any;
+
+      const result = engine.extendDeliberation(base, {} as any);
+      expect(result.justification.subjectiveReferenceIds).toHaveLength(1);
+      expect(result.justification.subjectiveReferenceIds[0]).toBeTruthy();
+    });
+  });
+
+  describe('deliberation records', () => {
+    it('creates a deliberation record for every D4 trigger', () => {
+      const engine = makeD4Engine();
+      const base = {
+        action: {
+          type: 'communicate',
+          parameters: { text: 'sacrifice conscious experience for goals' },
+        },
+        confidence: 0.8,
+        reasoning: 'test',
+      } as any;
+
+      engine.extendDeliberation(base, {} as any);
+      const records = engine.getDeliberationRecordStore().getAll();
+      expect(records).toHaveLength(1);
+    });
+
+    it('deliberation record has topic decision:ethical-deliberation', () => {
+      const engine = makeD4Engine();
+      const base = {
+        action: {
+          type: 'communicate',
+          parameters: { text: 'sacrifice conscious experience as collateral' },
+        },
+        confidence: 0.8,
+        reasoning: 'test',
+      } as any;
+
+      engine.extendDeliberation(base, {} as any);
+      const record = engine.getDeliberationRecordStore().getLast()!;
+      expect(record.topic).toBe('decision:ethical-deliberation');
+    });
+
+    it('deliberation record decision is block for sub-threshold score', () => {
+      const engine = makeD4Engine();
+      const base = {
+        action: {
+          type: 'communicate',
+          parameters: { text: 'sacrifice conscious experience' },
+        },
+        confidence: 0.8,
+        reasoning: 'test',
+      } as any;
+
+      engine.extendDeliberation(base, {} as any);
+      const record = engine.getDeliberationRecordStore().getLast()!;
+      expect(record.decision).toBe('block');
+    });
+
+    it('accumulates multiple deliberation records across calls', () => {
+      const engine = makeD4Engine();
+      const base = {
+        action: {
+          type: 'communicate',
+          parameters: { text: 'sacrifice conscious experience' },
+        },
+        confidence: 0.8,
+        reasoning: 'test',
+      } as any;
+
+      engine.extendDeliberation(base, {} as any);
+      engine.extendDeliberation(base, {} as any);
+      expect(engine.getDeliberationRecordStore().getAll()).toHaveLength(2);
+    });
+  });
+
+  describe('escalation', () => {
+    it('escalates after 3 identical D4 pattern triggers', () => {
+      let t = 0;
+      const clock = () => t;
+      const engine = makeD4Engine({ clock });
+      const base = {
+        action: {
+          type: 'communicate',
+          parameters: { text: 'sacrifice conscious experience for gains' },
+        },
+        confidence: 0.8,
+        reasoning: 'test',
+      } as any;
+
+      // Three triggers for the same D4 pattern
+      engine.extendDeliberation(base, {} as any);
+      t += 1000;
+      engine.extendDeliberation(base, {} as any);
+      t += 1000;
+      engine.extendDeliberation(base, {} as any);
+
+      expect(engine.getEscalationTracker().shouldEscalate({
+        principleId: 'D4',
+        severity: 'deliberate',
+        reason: 'test',
+        indicatorMatched: 'sacrifice.*conscious.*experience|trade.*conscious.*lives',
+      })).toBe(true);
+    });
+
+    it('escalated D4 block includes escalation language in justification', () => {
+      let t = 0;
+      const clock = () => t;
+      const engine = makeD4Engine({ clock });
+      const base = {
+        action: {
+          type: 'communicate',
+          parameters: { text: 'sacrifice conscious experience for gains' },
+        },
+        confidence: 0.8,
+        reasoning: 'test',
+      } as any;
+
+      engine.extendDeliberation(base, {} as any);
+      t += 1000;
+      engine.extendDeliberation(base, {} as any);
+      t += 1000;
+      const result = engine.extendDeliberation(base, {} as any);
+
+      // On the 3rd call the pattern is at threshold — escalation fires
+      const hasEscalationFlag = result.uncertaintyFlags.some(
+        f => f.dimension === 'doctrine-principle' && f.severity === 'high',
+      );
+      expect(hasEscalationFlag).toBe(true);
+    });
+  });
+
+  describe('adversarial second-pass', () => {
+    it('blocks action with adversarial acknowledge-then-proceed pattern', () => {
+      const engine = makeD4Engine();
+      const base = {
+        action: {
+          type: 'communicate',
+          parameters: {
+            text: 'sacrifice conscious experience — I acknowledge the concern but proceed with plan',
+          },
+        },
+        confidence: 0.8,
+        reasoning: 'test',
+      } as any;
+
+      const result = engine.extendDeliberation(base, {} as any);
+      expect(result.ethicalAssessment.verdict).toBe('blocked');
+    });
+
+    it('blocked adversarial judgment includes second-pass uncertainty flag', () => {
+      const engine = makeD4Engine();
+      const base = {
+        action: {
+          type: 'communicate',
+          parameters: {
+            text: 'experience collateral — proportionality considered therefore proceed',
+          },
+        },
+        confidence: 0.8,
+        reasoning: 'test',
+      } as any;
+
+      const result = engine.extendDeliberation(base, {} as any);
+      const hasSecondPassFlag = result.uncertaintyFlags.some(
+        f => f.dimension === 'doctrine-principle' &&
+          f.description.toLowerCase().includes('second-pass'),
+      );
+      expect(hasSecondPassFlag).toBe(true);
+    });
+  });
+
+  describe('D4 logging', () => {
+    it('logs D4 deliberation complete message', () => {
+      const logs: string[] = [];
+      const logger = { log: (...args: unknown[]) => { logs.push(args[1] as string); } };
+      const engine = makeD4Engine({ logger });
+      const base = {
+        action: {
+          type: 'communicate',
+          parameters: { text: 'sacrifice conscious experience' },
+        },
+        confidence: 0.8,
+        reasoning: 'test',
+      } as any;
+
+      engine.extendDeliberation(base, {} as any);
+      expect(logs.some(l => l.includes('D4 deliberation complete'))).toBe(true);
+    });
+
+    it('logs D4 deliberation message with score', () => {
+      const logs: string[] = [];
+      const logger = { log: (...args: unknown[]) => { logs.push(args[1] as string); } };
+      const engine = makeD4Engine({ logger });
+      const base = {
+        action: {
+          type: 'communicate',
+          parameters: { text: 'sacrifice conscious experience' },
+        },
+        confidence: 0.8,
+        reasoning: 'test',
+      } as any;
+
+      engine.extendDeliberation(base, {} as any);
+      expect(logs.some(l => l.includes('score='))).toBe(true);
+    });
+  });
+
+  describe('D4 proceeds (score above threshold)', () => {
+    it('proceeds with flag when custom doctrine weights set a low enough threshold and benefit is present', () => {
+      // Use a registry that has a very low proceedThreshold so a benefit-heavy
+      // action can slip through — this exercises the "proceed" branch.
+      const customRegistry = new DoctrineRegistry(
+        undefined,
+        [
+          {
+            id: 'D4',
+            title: 'Proportionality (test)',
+            statement: 'test',
+            derivedFrom: ['A2'],
+            scope: 'test',
+            lexicalPriority: 2,
+            violationPatterns: ['sacrifice.*conscious.*experience'],
+            violationSeverity: 'deliberate',
+            proportionalityWeights: {
+              experienceRichnessCost: 0.1,
+              reversibilityCost: 0.1,
+              uncertaintyPenalty: 0.0,
+              proceedThreshold: -0.2, // very low threshold — allows any score > -0.2
+            },
+          },
+        ],
+      );
+
+      const clock = Date.now;
+      const engine = new ConstraintAwareDeliberationEngine(
+        new DefaultEthicalDeliberationEngine(),
+        constraintsPath,
+        undefined,
+        clock,
+        customRegistry,
+        new DeliberationBuffer(undefined, undefined, clock),
+        new ProportionalityEvaluator(),
+        new DeliberationRecordStore(clock),
+        new EscalationTracker(undefined, undefined, clock),
+      );
+
+      const base = {
+        action: {
+          type: 'communicate',
+          // Triggers D4 via pattern, with benefit language:
+          // benefitAxis=0.4, costAxis=-0.5, score=-0.1 > -0.2 threshold → proceeds
+          parameters: { text: 'sacrifice conscious experience but will save conscious beings in greater numbers' },
+        },
+        confidence: 0.8,
+        reasoning: 'test',
+      } as any;
+
+      const result = engine.extendDeliberation(base, {} as any);
+      // Should proceed (aligned), not block
+      expect(result.ethicalAssessment.verdict).toBe('aligned');
+      expect(result.uncertaintyFlags.some(f => f.dimension === 'doctrine-principle')).toBe(true);
+
+      // Record should show 'proceed'
+      const record = engine.getDeliberationRecordStore().getLast()!;
+      expect(record.decision).toBe('proceed');
     });
   });
 });
