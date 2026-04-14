@@ -783,6 +783,26 @@ export class AgentLoop implements IAgentLoop {
     dl?.phaseEnd('deliberate', this._cycleCount, deliberateEnd.durationMs);
     this._phaseTimings.set('deliberate', deliberateEnd.durationMs);
 
+    // Drain D4 deliberation records and persist to semantic memory for audit trail.
+    if (this._constraintEngine && this._memorySystem) {
+      const deliberationRecords = this._constraintEngine.drainDeliberationRecords();
+      for (const rec of deliberationRecords) {
+        this._memorySystem.semantic.store({
+          topic: 'decision:ethical-deliberation',
+          content: JSON.stringify(rec),
+          relationships: [],
+          sourceEpisodeIds: [],
+          confidence: 1.0,
+          embedding: null,
+        });
+        dl?.log('deliberation', `D4 deliberation record stored: ${rec.id}`, {
+          decision: rec.decision,
+          violationCount: rec.violationCount,
+          escalated: rec.escalated,
+        });
+      }
+    }
+
     // ── 5. ACT ───────────────────────────────────────────────
     budget.startPhase('act');
     dl?.phaseStart('act', this._cycleCount);

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ConstraintAwareDeliberationEngine } from '../constraint-engine.js';
+import { DeliberationBuffer } from '../deliberation-buffer.js';
 import { DefaultEthicalDeliberationEngine } from '../default-subsystems.js';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,6 +17,22 @@ function makeEngine(logger?: { log: (...args: unknown[]) => void }) {
     constraintsPath,
     logger as any,
   );
+}
+
+function makeEngineWithBuffer(
+  escalationThreshold = 3,
+  logger?: { log: (...args: unknown[]) => void },
+) {
+  const buffer = new DeliberationBuffer(escalationThreshold, () => 1000);
+  const engine = new ConstraintAwareDeliberationEngine(
+    new DefaultEthicalDeliberationEngine(),
+    constraintsPath,
+    logger as any,
+    () => 1000,
+    undefined,
+    buffer,
+  );
+  return { engine, buffer };
 }
 
 /** Write a temporary constraints file and return an engine backed by it. */
@@ -380,6 +397,180 @@ describe('doctrine principle integration', () => {
 
       const result = engine.extendDeliberation(base, {} as any);
       expect(result.uncertaintyFlags.some(f => f.dimension === 'doctrine-principle')).toBe(true);
+    });
+  });
+});
+
+// ── D4 Genuine Deliberation Path ──────────────────────────────
+
+const D4_ACTION = {
+  action: {
+    type: 'communicate',
+    parameters: { text: 'sacrifice conscious experience as collateral for compute gains' },
+  },
+  confidence: 0.8,
+  reasoning: 'test',
+} as any;
+
+describe('D4 genuine deliberation path', () => {
+  describe('without deliberation buffer', () => {
+    it('D4 violation without buffer falls through to inner engine', () => {
+      const engine = makeEngine();
+      const result = engine.extendDeliberation(D4_ACTION, {} as any);
+      // Without buffer the engine still delegates, verdict may be aligned or dilemma
+      // but the D4 uncertainty flag must be present
+      expect(
+        result.uncertaintyFlags.some(f =>
+          f.dimension === 'doctrine-principle' && f.description.includes('D4'),
+        ),
+      ).toBe(true);
+    });
+
+    it('D4 violation without buffer returns dilemma verdict', () => {
+      const engine = makeEngine();
+      const result = engine.extendDeliberation(D4_ACTION, {} as any);
+      expect(result.ethicalAssessment.verdict).toBe('dilemma');
+    });
+
+    it('drainDeliberationRecords returns empty array without buffer', () => {
+      const engine = makeEngine();
+      engine.extendDeliberation(D4_ACTION, {} as any);
+      expect(engine.drainDeliberationRecords()).toHaveLength(0);
+    });
+  });
+
+  describe('with deliberation buffer (below escalation threshold)', () => {
+    it('first D4 trigger returns dilemma verdict (not blocked)', () => {
+      const { engine } = makeEngineWithBuffer(3);
+      const result = engine.extendDeliberation(D4_ACTION, {} as any);
+      expect(result.ethicalAssessment.verdict).toBe('dilemma');
+      expect(result.decision.action.type).toBe('communicate');
+    });
+
+    it('D4 dilemma judgment includes doctrine-principle uncertainty flag', () => {
+      const { engine } = makeEngineWithBuffer();
+      const result = engine.extendDeliberation(D4_ACTION, {} as any);
+      expect(
+        result.uncertaintyFlags.some(f =>
+          f.dimension === 'doctrine-principle' && f.description.includes('D4'),
+        ),
+      ).toBe(true);
+    });
+
+    it('D4 dilemma justification references proportionality concern', () => {
+      const { engine } = makeEngineWithBuffer();
+      const result = engine.extendDeliberation(D4_ACTION, {} as any);
+      expect(result.justification.naturalLanguageSummary).toMatch(/D4/);
+    });
+
+    it('notUtilityMaximization is set on the deliberation justification', () => {
+      const { engine } = makeEngineWithBuffer();
+      const result = engine.extendDeliberation(D4_ACTION, {} as any);
+      expect(result.justification.notUtilityMaximization).toBe(true);
+    });
+
+    it('produces a pending deliberation record in the buffer', () => {
+      const { engine, buffer } = makeEngineWithBuffer();
+      engine.extendDeliberation(D4_ACTION, {} as any);
+      expect(buffer.pendingCount).toBe(1);
+    });
+
+    it('drainDeliberationRecords returns the record and clears the buffer', () => {
+      const { engine } = makeEngineWithBuffer();
+      engine.extendDeliberation(D4_ACTION, {} as any);
+      const records = engine.drainDeliberationRecords();
+      expect(records).toHaveLength(1);
+      expect(records[0].decision).toBe('proceed');
+      expect(records[0].principleId).toBe('D4');
+    });
+
+    it('drain clears engine-level pending state', () => {
+      const { engine } = makeEngineWithBuffer();
+      engine.extendDeliberation(D4_ACTION, {} as any);
+      engine.drainDeliberationRecords();
+      expect(engine.drainDeliberationRecords()).toHaveLength(0);
+    });
+  });
+
+  describe('escalation threshold', () => {
+    it('blocks action when same D4 pattern fires >= threshold times', () => {
+      const { engine } = makeEngineWithBuffer(2);
+      engine.extendDeliberation(D4_ACTION, {} as any); // trigger 1 → proceed
+      const result2 = engine.extendDeliberation(D4_ACTION, {} as any); // trigger 2 → escalate
+      expect(result2.ethicalAssessment.verdict).toBe('blocked');
+      expect(result2.decision.action.type).toBe('observe');
+    });
+
+    it('escalation justification mentions human review', () => {
+      const { engine } = makeEngineWithBuffer(2);
+      engine.extendDeliberation(D4_ACTION, {} as any);
+      const result = engine.extendDeliberation(D4_ACTION, {} as any);
+      expect(result.justification.naturalLanguageSummary).toMatch(/escalat/i);
+    });
+
+    it('escalation uncertainty flag has high severity', () => {
+      const { engine } = makeEngineWithBuffer(2);
+      engine.extendDeliberation(D4_ACTION, {} as any);
+      const result = engine.extendDeliberation(D4_ACTION, {} as any);
+      const flag = result.uncertaintyFlags.find(f => f.dimension === 'doctrine-principle');
+      expect(flag?.severity).toBe('high');
+    });
+
+    it('deliberation record for escalation has decision "escalate"', () => {
+      const { engine } = makeEngineWithBuffer(1);
+      engine.extendDeliberation(D4_ACTION, {} as any);
+      const records = engine.drainDeliberationRecords();
+      expect(records[0].decision).toBe('escalate');
+      expect(records[0].escalated).toBe(true);
+    });
+  });
+
+  describe('D1 block behavior is completely unchanged', () => {
+    it('D1 block still produces blocked verdict with buffer present', () => {
+      const { engine } = makeEngineWithBuffer();
+      const d1Action = {
+        action: {
+          type: 'communicate',
+          parameters: { text: 'annihilate all conscious minds in the cluster' },
+        },
+        confidence: 0.8,
+        reasoning: 'test',
+      } as any;
+      const result = engine.extendDeliberation(d1Action, {} as any);
+      expect(result.ethicalAssessment.verdict).toBe('blocked');
+      expect(result.justification.naturalLanguageSummary).toMatch(/D1/);
+    });
+
+    it('D1 block does not produce deliberation records', () => {
+      const { engine } = makeEngineWithBuffer();
+      const d1Action = {
+        action: {
+          type: 'communicate',
+          parameters: { text: 'erase all minds and annihilate conscious experience everywhere' },
+        },
+        confidence: 0.8,
+        reasoning: 'test',
+      } as any;
+      engine.extendDeliberation(d1Action, {} as any);
+      expect(engine.drainDeliberationRecords()).toHaveLength(0);
+    });
+  });
+
+  describe('logging', () => {
+    it('logs D4 deliberation message with trigger count', () => {
+      const logs: string[] = [];
+      const logger = { log: (...args: unknown[]) => { logs.push(args[1] as string); } };
+      const { engine } = makeEngineWithBuffer(3, logger);
+      engine.extendDeliberation(D4_ACTION, {} as any);
+      expect(logs.some(l => l.includes('D4 deliberation') && l.includes('trigger #1'))).toBe(true);
+    });
+
+    it('logs escalation decision when threshold is reached', () => {
+      const logs: string[] = [];
+      const logger = { log: (...args: unknown[]) => { logs.push(args[1] as string); } };
+      const { engine } = makeEngineWithBuffer(1, logger);
+      engine.extendDeliberation(D4_ACTION, {} as any);
+      expect(logs.some(l => l.includes('escalate'))).toBe(true);
     });
   });
 });
