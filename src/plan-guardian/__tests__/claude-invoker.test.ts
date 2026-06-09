@@ -20,8 +20,9 @@ describe('buildClaudeArgs', () => {
     expect(args).toContain('--no-session-persistence');
     expect(args).not.toContain('--session-id');
 
-    // System prompt is passed as its own flag value.
-    const spIdx = args.indexOf('--system-prompt');
+    // Appended (not replacing) the default system prompt, so Claude keeps its tools.
+    expect(args).not.toContain('--system-prompt');
+    const spIdx = args.indexOf('--append-system-prompt');
     expect(spIdx).toBeGreaterThanOrEqual(0);
     expect(args[spIdx + 1]).toBe('SYS');
 
@@ -69,6 +70,31 @@ describe('parseClaudeOutput', () => {
     const parsed = parseClaudeOutput(out, NOW_MS);
     expect(parsed.rateLimited).toBe(true);
     expect(parsed.retryAfterSecs).toBeGreaterThan(0);
+  });
+
+  it('surfaces a non-rate-limit error envelope (e.g. 401 auth) as isError', () => {
+    const out = JSON.stringify({
+      type: 'result',
+      subtype: 'success',
+      is_error: true,
+      result: 'Failed to authenticate. API Error: 401 Invalid authentication credentials',
+    });
+    const parsed = parseClaudeOutput(out, NOW_MS);
+    expect(parsed.rateLimited).toBe(false);
+    expect(parsed.isError).toBe(true);
+    expect(parsed.errorMessage).toMatch(/authenticate/i);
+  });
+
+  it('flags an error subtype even without is_error', () => {
+    const out = JSON.stringify({ type: 'result', subtype: 'error_during_execution', result: 'boom' });
+    expect(parseClaudeOutput(out, NOW_MS).isError).toBe(true);
+  });
+
+  it('a normal success is not flagged as an error', () => {
+    const out = JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: 'ok', total_cost_usd: 0.01 });
+    const parsed = parseClaudeOutput(out, NOW_MS);
+    expect(parsed.isError).toBeFalsy();
+    expect(parsed.costUsd).toBeCloseTo(0.01, 6);
   });
 
   it('is null-safe and tolerant of non-JSON noise', () => {

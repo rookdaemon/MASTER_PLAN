@@ -89,7 +89,7 @@ describe('runAgenticWorker', () => {
 
     await runAgenticWorker(item(), { invoker, fs, git }, NOW, NOW_MS, config);
 
-    const sp = seen[seen.indexOf('--system-prompt') + 1];
+    const sp = seen[seen.indexOf('--append-system-prompt') + 1];
     expect(sp).toContain('AGENTIC');
     const userTurn = seen[seen.indexOf('--') + 1];
     expect(userTurn).toContain('@plan/0.0-alpha.md');
@@ -150,6 +150,19 @@ describe('runAgenticWorker', () => {
     expect(result.action.filesModified).toEqual([]);
     expect(result.action.writeSet).toEqual([]);
     expect(result.action.summary.toLowerCase()).toContain('no change');
+  });
+
+  it('throws on a CLI error envelope (e.g. 401 auth) instead of reporting a no-op', async () => {
+    const fs = new InMemoryFileSystem();
+    await fs.writeFile('plan/0.0-alpha.md', '# 0.0 Alpha [PLAN]\n', 'utf-8');
+    const git = new ScriptedGit('');
+    const invoker: ClaudeInvoker = {
+      invoke: () =>
+        JSON.stringify({ type: 'result', is_error: true, result: 'Failed to authenticate. API Error: 401' }),
+    };
+    await expect(runAgenticWorker(item(), { invoker, fs, git }, NOW, NOW_MS, config)).rejects.toThrow(
+      /claude CLI error.*authenticate/i,
+    );
   });
 
   it('throws a rate-limit-shaped error the scheduler can recognise', async () => {

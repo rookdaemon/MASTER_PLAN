@@ -535,7 +535,9 @@ export async function runAgenticEpoch(
       });
     }
     callbacks.onWorkerError?.(item.task.path, err as Error);
-    return base({ dispatched: 1, failed: 1, dispatchedTaskPaths });
+    // Settle a hard-failed card too, so a persistent failure (e.g. auth) sweeps
+    // and terminates instead of fail-looping on the top-priority card.
+    return base({ dispatched: 1, failed: 1, dispatchedTaskPaths, noChangeTaskPaths: [item.task.path] });
   }
 
   // No-op: Claude made no change → this card has converged for now. Report it
@@ -560,7 +562,7 @@ export async function runAgenticEpoch(
         item.task.path,
         new Error(`Integrity gate failed in ${item.task.path}: ${errors.join('; ')}`),
       );
-      return base({ dispatched: 1, failed: 1, dispatchedTaskPaths });
+      return base({ dispatched: 1, failed: 1, dispatchedTaskPaths, noChangeTaskPaths: [item.task.path] });
     }
   }
 

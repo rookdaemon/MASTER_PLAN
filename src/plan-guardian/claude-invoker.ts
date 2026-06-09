@@ -78,6 +78,11 @@ const DEFAULT_INSTRUCTION =
  * (`--no-session-persistence`) rather than a fixed `--session-id`: the
  * guardian's state lives in the card file, not in a CLI session, and reusing a
  * fixed id across epochs collides ("Session ID … is already in use").
+ *
+ * Uses `--append-system-prompt` (not `--system-prompt`): the latter REPLACES
+ * Claude Code's default system prompt, stripping its agentic tool-use
+ * scaffolding so it just prints text and never edits files. Appending keeps the
+ * full agent and adds our planning guidance.
  */
 export function buildClaudeArgs(input: ClaudeArgsInput): string[] {
   const userTurn = `@${input.cardPath} @${input.rootPlanFile}\n\n${input.instruction ?? DEFAULT_INSTRUCTION}`;
@@ -87,7 +92,7 @@ export function buildClaudeArgs(input: ClaudeArgsInput): string[] {
     '--output-format',
     'json',
     '--no-session-persistence',
-    '--system-prompt',
+    '--append-system-prompt',
     input.systemPrompt,
     '--',
     userTurn,
@@ -102,6 +107,10 @@ export interface ParsedClaudeOutput {
   rateLimited: boolean;
   /** Seconds to wait before retrying, when rate limited. */
   retryAfterSecs?: number;
+  /** True if the CLI reported a non-rate-limit error (e.g. auth/exec failure). */
+  isError?: boolean;
+  /** Error message when isError is true. */
+  errorMessage?: string;
   /** The final assistant text, when present. */
   result?: string;
 }
@@ -152,5 +161,14 @@ export function parseClaudeOutput(output: string | null, nowMs: number): ParsedC
   const cost = (json.total_cost_usd ?? json.cost_usd) as unknown;
   if (typeof cost === 'number') result.costUsd = cost;
   if (typeof json.result === 'string') result.result = json.result;
+
+  // A non-rate-limit error (e.g. 401 auth failure, exec error) must be surfaced,
+  // not silently treated as a no-op. The CLI sets is_error/subtype on the result
+  // envelope; it still exits 0 in some cases, so we detect it from the payload.
+  const subtype = typeof json.subtype === 'string' ? json.subtype : '';
+  if (json.is_error === true || subtype.startsWith('error')) {
+    result.isError = true;
+    result.errorMessage = typeof json.result === 'string' && json.result.length > 0 ? json.result : `claude error (${subtype || 'unknown'})`;
+  }
   return result;
 }

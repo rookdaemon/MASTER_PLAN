@@ -66,6 +66,11 @@ export async function runAgenticWorker(
     throw new Error(`429 rate limit (claude cli) for ${item.task.path}; retry-after: ${secs}`);
   }
 
+  if (parsed.isError) {
+    // Surface auth/exec errors as a real failure instead of masking as a no-op.
+    throw new Error(`claude CLI error for ${item.task.path}: ${parsed.errorMessage ?? 'unknown error'}`);
+  }
+
   const changed = parseGitStatusPorcelain(await deps.git.status());
 
   const filesCreated = await readFiles(deps.fs, changed.created);

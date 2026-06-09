@@ -165,6 +165,8 @@ describe('runAgenticEpoch', () => {
     expect(result.failed).toBe(1);
     expect(git.commits).toHaveLength(0);
     expect(errors.join(' ')).toMatch(/already in use/);
+    // Settled so a persistent failure sweeps + terminates instead of fail-looping.
+    expect(result.noChangeTaskPaths).toEqual(['plan/0.0-alpha.md']);
   });
 
   it('treats a no-op (no diff) as a completed convergence with no commit', async () => {
