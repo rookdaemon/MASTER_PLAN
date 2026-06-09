@@ -15,12 +15,7 @@
 
 import type { IFileSystem } from '../agent-runtime/filesystem.js';
 import type { DispatchItem, IGitOperations, PlanningAction, WorkerResult } from './interfaces.js';
-import {
-  buildClaudeArgs,
-  parseClaudeOutput,
-  sessionIdForNumericId,
-  type ClaudeInvoker,
-} from './claude-invoker.js';
+import { buildClaudeArgs, parseClaudeOutput, type ClaudeInvoker } from './claude-invoker.js';
 import { buildAgenticSystemPrompt } from './prompts.js';
 import { normalizePlanPath } from './actions.js';
 
@@ -56,7 +51,6 @@ export async function runAgenticWorker(
 ): Promise<WorkerResult> {
   const systemPrompt = buildAgenticSystemPrompt(item.actionType);
   const args = buildClaudeArgs({
-    sessionId: sessionIdForNumericId(item.task.numericId),
     systemPrompt,
     cardPath: item.task.path,
     rootPlanFile: config.rootPlanFile,

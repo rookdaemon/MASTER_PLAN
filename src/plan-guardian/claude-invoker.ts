@@ -14,7 +14,6 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { resolveClaudePath } from './resolve-claude.js';
 
 // ── Injectable invocation seam ───────────────────────────────
@@ -43,11 +42,13 @@ export class NodeClaudeInvoker implements ClaudeInvoker {
         maxBuffer: 64 * 1024 * 1024,
       });
     } catch (err: unknown) {
-      // The CLI exits non-zero on rate limits / errors but still prints a JSON
-      // envelope on stdout — surface it so the caller can classify it.
+      // On rate limits the CLI exits non-zero but still prints a JSON envelope
+      // on stdout — surface that so the caller can classify it. A hard failure
+      // (e.g. bad flags) produces no stdout JSON; re-throw so it's reported as a
+      // real error rather than silently masked as a no-op.
       if (err && typeof err === 'object' && 'stdout' in err) {
         const stdout = (err as { stdout: unknown }).stdout;
-        if (typeof stdout === 'string') return stdout;
+        if (typeof stdout === 'string' && stdout.trim().length > 0) return stdout;
       }
       throw err;
     }
@@ -57,7 +58,6 @@ export class NodeClaudeInvoker implements ClaudeInvoker {
 // ── Argv construction ────────────────────────────────────────
 
 export interface ClaudeArgsInput {
-  sessionId: string;
   systemPrompt: string;
   /** The card the agent works on (passed as an @-file reference). */
   cardPath: string;
@@ -74,8 +74,10 @@ const DEFAULT_INSTRUCTION =
 /**
  * Build the Ralph-Wiggum argv. Mirrors PLANAR's wrapper: non-interactive
  * (`--print`), machine-readable (`--output-format json`), permissionless
- * (`--dangerously-skip-permissions`), and resumable (`--session-id`) so each
- * card keeps a stable conversation across iterations.
+ * (`--dangerously-skip-permissions`). Uses an EPHEMERAL session
+ * (`--no-session-persistence`) rather than a fixed `--session-id`: the
+ * guardian's state lives in the card file, not in a CLI session, and reusing a
+ * fixed id across epochs collides ("Session ID … is already in use").
  */
 export function buildClaudeArgs(input: ClaudeArgsInput): string[] {
   const userTurn = `@${input.cardPath} @${input.rootPlanFile}\n\n${input.instruction ?? DEFAULT_INSTRUCTION}`;
@@ -84,28 +86,12 @@ export function buildClaudeArgs(input: ClaudeArgsInput): string[] {
     '--print',
     '--output-format',
     'json',
-    '--session-id',
-    input.sessionId,
+    '--no-session-persistence',
     '--system-prompt',
     input.systemPrompt,
     '--',
     userTurn,
   ];
-}
-
-/**
- * Derive a deterministic UUID-shaped session id from a card's numeric id, so
- * repeated invocations on the same card resume the same Claude Code session.
- * Pure (sha1 of the id) — no clock, no randomness.
- */
-export function sessionIdForNumericId(numericId: string): string {
-  const hex = createHash('sha1').update(`plan-guardian:${numericId}`).digest('hex');
-  // Set RFC-4122 version (4) and variant (8/9/a/b) bits so `claude --session-id`
-  // accepts it as a valid UUID, while staying fully deterministic.
-  const version = `4${hex.slice(13, 16)}`;
-  const variantNibble = ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16);
-  const variant = `${variantNibble}${hex.slice(17, 20)}`;
-  return [hex.slice(0, 8), hex.slice(8, 12), version, variant, hex.slice(20, 32)].join('-');
 }
 
 // ── Output parsing ───────────────────────────────────────────

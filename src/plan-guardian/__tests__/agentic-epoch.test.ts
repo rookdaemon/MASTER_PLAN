@@ -146,6 +146,27 @@ describe('runAgenticEpoch', () => {
     expect(git.commits).toHaveLength(0);
   });
 
+  it('surfaces a hard CLI error as a failure rather than masking it as a no-op', async () => {
+    const fs = makeFs();
+    const git = new ScriptedGit('');
+    const invoker: ClaudeInvoker = {
+      invoke() {
+        throw new Error('Session ID 69ffaf22-ac6d-455d-96d3-3a3ca6cc2fde is already in use.');
+      },
+    };
+    const config = makeConfig({ fs, git, claudeInvoker: invoker });
+
+    const errors: string[] = [];
+    const result = await runAgenticEpoch(0, config, {
+      onWorkerError: (_t, e) => errors.push(e.message),
+    }, new Map(), queue('decompose') as never);
+
+    expect(result.completed).toBe(0);
+    expect(result.failed).toBe(1);
+    expect(git.commits).toHaveLength(0);
+    expect(errors.join(' ')).toMatch(/already in use/);
+  });
+
   it('treats a no-op (no diff) as a completed convergence with no commit', async () => {
     const fs = makeFs();
     const git = new ScriptedGit('');
