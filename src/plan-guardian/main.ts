@@ -92,6 +92,7 @@ async function main() {
     console.log(`[guardian] Starting Plan Guardian (AGENTIC — Claude Code CLI)`);
     console.log(`[guardian] Plan dir: ${opts.planDir} | root: ${rootPlanFile}`);
     console.log(`[guardian] Concurrency: 1 (serial) | Max iterations: ${opts.maxIterations} | Dry run: ${opts.dryRun} | Claude timeout: ${opts.claudeTimeoutMs}ms`);
+    console.log(`[guardian] Model policy: floor=${opts.modelFloor ?? 'haiku'} ceiling=${opts.modelCeiling ?? 'opus'} effort-ceiling=${opts.effortCeiling ?? 'max'}`);
     console.log(`[guardian] Strict integrity: ${opts.strictIntegrity} | Max new files/action: ${opts.maxNewFilesPerAction} | Quarantine branch: ${opts.quarantineBranch ?? 'none'}`);
 
     debugLog.log('startup', 'guardian started (agentic)', {
