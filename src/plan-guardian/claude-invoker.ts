@@ -22,17 +22,18 @@ import { resolveClaudePath } from './resolve-claude.js';
 export interface ClaudeInvoker {
   /**
    * Run `claude` with `args`, returning its stdout (or null on empty output).
-   * Implementations should still return captured stdout on non-zero exit so
-   * the caller can parse rate-limit / error envelopes.
+   * `cwd` (optional) runs the call inside that directory — used to isolate a
+   * call to a git worktree. Implementations should still return captured stdout
+   * on non-zero exit so the caller can parse rate-limit / error envelopes.
    */
-  invoke(args: string[], timeoutMs: number): string | null;
+  invoke(args: string[], timeoutMs: number, cwd?: string): string | null;
 }
 
 /** Production invoker: `execFileSync` against the resolved `claude` binary. */
 export class NodeClaudeInvoker implements ClaudeInvoker {
   constructor(private readonly resolvePath: () => string = resolveClaudePath) {}
 
-  invoke(args: string[], timeoutMs: number): string | null {
+  invoke(args: string[], timeoutMs: number, cwd?: string): string | null {
     const claudePath = this.resolvePath();
     try {
       return execFileSync(claudePath, args, {
@@ -40,6 +41,7 @@ export class NodeClaudeInvoker implements ClaudeInvoker {
         encoding: 'utf-8',
         timeout: timeoutMs,
         maxBuffer: 64 * 1024 * 1024,
+        ...(cwd ? { cwd } : {}),
       });
     } catch (err: unknown) {
       // On rate limits the CLI exits non-zero but still prints a JSON envelope

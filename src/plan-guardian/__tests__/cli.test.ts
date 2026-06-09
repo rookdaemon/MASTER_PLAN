@@ -12,7 +12,7 @@ describe('parseCli', () => {
       'qwen/qwen3-coder:free',
       'gpt-oss-120b:free',
     ]);
-    expect(opts.concurrency).toBe(20);
+    expect(opts.concurrency).toBe(5);
     expect(opts.maxIterations).toBe(Infinity);
     expect(opts.dryRun).toBe(false);
     expect(opts.strictIntegrity).toBe(true);

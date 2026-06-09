@@ -24,6 +24,7 @@ import { prioritize, selectIndependentBatch } from './priority.js';
 import { runPlanningWorker } from './worker.js';
 import { runExecutionWorker } from './executor.js';
 import { runAgenticWorker } from './agentic-worker.js';
+import { selectModelEffort } from './agentic-model-policy.js';
 import {
   buildSnapshotWithActions,
   validateActionIntegrity,
@@ -67,7 +68,8 @@ export interface RateLimitedTask {
 
 export interface SchedulerCallbacks {
   onEpochStart?(epoch: number, batchSize: number): void;
-  onWorkerStart?(task: string, actionType: DispatchItem['actionType']): void;
+  /** `model` is the resolved model·effort tag (agentic parallel mode), if known. */
+  onWorkerStart?(task: string, actionType: DispatchItem['actionType'], model?: string): void;
   onWorkerComplete?(result: WorkerResult): void;
   onWorkerError?(task: string, error: Error): void;
   onCommit?(hash: string, message: string): void;
@@ -146,7 +148,12 @@ export function runScheduler(
     }
 
     const nowMs = getClockMs(config);
-    const runEpochFn = config.executionMode === 'agentic' ? runAgenticEpoch : runEpoch;
+    const runEpochFn =
+      config.executionMode === 'agentic'
+        ? config.worktreePool
+          ? runAgenticParallelEpoch
+          : runAgenticEpoch
+        : runEpoch;
     const epochResult = await runEpochFn(
       epoch,
       config,
@@ -617,6 +624,218 @@ export async function runAgenticEpoch(
   callbacks.onWorkerComplete?.(result);
 
   return base({ dispatched: 1, completed: 1, dispatchedTaskPaths, commits });
+}
+
+/**
+ * Parallel agentic epoch — runs up to `pool.size` cards concurrently, each in
+ * its own git worktree, then applies results to the main tree SERIALLY (gate +
+ * commit). Same signature as runEpoch so runScheduler can select it.
+ *
+ * Isolation model: each agent edits only its worktree, so parallel Claude
+ * processes can't collide. We then write each agent's resulting file contents
+ * to main and commit one card at a time — on an integrity-gate failure we
+ * simply don't write to main (the worktree is discarded on the next reset), so
+ * no revert is needed.
+ */
+export async function runAgenticParallelEpoch(
+  epoch: number,
+  config: GuardianConfig,
+  callbacks: SchedulerCallbacks = {},
+  blockedTasks: ReadonlyMap<string, BlockedTaskState> = new Map(),
+  queuedBatch?: readonly QueuedDispatchItem[],
+): Promise<EpochResult> {
+  const { fs, git, clock, planDir, dryRun } = config;
+  const pool = config.worktreePool;
+  if (!pool) throw new Error('parallel agentic mode requires config.worktreePool');
+  const invoker = config.claudeInvoker;
+  if (!invoker) throw new Error('agentic mode requires config.claudeInvoker');
+
+  const now = clock.now();
+  const nowMs = Number.isFinite(Date.parse(now)) ? Date.parse(now) : Date.now();
+
+  const dag = await buildDAG(fs, planDir);
+  const fullBatch = queuedBatch
+    ? buildDispatchBatchFromQueue(queuedBatch, dag, blockedTasks, nowMs)
+    : selectIndependentBatch(
+        prioritize(dag, now).filter(candidate => {
+          const blocked = blockedTasks.get(candidate.task.path);
+          return !blocked || blocked.resumeAtMs <= nowMs;
+        }),
+        pool.size,
+      );
+  const batch = fullBatch.slice(0, pool.size);
+
+  const base = (over: Partial<EpochResult>): EpochResult => ({
+    epoch,
+    dispatched: 0,
+    completed: 0,
+    failed: 0,
+    rateLimitFailures: 0,
+    rateLimitBackoffHintMs: 0,
+    rateLimitReasons: [],
+    dispatchedTaskPaths: [],
+    rateLimitedTasks: [],
+    commits: [],
+    totalTokens: { prompt: 0, completion: 0 },
+    ...over,
+  });
+
+  if (batch.length === 0) return base({});
+
+  // Clean-tree invariant on main (results are written to main; pre-existing
+  // changes would be wrongly committed).
+  const preStatus = (await git.status()).trim();
+  if (preStatus.length > 0) {
+    throw new Error(
+      `Refusing agentic epoch: the working tree has uncommitted changes. ` +
+        `Commit or stash them first.\n${preStatus}`,
+    );
+  }
+
+  if (!queuedBatch) callbacks.onEpochStart?.(epoch, batch.length);
+
+  const agenticConfig = {
+    rootPlanFile: config.rootPlanFile ?? `${planDir}/root.md`,
+    planDir,
+    claudeTimeoutMs: config.claudeTimeoutMs ?? 5 * 60 * 1000,
+    modelBounds: config.modelBounds,
+  };
+
+  type RunOutcome =
+    | { kind: 'procedural'; item: DispatchItem; result: WorkerResult }
+    | { kind: 'ok'; item: DispatchItem; result: WorkerResult }
+    | { kind: 'rate-limited'; item: DispatchItem; hintMs: number; reason: string }
+    | { kind: 'error'; item: DispatchItem; error: unknown };
+
+  const dispatchedTaskPaths = batch.map(b => b.task.path);
+
+  // Phase 1 — run each card concurrently in its own worktree.
+  const outcomes = await Promise.all(
+    batch.map(async (item, i): Promise<RunOutcome> => {
+      const children = dag.childrenOf(item.task.path);
+      const isRollup =
+        item.task.status !== 'DONE' && children.length > 0 && children.every(c => c.status === 'DONE');
+      if (isRollup) {
+        callbacks.onWorkerStart?.(item.task.path, item.actionType, 'procedural');
+        return { kind: 'procedural', item, result: makeDeterministicStatusUpdate(item, now) };
+      }
+
+      const me = selectModelEffort(item.task, item.actionType, config.modelBounds);
+      callbacks.onWorkerStart?.(item.task.path, item.actionType, `${me.model}·${me.effort}`);
+      try {
+        await pool.prepare(i);
+        const result = await runAgenticWorker(item, { invoker, fs, git: pool.git(i) }, now, nowMs, {
+          ...agenticConfig,
+          worktreeDir: pool.dir(i),
+          modelEffort: me,
+        });
+        return { kind: 'ok', item, result };
+      } catch (err) {
+        if (isRateLimitError(err)) {
+          return { kind: 'rate-limited', item, hintMs: parseRateLimitBackoffHintMs(err, nowMs), reason: extractRateLimitReason(err) };
+        }
+        return { kind: 'error', item, error: err };
+      }
+    }),
+  );
+
+  // Phase 2 — apply to main serially (gate + commit), one card at a time.
+  const commits: string[] = [];
+  const rateLimitedTasks: RateLimitedTask[] = [];
+  const rateLimitReasonCounts = new Map<string, number>();
+  const noChangeTaskPaths: string[] = [];
+  const appliedPaths = new Set<string>();
+  let completed = 0;
+  let failed = 0;
+  let rateLimitFailures = 0;
+  let rateLimitBackoffHintMs = 0;
+
+  for (const o of outcomes) {
+    if (o.kind === 'rate-limited') {
+      failed++;
+      rateLimitFailures++;
+      rateLimitBackoffHintMs = Math.max(rateLimitBackoffHintMs, o.hintMs);
+      rateLimitReasonCounts.set(o.reason, (rateLimitReasonCounts.get(o.reason) ?? 0) + 1);
+      rateLimitedTasks.push({ path: o.item.task.path, reason: o.reason, hintMs: o.hintMs });
+      callbacks.onWorkerError?.(o.item.task.path, new Error(`Rate limited: ${o.reason}`));
+      continue;
+    }
+    if (o.kind === 'error') {
+      failed++;
+      noChangeTaskPaths.push(o.item.task.path);
+      callbacks.onWorkerError?.(o.item.task.path, o.error as Error);
+      continue;
+    }
+
+    const action = o.result.action;
+    if (action.writeSet.length === 0) {
+      completed++;
+      noChangeTaskPaths.push(o.item.task.path);
+      callbacks.onWorkerComplete?.(o.result);
+      continue;
+    }
+
+    // Don't let two cards in the same round clobber overlapping files.
+    if (action.writeSet.some(p => appliedPaths.has(normalizePlanPath(p)))) {
+      failed++;
+      noChangeTaskPaths.push(o.item.task.path);
+      callbacks.onWorkerError?.(
+        o.item.task.path,
+        new Error(`Skipped: write-set overlaps a card already applied this round`),
+      );
+      continue;
+    }
+
+    if (config.strictIntegrity) {
+      const freshNodes = (await buildDAG(fs, planDir)).nodes;
+      const verdict = validateActionIntegrity(action, freshNodes, config);
+      const graphVerdict = verdict.valid
+        ? validateGraphIntegrity(buildSnapshotWithActions(freshNodes, [action]), planDir)
+        : { valid: true, errors: [] as string[] };
+      if (!verdict.valid || !graphVerdict.valid) {
+        failed++;
+        noChangeTaskPaths.push(o.item.task.path);
+        callbacks.onWorkerError?.(
+          o.item.task.path,
+          new Error(`Integrity gate failed in ${action.targetPath}: ${[...verdict.errors, ...graphVerdict.errors].join('; ')}`),
+        );
+        continue; // main untouched; worktree discarded on next reset
+      }
+    }
+
+    if (dryRun) {
+      completed++;
+      callbacks.onWorkerComplete?.(o.result);
+      continue;
+    }
+
+    const files = collectFiles([action]);
+    await writeAllFiles(fs, files);
+    await git.add([...files.keys()]);
+    if ((await git.stagedPaths()).length > 0) {
+      const tag = o.kind === 'procedural' ? ' [procedural]' : '';
+      const message = `[guardian] epoch ${epoch}: ${action.summary}${tag}`;
+      const hash = await git.commit(message, config.quarantineBranch);
+      commits.push(hash);
+      callbacks.onCommit?.(hash, message);
+    }
+    for (const p of files.keys()) appliedPaths.add(normalizePlanPath(p));
+    completed++;
+    callbacks.onWorkerComplete?.(o.result);
+  }
+
+  return base({
+    dispatched: batch.length,
+    completed,
+    failed,
+    rateLimitFailures,
+    rateLimitBackoffHintMs,
+    rateLimitReasons: [...rateLimitReasonCounts.entries()].sort((a, b) => b[1] - a[1]).map(([r]) => r),
+    dispatchedTaskPaths,
+    rateLimitedTasks,
+    commits,
+    noChangeTaskPaths,
+  });
 }
 
 // ── Internal ────────────────────────────────────────────────

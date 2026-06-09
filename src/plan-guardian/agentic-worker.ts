@@ -13,12 +13,13 @@
  * Domain: Plan Guardian (agentic mode)
  */
 
+import { join } from 'node:path';
 import type { IFileSystem } from '../agent-runtime/filesystem.js';
 import type { DispatchItem, IGitOperations, PlanningAction, WorkerResult } from './interfaces.js';
 import { buildClaudeArgs, parseClaudeOutput, type ClaudeInvoker } from './claude-invoker.js';
 import { buildAgenticSystemPrompt } from './prompts.js';
 import { normalizePlanPath } from './actions.js';
-import { selectModelEffort, type ModelPolicyBounds, type ModelTier } from './agentic-model-policy.js';
+import { selectModelEffort, type ModelEffort, type ModelPolicyBounds, type ModelTier } from './agentic-model-policy.js';
 
 export interface AgenticWorkerDeps {
   invoker: ClaudeInvoker;
@@ -32,6 +33,14 @@ export interface AgenticWorkerConfig {
   claudeTimeoutMs: number;
   /** Optional bounds for the per-card model/effort policy. */
   modelBounds?: ModelPolicyBounds;
+  /**
+   * Directory Claude runs in and whose changed files are read back. Defaults to
+   * '.' (the main tree). In parallel mode this is the agent's git worktree, so
+   * its edits are isolated; the returned action paths stay repo-relative.
+   */
+  worktreeDir?: string;
+  /** Precomputed model/effort (so the orchestrator can decide once + display it). */
+  modelEffort?: ModelEffort;
 }
 
 /** One tier down, for --fallback-model on overload. Opus→sonnet→haiku→none. */
@@ -58,7 +67,7 @@ export async function runAgenticWorker(
   config: AgenticWorkerConfig,
 ): Promise<WorkerResult> {
   const systemPrompt = buildAgenticSystemPrompt(item.actionType);
-  const { model, effort } = selectModelEffort(item.task, item.actionType, config.modelBounds);
+  const { model, effort } = config.modelEffort ?? selectModelEffort(item.task, item.actionType, config.modelBounds);
   const args = buildClaudeArgs({
     systemPrompt,
     cardPath: item.task.path,
@@ -68,7 +77,9 @@ export async function runAgenticWorker(
     fallbackModel: fallbackFor(model),
   });
 
-  const output = deps.invoker.invoke(args, config.claudeTimeoutMs);
+  const worktreeDir = config.worktreeDir ?? '.';
+  const cwd = worktreeDir === '.' ? undefined : worktreeDir;
+  const output = deps.invoker.invoke(args, config.claudeTimeoutMs, cwd);
   const parsed = parseClaudeOutput(output, nowMs);
 
   if (parsed.rateLimited) {
@@ -85,8 +96,10 @@ export async function runAgenticWorker(
 
   const changed = parseGitStatusPorcelain(await deps.git.status());
 
-  const filesCreated = await readFiles(deps.fs, changed.created);
-  const filesModified = await readFiles(deps.fs, changed.modified);
+  // Read changed files from the worktree, but record repo-relative paths so the
+  // action applies cleanly to the main tree.
+  const filesCreated = await readFiles(deps.fs, changed.created, worktreeDir);
+  const filesModified = await readFiles(deps.fs, changed.modified, worktreeDir);
   const writeSet = [...changed.created, ...changed.modified, ...changed.deleted].map(normalizePlanPath);
 
   const id = item.task.path.split('/').pop()?.replace(/\.md$/, '') ?? item.task.numericId;
@@ -115,10 +128,15 @@ export async function runAgenticWorker(
   return result;
 }
 
-async function readFiles(fs: IFileSystem, paths: string[]): Promise<{ path: string; content: string }[]> {
+async function readFiles(
+  fs: IFileSystem,
+  paths: string[],
+  worktreeDir: string,
+): Promise<{ path: string; content: string }[]> {
   const out: { path: string; content: string }[] = [];
   for (const path of paths) {
-    out.push({ path: normalizePlanPath(path), content: await fs.readFile(path, 'utf-8') });
+    const readPath = worktreeDir === '.' ? path : join(worktreeDir, path);
+    out.push({ path: normalizePlanPath(path), content: await fs.readFile(readPath, 'utf-8') });
   }
   return out;
 }

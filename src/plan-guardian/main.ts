@@ -27,6 +27,7 @@ import { fetchModelMetadata, deriveExecutionBudget } from './model-metadata.js';
 import { PriorityModelSelector } from './model-selector.js';
 import { GuardianDebugLog } from './debug-log.js';
 import { NodeClaudeInvoker } from './claude-invoker.js';
+import { NodeWorktreePool } from './worktree-pool.js';
 import type { IInferenceProvider, InferenceResult } from '../llm-substrate/inference-provider.js';
 
 /** Stub provider for agentic mode — the CLI is the brain, so this is never called. */
@@ -57,13 +58,19 @@ async function main() {
 
   let config: GuardianConfig;
 
+  let agenticPool: NodeWorktreePool | undefined;
+
   if (opts.executionMode === 'agentic') {
     // ── Agentic mode: the Claude Code CLI is the brain (Ralph-Wiggum). ──
     const rootPlanFile = `${opts.planDir}/root.md`;
+    // Each concurrent agent runs in its own git worktree so parallel Claude
+    // processes can't collide; results are applied to main serially.
+    const concurrency = Math.max(1, opts.concurrency);
+    agenticPool = new NodeWorktreePool(repoRoot, resolve('.guardian', 'wt'), concurrency);
     config = {
       planDir: opts.planDir,
       repoRoot,
-      concurrency: 1, // strictly serial — one card per epoch keeps diffs scoped
+      concurrency,
       requestedConcurrency: opts.concurrency,
       maxIterations: opts.maxIterations,
       maxDepth: opts.maxDepth,
@@ -87,11 +94,12 @@ async function main() {
         modelCeiling: opts.modelCeiling,
         effortCeiling: opts.effortCeiling,
       },
+      worktreePool: agenticPool,
     };
 
     console.log(`[guardian] Starting Plan Guardian (AGENTIC — Claude Code CLI)`);
     console.log(`[guardian] Plan dir: ${opts.planDir} | root: ${rootPlanFile}`);
-    console.log(`[guardian] Concurrency: 1 (serial) | Max iterations: ${opts.maxIterations} | Dry run: ${opts.dryRun} | Claude timeout: ${opts.claudeTimeoutMs}ms`);
+    console.log(`[guardian] Concurrency: ${concurrency} (parallel, ${concurrency} worktree${concurrency === 1 ? '' : 's'}) | Max iterations: ${opts.maxIterations} | Dry run: ${opts.dryRun} | Claude timeout: ${opts.claudeTimeoutMs}ms`);
     console.log(`[guardian] Model policy: floor=${opts.modelFloor ?? 'haiku'} ceiling=${opts.modelCeiling ?? 'opus'} effort-ceiling=${opts.effortCeiling ?? 'max'}`);
     console.log(`[guardian] Strict integrity: ${opts.strictIntegrity} | Max new files/action: ${opts.maxNewFilesPerAction} | Quarantine branch: ${opts.quarantineBranch ?? 'none'}`);
 
@@ -99,6 +107,7 @@ async function main() {
       executionMode: 'agentic',
       planDir: opts.planDir,
       rootPlanFile,
+      concurrency,
       maxIterations: opts.maxIterations,
       claudeTimeoutMs: opts.claudeTimeoutMs,
       strictIntegrity: opts.strictIntegrity,
@@ -235,6 +244,11 @@ async function main() {
   }
 
   const results = await handle.done;
+
+  // Tear down parallel worktrees.
+  if (agenticPool) {
+    await agenticPool.cleanup().catch(() => {});
+  }
 
   // Stop listening for keystrokes once the scheduler exits.
   if (process.stdin.isTTY) {

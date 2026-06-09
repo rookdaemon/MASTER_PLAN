@@ -177,4 +177,10 @@ export interface GuardianConfig {
   claudeTimeoutMs?: number;
   /** Bounds for the per-card model/effort policy (agentic mode). */
   modelBounds?: import('./agentic-model-policy.js').ModelPolicyBounds;
+  /**
+   * Worktree pool for parallel agentic execution. When present (and concurrency
+   * > 1), the scheduler runs each agent in its own worktree and applies results
+   * to main serially. Absent → single-card serial agentic on the main tree.
+   */
+  worktreePool?: import('./worktree-pool.js').IWorktreePool;
 }

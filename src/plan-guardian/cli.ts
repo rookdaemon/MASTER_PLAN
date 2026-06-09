@@ -50,7 +50,7 @@ const DEFAULTS: CliOptions = {
     'qwen/qwen3-coder:free',
     'gpt-oss-120b:free',
   ],
-  concurrency: 20,
+  concurrency: 5,
   maxIterations: Infinity,
   maxDepth: 8,
   dryRun: false,
