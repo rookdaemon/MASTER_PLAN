@@ -58,10 +58,14 @@ export async function runAgenticWorker(
   config: AgenticWorkerConfig,
 ): Promise<WorkerResult> {
   const systemPrompt = buildAgenticSystemPrompt(item.actionType);
+  const { model, effort } = selectModelEffort(item.task, item.actionType, config.modelBounds);
   const args = buildClaudeArgs({
     systemPrompt,
     cardPath: item.task.path,
     rootPlanFile: config.rootPlanFile,
+    model,
+    effort,
+    fallbackModel: fallbackFor(model),
   });
 
   const output = deps.invoker.invoke(args, config.claudeTimeoutMs);
