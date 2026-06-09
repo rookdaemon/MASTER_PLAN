@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { runAgenticEpoch } from '../scheduler.js';
+import { runAgenticEpoch, runScheduler } from '../scheduler.js';
 import { InMemoryFileSystem } from '../../agent-runtime/filesystem.js';
 import { InMemoryGitOperations } from '../git-state.js';
 import type { ClaudeInvoker } from '../claude-invoker.js';
@@ -179,6 +179,37 @@ describe('runAgenticEpoch', () => {
     expect(result.failed).toBe(0);
     expect(git.commits).toHaveLength(0);
     expect(git.restores).toHaveLength(0);
+  });
+
+  it('does NOT loop on a no-op card: each card is tried once, then the run converges', async () => {
+    // Two PLAN leaves; the invoker never edits anything (always a no-op).
+    const fs = new InMemoryFileSystem();
+    fs.writeFile(
+      'plan/root.md',
+      '---\nroot: plan/root.md\nchildren:\n  - plan/0.0-alpha.md\n  - plan/0.1-beta.md\n---\n# 0 Root [PLAN]\n\nRoot.\n',
+      'utf-8',
+    );
+    fs.writeFile('plan/0.0-alpha.md', '---\nparent: plan/root.md\nroot: plan/root.md\n---\n# 0.0 Alpha [PLAN]\n\nA.\n', 'utf-8');
+    fs.writeFile('plan/0.1-beta.md', '---\nparent: plan/root.md\nroot: plan/root.md\n---\n# 0.1 Beta [PLAN]\n\nB.\n', 'utf-8');
+
+    const invokedCards: string[] = [];
+    const invoker: ClaudeInvoker = {
+      invoke(args) {
+        const userTurn = args[args.indexOf('--') + 1] ?? '';
+        const m = userTurn.match(/@(plan\/[^\s]+\.md)/);
+        if (m && m[1] !== 'plan/root.md') invokedCards.push(m[1]);
+        return JSON.stringify({ result: 'nothing to do' }); // no edit → no diff
+      },
+    };
+    const git = new ScriptedGit(''); // never any diff
+    // maxIterations is generous; if the loop weren't broken it would burn all 20
+    // epochs re-selecting the same top card.
+    const config = makeConfig({ fs, git, claudeInvoker: invoker, maxIterations: 20 });
+
+    await runScheduler(config, {}).done;
+
+    // Each card tried exactly once, then the queue drains and the run ends.
+    expect(invokedCards.sort()).toEqual(['plan/0.0-alpha.md', 'plan/0.1-beta.md']);
   });
 
   it('dry-run reverts instead of committing (genuine preview)', async () => {

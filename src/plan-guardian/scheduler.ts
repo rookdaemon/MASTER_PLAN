@@ -52,6 +52,11 @@ export interface EpochResult {
   rateLimitedTasks: RateLimitedTask[];
   commits: string[];
   totalTokens: { prompt: number; completion: number };
+  /**
+   * Tasks that were dispatched but produced no change (converged for now).
+   * Used by the scheduler to stop re-selecting a card that has nothing to do.
+   */
+  noChangeTaskPaths?: string[];
 }
 
 export interface RateLimitedTask {
@@ -86,6 +91,10 @@ export function runScheduler(
 ): SchedulerHandle {
   let stopRequested = false;
   const blockedTasks = new Map<string, BlockedTaskState>();
+  // Cards that produced a no-op (nothing to do for now) are excluded from
+  // re-selection. Cleared whenever any epoch commits, so progress elsewhere
+  // re-opens previously-settled cards (e.g. a node once its children advance).
+  const settledTasks = new Set<string>();
   const initialBackoffMs = getInitialRateLimitBackoffMs(config);
 
   const done = (async (): Promise<EpochResult[]> => {
@@ -100,7 +109,7 @@ export function runScheduler(
     if (stopRequested) break;
 
     if (activeQueue == null) {
-      activeQueue = await buildEpochQueue(config, blockedTasks);
+      activeQueue = await buildEpochQueue(config, blockedTasks, settledTasks);
       if (activeQueue.length === 0) {
         const empty: EpochResult = {
           epoch,
@@ -148,6 +157,15 @@ export function runScheduler(
     cycleCount += 1;
 
     epochAggregate = mergeEpochResults(epochAggregate!, epochResult);
+
+    // Convergence tracking: a commit means the plan changed, so re-open all
+    // previously-settled cards; a no-op settles that card so we move on.
+    if (epochResult.commits.length > 0) {
+      settledTasks.clear();
+    }
+    for (const path of epochResult.noChangeTaskPaths ?? []) {
+      settledTasks.add(path);
+    }
 
     const rateLimitedPaths = new Set(epochResult.rateLimitedTasks.map(task => task.path));
     const consumedPaths = new Set(
@@ -520,10 +538,12 @@ export async function runAgenticEpoch(
     return base({ dispatched: 1, failed: 1, dispatchedTaskPaths });
   }
 
-  // No-op: Claude made no change → this card has converged for now.
+  // No-op: Claude made no change → this card has converged for now. Report it
+  // so the scheduler stops re-selecting it (otherwise the 1-item queue rebuilds
+  // to the same top-priority card every epoch).
   if (result.action.writeSet.length === 0) {
     callbacks.onWorkerComplete?.(result);
-    return base({ dispatched: 1, completed: 1, dispatchedTaskPaths });
+    return base({ dispatched: 1, completed: 1, dispatchedTaskPaths, noChangeTaskPaths: [item.task.path] });
   }
 
   // Integrity gate (artifact-or-nothing): reject + revert the on-disk edit if invalid.
@@ -839,11 +859,13 @@ interface QueuedDispatchItem {
 async function buildEpochQueue(
   config: GuardianConfig,
   blockedTasks: ReadonlyMap<string, BlockedTaskState>,
+  settledTasks: ReadonlySet<string> = new Set(),
 ): Promise<QueuedDispatchItem[]> {
   const dag = await buildDAG(config.fs, config.planDir);
   const now = config.clock.now();
   const nowMs = getClockMs(config);
   const candidates = prioritize(dag, now).filter(candidate => {
+    if (settledTasks.has(candidate.task.path)) return false;
     const blocked = blockedTasks.get(candidate.task.path);
     return !blocked || blocked.resumeAtMs <= nowMs;
   });
@@ -903,5 +925,6 @@ function mergeEpochResults(base: EpochResult, delta: EpochResult): EpochResult {
       prompt: base.totalTokens.prompt + delta.totalTokens.prompt,
       completion: base.totalTokens.completion + delta.totalTokens.completion,
     },
+    noChangeTaskPaths: [...(base.noChangeTaskPaths ?? []), ...(delta.noChangeTaskPaths ?? [])],
   };
 }

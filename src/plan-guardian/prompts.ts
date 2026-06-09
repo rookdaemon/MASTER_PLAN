@@ -145,13 +145,33 @@ Perform exactly ONE planning operation this turn, then stop. Keep edits minimal 
 
 Filename rule: the numeric ID in a card's H1 must exactly match the numeric ID prefix in its file path. Example: heading '# 0.7.3.2 Child [PLAN]' lives at path 'plan/0.7.3.2-child.md'. Use the full dotted child ID in both the heading and the path; never encode child numbering as 'parent-id-1-slug.md'.`;
 
+const AGENTIC_OPERATIONS = `## Your job
+
+Assess this card and perform the single most valuable next operation to move it toward [DONE]. Pick the operation that fits the card's actual state — do not force one that doesn't apply:
+
+- **ADVANCE** — If the card's content already satisfies its acceptance criteria (for a leaf: decisions/contracts/specs are present and any referenced implementation + tests exist and pass; for a node: all children are [DONE]), advance its H1 status one step along PLAN → ARCHITECT → IMPLEMENT → REVIEW → DONE. A complete, already-implemented card should be advanced, not re-planned.
+- **DECOMPOSE** — Only if the card is too large or abstract to implement directly, break it into 2-5 child cards: create each child file (full dotted child ID in heading and path, parent/root frontmatter) and add them to this card's \`children:\` frontmatter. Keep this card's status [PLAN].
+- **REFINE** — If the card is underspecified, add a concrete description, 3-5 acceptance criteria, and a file manifest.
+- **IMPLEMENT** — If the card is [ARCHITECT]/[IMPLEMENT] and specifies artifacts to build, create or update those files, then advance the status.
+- **RECONCILE** — If parent/child links are broken or stale, repair the frontmatter.
+
+Rules:
+- Perform exactly ONE operation, then stop.
+- Append a one-line entry to the card's "## Revision History" recording the operation and the timestamp.
+- Leave the card unchanged ONLY if it is already [DONE] and structurally correct — otherwise always make forward progress.`;
+
 /**
- * System prompt for agentic mode: same per-action semantics as
- * `buildSystemPrompt`, but instructs Claude Code to edit files directly with
- * its tools rather than emit parseable blocks.
+ * System prompt for agentic mode. Unlike provider mode (which executes one
+ * rigidly-assigned action), the CLI agent is given the full operations menu and
+ * chooses the best next operation — crucially, it can ADVANCE a card whose
+ * content is already complete instead of pointlessly trying to decompose it.
+ * The scheduler's suggested action is passed only as a soft hint.
  */
-export function buildAgenticSystemPrompt(actionType: PlanningActionType): string {
-  return `${AGENTIC_PREFIX}\n\n${ACTION_INSTRUCTIONS[actionType]}`;
+export function buildAgenticSystemPrompt(suggestedAction?: PlanningActionType): string {
+  const hint = suggestedAction
+    ? `\n\nThe scheduler's heuristic suggests "${suggestedAction}", but use your own judgment — if a different operation above fits the card's actual state better, do that instead.`
+    : '';
+  return `${AGENTIC_PREFIX}\n\n${AGENTIC_OPERATIONS}${hint}`;
 }
 
 export function buildUserMessage(
