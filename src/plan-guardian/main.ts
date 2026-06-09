@@ -82,6 +82,11 @@ async function main() {
       claudeInvoker: new NodeClaudeInvoker(),
       rootPlanFile,
       claudeTimeoutMs: opts.claudeTimeoutMs,
+      modelBounds: {
+        modelFloor: opts.modelFloor,
+        modelCeiling: opts.modelCeiling,
+        effortCeiling: opts.effortCeiling,
+      },
     };
 
     console.log(`[guardian] Starting Plan Guardian (AGENTIC — Claude Code CLI)`);

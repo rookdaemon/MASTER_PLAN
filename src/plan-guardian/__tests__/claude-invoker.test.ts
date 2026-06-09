@@ -34,6 +34,26 @@ describe('buildClaudeArgs', () => {
     expect(userTurn).toContain('@plan/root.md');
     expect(userTurn.toLowerCase()).toContain('exactly one');
   });
+
+  it('emits --model / --effort / --fallback-model when provided', () => {
+    const args = buildClaudeArgs({
+      systemPrompt: 'SYS',
+      cardPath: 'plan/0.1-foo.md',
+      rootPlanFile: 'plan/root.md',
+      model: 'opus',
+      effort: 'high',
+      fallbackModel: 'sonnet',
+    });
+    expect(args[args.indexOf('--model') + 1]).toBe('opus');
+    expect(args[args.indexOf('--effort') + 1]).toBe('high');
+    expect(args[args.indexOf('--fallback-model') + 1]).toBe('sonnet');
+  });
+
+  it('omits model/effort flags when not provided (CLI defaults apply)', () => {
+    const args = buildClaudeArgs({ systemPrompt: 'SYS', cardPath: 'plan/a.md', rootPlanFile: 'plan/root.md' });
+    expect(args).not.toContain('--model');
+    expect(args).not.toContain('--effort');
+  });
 });
 
 describe('parseClaudeOutput', () => {
