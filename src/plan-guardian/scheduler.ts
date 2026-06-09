@@ -510,6 +510,7 @@ export async function runAgenticEpoch(
     rootPlanFile: config.rootPlanFile ?? `${planDir}/root.md`,
     planDir,
     claudeTimeoutMs: config.claudeTimeoutMs ?? 5 * 60 * 1000,
+    modelBounds: config.modelBounds,
   };
 
   const item = batch[0];

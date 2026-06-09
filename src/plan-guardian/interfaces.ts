@@ -175,4 +175,6 @@ export interface GuardianConfig {
   rootPlanFile?: string;
   /** Per-invocation timeout for the Claude CLI in ms (agentic mode). */
   claudeTimeoutMs?: number;
+  /** Bounds for the per-card model/effort policy (agentic mode). */
+  modelBounds?: import('./agentic-model-policy.js').ModelPolicyBounds;
 }
