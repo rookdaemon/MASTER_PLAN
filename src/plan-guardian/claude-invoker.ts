@@ -65,6 +65,12 @@ export interface ClaudeArgsInput {
   rootPlanFile: string;
   /** Optional override of the user-turn instruction. */
   instruction?: string;
+  /** `--model` alias/id (e.g. 'opus'); omit to use the CLI default. */
+  model?: string;
+  /** `--effort` level (low|medium|high|xhigh|max); omit to use the CLI default. */
+  effort?: string;
+  /** `--fallback-model` used when the primary is overloaded. */
+  fallbackModel?: string;
 }
 
 const DEFAULT_INSTRUCTION =
