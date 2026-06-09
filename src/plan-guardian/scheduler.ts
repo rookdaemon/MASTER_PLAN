@@ -528,6 +528,27 @@ export async function runAgenticEpoch(
   const dispatchedTaskPaths = [item.task.path];
   callbacks.onWorkerStart?.(item.task.path, item.actionType);
 
+  // Procedural status roll-up: a node whose children are all DONE becomes DONE
+  // deterministically. This is a pure state transition, not a judgment call —
+  // so we never spend a model call (or a CLI invocation) on it.
+  const children = dag.childrenOf(item.task.path);
+  if (item.task.status !== 'DONE' && children.length > 0 && children.every(c => c.status === 'DONE')) {
+    const det = makeDeterministicStatusUpdate(item, now);
+    const commits: string[] = [];
+    if (!dryRun) {
+      for (const f of det.action.filesModified) await fs.writeFile(f.path, f.content, 'utf-8');
+      await git.add(det.action.writeSet);
+      if ((await git.stagedPaths()).length > 0) {
+        const message = `[guardian] epoch ${epoch}: ${det.action.summary} [procedural]`;
+        const hash = await git.commit(message, config.quarantineBranch);
+        commits.push(hash);
+        callbacks.onCommit?.(hash, message);
+      }
+    }
+    callbacks.onWorkerComplete?.(det);
+    return base({ dispatched: 1, completed: 1, dispatchedTaskPaths, commits });
+  }
+
   let result: WorkerResult;
   try {
     result = await runAgenticWorker(item, { invoker, fs, git }, now, nowMs, agenticConfig);

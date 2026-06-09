@@ -222,6 +222,66 @@ describe('runAgenticEpoch', () => {
     expect(invokedCards.sort()).toEqual(['plan/0.0-alpha.md', 'plan/0.1-beta.md']);
   });
 
+  it('rolls a node up to DONE procedurally when all children are DONE — no Claude call', async () => {
+    const fs = new InMemoryFileSystem();
+    fs.writeFile(
+      'plan/root.md',
+      '---\nroot: plan/root.md\nchildren:\n  - plan/0.0-alpha.md\n---\n# 0 Root [PLAN]\n\nRoot.\n',
+      'utf-8',
+    );
+    // 0.0 is a node with one child, and that child is already DONE.
+    fs.writeFile(
+      'plan/0.0-alpha.md',
+      '---\nparent: plan/root.md\nroot: plan/root.md\nchildren:\n  - plan/0.0.1-sub.md\n---\n# 0.0 Alpha [PLAN]\n\nA node.\n',
+      'utf-8',
+    );
+    fs.writeFile(
+      'plan/0.0.1-sub.md',
+      '---\nparent: plan/0.0-alpha.md\nroot: plan/root.md\n---\n# 0.0.1 Sub [DONE]\n\nDone work.\n',
+      'utf-8',
+    );
+
+    let invoked = false;
+    const invoker: ClaudeInvoker = {
+      invoke() {
+        invoked = true;
+        return JSON.stringify({ result: 'should not run' });
+      },
+    };
+    const git = new ScriptedGit('');
+    const config = makeConfig({ fs, git, claudeInvoker: invoker });
+
+    const result = await runAgenticEpoch(0, config, {}, new Map(), [
+      { path: 'plan/0.0-alpha.md', actionType: 'status-update', writeSet: ['plan/0.0-alpha.md'] },
+    ] as never);
+
+    expect(invoked).toBe(false); // purely procedural — no model call
+    expect(result.completed).toBe(1);
+    expect(result.totalTokens).toEqual({ prompt: 0, completion: 0 });
+    expect(git.commits).toHaveLength(1);
+    const written = await fs.readFile('plan/0.0-alpha.md', 'utf-8');
+    expect(written).toContain('# 0.0 Alpha [DONE]');
+  });
+
+  it('still calls Claude for a status-update when children are NOT all done', async () => {
+    const fs = new InMemoryFileSystem();
+    fs.writeFile('plan/root.md', '---\nroot: plan/root.md\nchildren:\n  - plan/0.0-alpha.md\n---\n# 0 Root [PLAN]\n\nRoot.\n', 'utf-8');
+    fs.writeFile('plan/0.0-alpha.md', '---\nparent: plan/root.md\nroot: plan/root.md\nchildren:\n  - plan/0.0.1-sub.md\n---\n# 0.0 Alpha [PLAN]\n\nNode.\n', 'utf-8');
+    fs.writeFile('plan/0.0.1-sub.md', '---\nparent: plan/0.0-alpha.md\nroot: plan/root.md\n---\n# 0.0.1 Sub [IMPLEMENT]\n\nNot done.\n', 'utf-8');
+
+    let invoked = false;
+    const invoker: ClaudeInvoker = {
+      invoke() { invoked = true; return JSON.stringify({ result: 'nothing to do' }); },
+    };
+    const config = makeConfig({ fs, git: new ScriptedGit(''), claudeInvoker: invoker });
+
+    await runAgenticEpoch(0, config, {}, new Map(), [
+      { path: 'plan/0.0-alpha.md', actionType: 'status-update', writeSet: ['plan/0.0-alpha.md'] },
+    ] as never);
+
+    expect(invoked).toBe(true); // child not DONE → needs the model's judgment
+  });
+
   it('refuses to run on a dirty working tree (so unrelated changes are not swept into the commit)', async () => {
     const fs = makeFs();
     const git = new ScriptedGit(' M plan/some-unrelated-edit.md');
