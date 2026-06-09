@@ -28,7 +28,28 @@ import { PriorityModelSelector } from './model-selector.js';
 import { GuardianDebugLog } from './debug-log.js';
 import { NodeClaudeInvoker } from './claude-invoker.js';
 import { NodeWorktreePool } from './worktree-pool.js';
+import { GuardianDashboard, type PlanStats } from './dashboard.js';
+import type { IFileSystem } from '../agent-runtime/filesystem.js';
+import type { PlanStatus } from './interfaces.js';
 import type { IInferenceProvider, InferenceResult } from '../llm-substrate/inference-provider.js';
+
+/** Tally plan cards by their H1 status tag (flat plan dir). */
+async function scanPlanStats(fs: IFileSystem, planDir: string): Promise<PlanStats> {
+  const byStatus: Record<PlanStatus, number> = { PLAN: 0, ARCHITECT: 0, IMPLEMENT: 0, REVIEW: 0, DONE: 0 };
+  let total = 0;
+  for (const name of await fs.listFiles(planDir)) {
+    if (!name.endsWith('.md')) continue;
+    total += 1;
+    try {
+      const content = await fs.readFile(`${planDir}/${name}`, 'utf-8');
+      const m = content.match(/^#\s+.*\[(PLAN|ARCHITECT|IMPLEMENT|REVIEW|DONE)\]/m);
+      if (m) byStatus[m[1] as PlanStatus] += 1;
+    } catch {
+      // ignore unreadable files
+    }
+  }
+  return { total, byStatus };
+}
 
 /** Stub provider for agentic mode — the CLI is the brain, so this is never called. */
 const AGENTIC_STUB_PROVIDER: IInferenceProvider = {
@@ -175,36 +196,65 @@ async function main() {
     });
   }
 
+  // Live TUI for interactive agentic runs; plain logs when piped / in provider mode.
+  const useTui = !!process.stdout.isTTY && opts.executionMode === 'agentic';
+  const dashboard = useTui
+    ? new GuardianDashboard(
+        {
+          mode: opts.executionMode,
+          concurrency: config.concurrency,
+          modelPolicy: `floor=${opts.modelFloor ?? 'haiku'} ceiling=${opts.modelCeiling ?? 'opus'} eff=${opts.effortCeiling ?? 'max'}`,
+        },
+        { write: s => process.stdout.write(s), now: () => Date.now() },
+      )
+    : null;
+
+  let statsTimer: ReturnType<typeof setInterval> | null = null;
+  if (dashboard) {
+    dashboard.setStats(await scanPlanStats(fs, opts.planDir));
+    statsTimer = setInterval(() => {
+      scanPlanStats(fs, opts.planDir).then(s => dashboard.setStats(s)).catch(() => {});
+    }, 3000);
+    dashboard.start();
+  }
+
   const handle = runScheduler(config, {
     onEpochStart(epoch, batchSize) {
-      console.log(`[guardian] Epoch ${epoch}: dispatching ${batchSize} task(s)`);
+      if (dashboard) dashboard.epochStart(epoch);
+      else console.log(`[guardian] Epoch ${epoch}: dispatching ${batchSize} task(s)`);
       debugLog.log('epoch', 'epoch start', { epoch, batchSize });
     },
-    onWorkerStart(task, actionType) {
-      console.log(`[guardian]   → starting ${actionType}: ${task}`);
-      debugLog.log('worker', 'worker start', { task, actionType });
+    onWorkerStart(task, actionType, model) {
+      if (dashboard) dashboard.workerStart(task, actionType, model);
+      else console.log(`[guardian]   → starting ${actionType}: ${task}${model ? ` [${model}]` : ''}`);
+      debugLog.log('worker', 'worker start', { task, actionType, model });
     },
     onWorkerComplete(result) {
-      console.log(`[guardian]   ✓ ${result.action.type}: ${result.action.summary} (${result.tokensUsed.prompt + result.tokensUsed.completion} tokens, ${result.latencyMs}ms)`);
+      if (dashboard) dashboard.workerComplete(result.action.targetPath, result.action.summary, result.costUsd);
+      else console.log(`[guardian]   ✓ ${result.action.type}: ${result.action.summary} (${result.tokensUsed.prompt + result.tokensUsed.completion} tokens, ${result.latencyMs}ms)`);
       debugLog.log('worker', 'worker complete', {
         actionType: result.action.type,
         targetPath: result.action.targetPath,
         summary: result.action.summary,
         promptTokens: result.tokensUsed.prompt,
         completionTokens: result.tokensUsed.completion,
+        costUsd: result.costUsd,
         latencyMs: result.latencyMs,
       });
     },
     onWorkerError(task, error) {
-      console.error(`[guardian]   ✗ ${task}: ${error.message}`);
+      const rateLimited = /rate limit/i.test(error.message);
+      if (dashboard) dashboard.workerError(task, error.message, rateLimited);
+      else console.error(`[guardian]   ✗ ${task}: ${error.message}`);
       debugLog.log('worker', 'worker error', { task, error: error.message });
     },
     onCommit(hash, message) {
-      console.log(`[guardian]   → ${hash} ${message}`);
+      if (dashboard) dashboard.commit(message);
+      else console.log(`[guardian]   → ${hash} ${message}`);
       debugLog.log('commit', 'commit', { hash, message });
     },
     onEpochEnd(result) {
-      console.log(`[guardian] Epoch ${result.epoch} done: ${result.completed} completed, ${result.failed} failed`);
+      if (!dashboard) console.log(`[guardian] Epoch ${result.epoch} done: ${result.completed} completed, ${result.failed} failed`);
       debugLog.log('epoch', 'epoch end', {
         epoch: result.epoch,
         dispatched: result.dispatched,
@@ -218,16 +268,11 @@ async function main() {
       const seconds = Math.ceil(delayMs / 1000);
       const reasonText = reasons.length > 0 ? ` | reason: ${reasons[0]}` : '';
       const untilIso = new Date(Date.now() + delayMs).toISOString();
-      console.log(`[guardian] Rate-limit backoff: waiting ${seconds}s (until ${untilIso}) after ${failures} rate-limit failure(s)${reasonText}`);
-      debugLog.log('backoff', 'rate-limit backoff', {
-        delayMs,
-        resumeAtIso: untilIso,
-        failures,
-        reasons,
-      });
+      if (!dashboard) console.log(`[guardian] Rate-limit backoff: waiting ${seconds}s (until ${untilIso}) after ${failures} rate-limit failure(s)${reasonText}`);
+      debugLog.log('backoff', 'rate-limit backoff', { delayMs, resumeAtIso: untilIso, failures, reasons });
     },
     onSoftStop() {
-      console.log('[guardian] Soft stop requested — finishing current epoch then exiting...');
+      if (!dashboard) console.log('[guardian] Soft stop requested — finishing current epoch then exiting...');
       debugLog.log('shutdown', 'soft stop requested', {});
     },
   });
@@ -245,7 +290,9 @@ async function main() {
 
   const results = await handle.done;
 
-  // Tear down parallel worktrees.
+  // Tear down the dashboard + parallel worktrees.
+  if (statsTimer) clearInterval(statsTimer);
+  if (dashboard) dashboard.stop();
   if (agenticPool) {
     await agenticPool.cleanup().catch(() => {});
   }
