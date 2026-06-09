@@ -23,6 +23,10 @@ export interface CliOptions {
   executionMode: ExecutionMode;
   /** Per-invocation Claude CLI timeout in ms (agentic mode). */
   claudeTimeoutMs: number;
+  /** Per-card model/effort policy bounds (agentic mode). */
+  modelFloor?: ModelTier;
+  modelCeiling?: ModelTier;
+  effortCeiling?: EffortLevel;
   provider: LlmProvider;
   /** Priority-ordered model list; index 0 is most preferred. */
   models: string[];
@@ -116,6 +120,15 @@ export function parseCli(argv: string[]): CliOptions {
         break;
       case '--claude-timeout':
         opts.claudeTimeoutMs = parseInt(next(), 10);
+        break;
+      case '--model-ceiling':
+        opts.modelCeiling = validateModelTier(next());
+        break;
+      case '--model-floor':
+        opts.modelFloor = validateModelTier(next());
+        break;
+      case '--effort-ceiling':
+        opts.effortCeiling = validateEffort(next());
         break;
       default:
         throw new Error(`Unknown argument: ${arg}`);
