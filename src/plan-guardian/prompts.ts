@@ -137,6 +137,23 @@ export function buildSystemPrompt(actionType: PlanningActionType): string {
   return `${SYSTEM_PREFIX}\n${ACTION_INSTRUCTIONS[actionType]}`;
 }
 
+const AGENTIC_PREFIX = `You are the Plan Guardian running in AGENTIC mode inside Claude Code. You operate on a hierarchical plan stored as markdown files. Each file has YAML frontmatter (parent, root, children, blocked-by, depends-on) and a status in the H1 heading ([PLAN], [ARCHITECT], [IMPLEMENT], [REVIEW], [DONE]).
+
+You have direct file-editing tools. Use them to read and modify the plan files ON DISK. Do NOT print fenced code blocks of file contents — wherever the action instructions below say to "output a plan-file block" or "artifact block", instead make the equivalent edit directly to the real file using your tools.
+
+Perform exactly ONE planning operation this turn, then stop. Keep edits minimal and well-scoped — only touch files the operation requires.
+
+Filename rule: the numeric ID in a card's H1 must exactly match the numeric ID prefix in its file path. Example: heading '# 0.7.3.2 Child [PLAN]' lives at path 'plan/0.7.3.2-child.md'. Use the full dotted child ID in both the heading and the path; never encode child numbering as 'parent-id-1-slug.md'.`;
+
+/**
+ * System prompt for agentic mode: same per-action semantics as
+ * `buildSystemPrompt`, but instructs Claude Code to edit files directly with
+ * its tools rather than emit parseable blocks.
+ */
+export function buildAgenticSystemPrompt(actionType: PlanningActionType): string {
+  return `${AGENTIC_PREFIX}\n\n${ACTION_INSTRUCTIONS[actionType]}`;
+}
+
 export function buildUserMessage(
   target: PlanFile,
   dag: IPlanDAG,

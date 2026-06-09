@@ -1,0 +1,170 @@
+/**
+ * Claude CLI Invoker — the "Ralph Wiggum" brain for agentic mode.
+ *
+ * A thin, mockable abstraction over the Claude Code CLI. Instead of calling an
+ * inference *API* and parsing returned text into file blocks (the provider
+ * path), agentic mode shells out to `claude --dangerously-skip-permissions`,
+ * which reads the `@`-referenced files and edits them on disk itself. The
+ * wrapper just observes the resulting diff.
+ *
+ * Everything environment-specific (the child process, the binary path) is
+ * injected via `ClaudeInvoker`, so the worker is fully testable with a mock.
+ *
+ * Domain: Plan Guardian (agentic mode)
+ */
+
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { resolveClaudePath } from './resolve-claude.js';
+
+// ── Injectable invocation seam ───────────────────────────────
+
+/** Abstraction over a single synchronous Claude Code CLI invocation. */
+export interface ClaudeInvoker {
+  /**
+   * Run `claude` with `args`, returning its stdout (or null on empty output).
+   * Implementations should still return captured stdout on non-zero exit so
+   * the caller can parse rate-limit / error envelopes.
+   */
+  invoke(args: string[], timeoutMs: number): string | null;
+}
+
+/** Production invoker: `execFileSync` against the resolved `claude` binary. */
+export class NodeClaudeInvoker implements ClaudeInvoker {
+  constructor(private readonly resolvePath: () => string = resolveClaudePath) {}
+
+  invoke(args: string[], timeoutMs: number): string | null {
+    const claudePath = this.resolvePath();
+    try {
+      return execFileSync(claudePath, args, {
+        stdio: ['pipe', 'pipe', 'inherit'],
+        encoding: 'utf-8',
+        timeout: timeoutMs,
+        maxBuffer: 64 * 1024 * 1024,
+      });
+    } catch (err: unknown) {
+      // The CLI exits non-zero on rate limits / errors but still prints a JSON
+      // envelope on stdout — surface it so the caller can classify it.
+      if (err && typeof err === 'object' && 'stdout' in err) {
+        const stdout = (err as { stdout: unknown }).stdout;
+        if (typeof stdout === 'string') return stdout;
+      }
+      throw err;
+    }
+  }
+}
+
+// ── Argv construction ────────────────────────────────────────
+
+export interface ClaudeArgsInput {
+  sessionId: string;
+  systemPrompt: string;
+  /** The card the agent works on (passed as an @-file reference). */
+  cardPath: string;
+  /** The plan root, for whole-plan context (passed as an @-file reference). */
+  rootPlanFile: string;
+  /** Optional override of the user-turn instruction. */
+  instruction?: string;
+}
+
+const DEFAULT_INSTRUCTION =
+  'Do the next thing for this card. Perform exactly one operation, ' +
+  'edit the plan file(s) directly on disk, and exit.';
+
+/**
+ * Build the Ralph-Wiggum argv. Mirrors PLANAR's wrapper: non-interactive
+ * (`--print`), machine-readable (`--output-format json`), permissionless
+ * (`--dangerously-skip-permissions`), and resumable (`--session-id`) so each
+ * card keeps a stable conversation across iterations.
+ */
+export function buildClaudeArgs(input: ClaudeArgsInput): string[] {
+  const userTurn = `@${input.cardPath} @${input.rootPlanFile}\n\n${input.instruction ?? DEFAULT_INSTRUCTION}`;
+  return [
+    '--dangerously-skip-permissions',
+    '--print',
+    '--output-format',
+    'json',
+    '--session-id',
+    input.sessionId,
+    '--system-prompt',
+    input.systemPrompt,
+    '--',
+    userTurn,
+  ];
+}
+
+/**
+ * Derive a deterministic UUID-shaped session id from a card's numeric id, so
+ * repeated invocations on the same card resume the same Claude Code session.
+ * Pure (sha1 of the id) — no clock, no randomness.
+ */
+export function sessionIdForNumericId(numericId: string): string {
+  const hex = createHash('sha1').update(`plan-guardian:${numericId}`).digest('hex');
+  // Set RFC-4122 version (4) and variant (8/9/a/b) bits so `claude --session-id`
+  // accepts it as a valid UUID, while staying fully deterministic.
+  const version = `4${hex.slice(13, 16)}`;
+  const variantNibble = ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16);
+  const variant = `${variantNibble}${hex.slice(17, 20)}`;
+  return [hex.slice(0, 8), hex.slice(8, 12), version, variant, hex.slice(20, 32)].join('-');
+}
+
+// ── Output parsing ───────────────────────────────────────────
+
+export interface ParsedClaudeOutput {
+  /** Dollar cost reported by the CLI for this turn, if any. */
+  costUsd?: number;
+  rateLimited: boolean;
+  /** Seconds to wait before retrying, when rate limited. */
+  retryAfterSecs?: number;
+  /** The final assistant text, when present. */
+  result?: string;
+}
+
+const DEFAULT_RETRY_SECS = 60;
+const OVERLOADED_RETRY_SECS = 30;
+
+/**
+ * Parse the CLI's `--output-format json` envelope. `nowMs` is injected (not
+ * read from the clock) so `resetsAt` → `retryAfterSecs` is deterministic.
+ */
+export function parseClaudeOutput(output: string | null, nowMs: number): ParsedClaudeOutput {
+  if (!output || output.trim().length === 0) {
+    return { rateLimited: false };
+  }
+
+  let json: Record<string, unknown>;
+  try {
+    json = JSON.parse(output) as Record<string, unknown>;
+  } catch {
+    return { rateLimited: false };
+  }
+
+  if (json.type === 'rate_limit_event') {
+    const info = json.rate_limit_info as { resetsAt?: unknown } | undefined;
+    const resetsAt = typeof info?.resetsAt === 'number' ? info.resetsAt : undefined;
+    const retryAfterSecs =
+      resetsAt !== undefined ? Math.max(0, Math.ceil((resetsAt * 1000 - nowMs) / 1000)) : DEFAULT_RETRY_SECS;
+    return { rateLimited: true, retryAfterSecs };
+  }
+
+  const error = json.error as { type?: string; retry_after?: unknown } | undefined;
+  if (error?.type === 'rate_limit_error') {
+    return {
+      rateLimited: true,
+      retryAfterSecs: typeof error.retry_after === 'number' ? error.retry_after : DEFAULT_RETRY_SECS,
+    };
+  }
+  if (error?.type === 'overloaded_error') {
+    return {
+      rateLimited: true,
+      retryAfterSecs: typeof error.retry_after === 'number' ? error.retry_after : OVERLOADED_RETRY_SECS,
+    };
+  }
+
+  const result: ParsedClaudeOutput = { rateLimited: false };
+  // Claude Code reports cost as `total_cost_usd`; older builds used `cost_usd`.
+  const cost = (json.total_cost_usd ?? json.cost_usd) as unknown;
+  if (typeof cost === 'number') result.costUsd = cost;
+  if (typeof json.result === 'string') result.result = json.result;
+  return result;
+}

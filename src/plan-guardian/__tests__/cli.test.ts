@@ -5,6 +5,7 @@ describe('parseCli', () => {
   it('returns defaults with no args (openrouter)', () => {
     const opts = parseCli(['node', 'main.ts']);
     expect(opts.planDir).toBe('plan');
+    expect(opts.executionMode).toBe('provider');
     expect(opts.provider).toBe('openrouter');
     expect(opts.models).toEqual([
       'nvidia/nemotron-3-super-120b-a12b:free',
@@ -45,6 +46,12 @@ describe('parseCli', () => {
     expect(opts.strictIntegrity).toBe(false);
     expect(opts.maxNewFilesPerAction).toBe(9);
     expect(opts.quarantineBranch).toBe('guardian/autogen');
+  });
+
+  it('parses --agentic into agentic execution mode with a claude timeout', () => {
+    const opts = parseCli(['node', 'main.ts', '--agentic', '--claude-timeout', '120000']);
+    expect(opts.executionMode).toBe('agentic');
+    expect(opts.claudeTimeoutMs).toBe(120000);
   });
 
   it('rejects invalid provider', () => {

@@ -9,8 +9,17 @@
 
 export type LlmProvider = 'anthropic' | 'openai' | 'openrouter' | 'local';
 
+export type ExecutionMode = 'provider' | 'agentic';
+
 export interface CliOptions {
   planDir: string;
+  /**
+   * 'provider' (default) calls an inference API and applies parsed file blocks.
+   * 'agentic' shells out to the Claude Code CLI, which edits files directly.
+   */
+  executionMode: ExecutionMode;
+  /** Per-invocation Claude CLI timeout in ms (agentic mode). */
+  claudeTimeoutMs: number;
   provider: LlmProvider;
   /** Priority-ordered model list; index 0 is most preferred. */
   models: string[];
@@ -26,6 +35,8 @@ export interface CliOptions {
 
 const DEFAULTS: CliOptions = {
   planDir: 'plan',
+  executionMode: 'provider',
+  claudeTimeoutMs: 5 * 60 * 1000,
   provider: 'openrouter',
   models: [
     'nvidia/nemotron-3-super-120b-a12b:free',
@@ -96,6 +107,12 @@ export function parseCli(argv: string[]): CliOptions {
         break;
       case '--quarantine-branch':
         opts.quarantineBranch = next();
+        break;
+      case '--agentic':
+        opts.executionMode = 'agentic';
+        break;
+      case '--claude-timeout':
+        opts.claudeTimeoutMs = parseInt(next(), 10);
         break;
       default:
         throw new Error(`Unknown argument: ${arg}`);

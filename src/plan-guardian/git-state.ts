@@ -53,10 +53,20 @@ export class NodeGitOperations implements IGitOperations {
       .map(line => line.trim())
       .filter(Boolean);
   }
+
+  async restore(paths: string[]): Promise<void> {
+    if (paths.length === 0) return;
+    // Revert tracked modifications/deletions back to HEAD. Paths that did not
+    // exist at HEAD (newly created) make this fail — ignore that and clean them.
+    await execFileAsync('git', ['checkout', 'HEAD', '--', ...paths], { cwd: this.repoRoot }).catch(() => {});
+    // Remove any still-present untracked (newly created) files among the set.
+    await execFileAsync('git', ['clean', '-fdq', '--', ...paths], { cwd: this.repoRoot }).catch(() => {});
+  }
 }
 
 export class InMemoryGitOperations implements IGitOperations {
   readonly adds: string[][] = [];
+  readonly restores: string[][] = [];
   readonly commits: { message: string; hash: string; branch?: string }[] = [];
   private counter = 0;
   private staged = new Set<string>();
@@ -64,6 +74,11 @@ export class InMemoryGitOperations implements IGitOperations {
   async add(paths: string[]): Promise<void> {
     this.adds.push(paths);
     for (const p of paths) this.staged.add(p);
+  }
+
+  async restore(paths: string[]): Promise<void> {
+    this.restores.push(paths);
+    for (const p of paths) this.staged.delete(p);
   }
 
   async commit(message: string, branch?: string): Promise<string> {

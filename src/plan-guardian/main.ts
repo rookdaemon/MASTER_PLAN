@@ -26,6 +26,18 @@ import { buildProvider } from './provider-factory.js';
 import { fetchModelMetadata, deriveExecutionBudget } from './model-metadata.js';
 import { PriorityModelSelector } from './model-selector.js';
 import { GuardianDebugLog } from './debug-log.js';
+import { NodeClaudeInvoker } from './claude-invoker.js';
+import type { IInferenceProvider, InferenceResult } from '../llm-substrate/inference-provider.js';
+
+/** Stub provider for agentic mode — the CLI is the brain, so this is never called. */
+const AGENTIC_STUB_PROVIDER: IInferenceProvider = {
+  async probe() {
+    return { reachable: true, latencyMs: 0 };
+  },
+  async infer(): Promise<InferenceResult> {
+    throw new Error('agentic mode does not use an inference provider');
+  },
+};
 
 async function main() {
   const opts = parseCli(process.argv);
@@ -34,67 +46,119 @@ async function main() {
   const debugLog = new GuardianDebugLog(resolve('.guardian', 'guardian-debug.log'));
   debugLog.rotateOnStart();
 
-  const provider = buildProvider(opts.provider, opts.models[0]);
-  const metadata = await fetchModelMetadata(opts.provider, opts.models[0]);
-
-  // opts.models is already priority-ordered (from --model flags or the CLI defaults).
-  const modelSelector =
-    opts.provider === 'openrouter' && opts.models.length > 1
-      ? new PriorityModelSelector(
-          opts.models.map(modelId => ({
-            modelId,
-            provider: buildProvider(opts.provider, modelId),
-          })),
-        )
-      : undefined;
-  const budget = deriveExecutionBudget(opts.concurrency, metadata);
-
-  const config: GuardianConfig = {
-    planDir: opts.planDir,
-    repoRoot,
-    concurrency: budget.concurrency,
-    requestedConcurrency: opts.concurrency,
-    maxIterations: opts.maxIterations,
-    maxDepth: opts.maxDepth,
-    dryRun: opts.dryRun,
-    cycleThreshold: opts.cycleThreshold,
-    strictIntegrity: opts.strictIntegrity,
-    maxNewFilesPerAction: opts.maxNewFilesPerAction,
-    maxTokensPerCall: budget.maxTokensPerCall,
-    quarantineBranch: opts.quarantineBranch,
-    modelMetadata: metadata,
-    provider,
-    modelSelector,
-    fs: new NodeFileSystem(),
-    git: new NodeGitOperations(repoRoot),
-    clock: { now: () => new Date().toISOString() },
-    sleeper: {
-      sleep(ms: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, ms));
-      },
+  const fs = new NodeFileSystem();
+  const git = new NodeGitOperations(repoRoot);
+  const clock = { now: () => new Date().toISOString() };
+  const sleeper = {
+    sleep(ms: number): Promise<void> {
+      return new Promise(resolve => setTimeout(resolve, ms));
     },
   };
 
-  console.log(`[guardian] Starting Plan Guardian`);
-  console.log(`[guardian] Provider: ${opts.provider}/${opts.models[0]}`);
-  if (modelSelector) {
-    console.log(`[guardian] Model priority: ${modelSelector.modelIds.join(' → ')}`);
-  }
-  console.log(`[guardian] Concurrency: ${config.concurrency} (requested ${config.requestedConcurrency}) | Max iterations: ${opts.maxIterations} | Dry run: ${opts.dryRun}`);
-  console.log(`[guardian] Strict integrity: ${opts.strictIntegrity} | Max new files/action: ${opts.maxNewFilesPerAction} | Quarantine branch: ${opts.quarantineBranch ?? 'none'}`);
-  console.log(`[guardian] Max tokens/call: ${config.maxTokensPerCall}`);
+  let config: GuardianConfig;
 
-  debugLog.log('startup', 'guardian started', {
-    provider: opts.provider,
-    models: opts.models,
-    requestedConcurrency: config.requestedConcurrency,
-    effectiveConcurrency: config.concurrency,
-    maxTokensPerCall: config.maxTokensPerCall,
-    strictIntegrity: config.strictIntegrity,
-    quarantineBranch: config.quarantineBranch ?? null,
-    metadata,
-    budgetNotes: budget.notes,
-  });
+  if (opts.executionMode === 'agentic') {
+    // ── Agentic mode: the Claude Code CLI is the brain (Ralph-Wiggum). ──
+    const rootPlanFile = `${opts.planDir}/root.md`;
+    config = {
+      planDir: opts.planDir,
+      repoRoot,
+      concurrency: 1, // strictly serial — one card per epoch keeps diffs scoped
+      requestedConcurrency: opts.concurrency,
+      maxIterations: opts.maxIterations,
+      maxDepth: opts.maxDepth,
+      dryRun: opts.dryRun,
+      cycleThreshold: opts.cycleThreshold,
+      strictIntegrity: opts.strictIntegrity,
+      maxNewFilesPerAction: opts.maxNewFilesPerAction,
+      maxTokensPerCall: 0,
+      quarantineBranch: opts.quarantineBranch,
+      provider: AGENTIC_STUB_PROVIDER,
+      fs,
+      git,
+      clock,
+      sleeper,
+      executionMode: 'agentic',
+      claudeInvoker: new NodeClaudeInvoker(),
+      rootPlanFile,
+      claudeTimeoutMs: opts.claudeTimeoutMs,
+    };
+
+    console.log(`[guardian] Starting Plan Guardian (AGENTIC — Claude Code CLI)`);
+    console.log(`[guardian] Plan dir: ${opts.planDir} | root: ${rootPlanFile}`);
+    console.log(`[guardian] Concurrency: 1 (serial) | Max iterations: ${opts.maxIterations} | Dry run: ${opts.dryRun} | Claude timeout: ${opts.claudeTimeoutMs}ms`);
+    console.log(`[guardian] Strict integrity: ${opts.strictIntegrity} | Max new files/action: ${opts.maxNewFilesPerAction} | Quarantine branch: ${opts.quarantineBranch ?? 'none'}`);
+
+    debugLog.log('startup', 'guardian started (agentic)', {
+      executionMode: 'agentic',
+      planDir: opts.planDir,
+      rootPlanFile,
+      maxIterations: opts.maxIterations,
+      claudeTimeoutMs: opts.claudeTimeoutMs,
+      strictIntegrity: opts.strictIntegrity,
+      quarantineBranch: opts.quarantineBranch ?? null,
+      dryRun: opts.dryRun,
+    });
+  } else {
+    // ── Provider mode: inference API + apply parsed file blocks. ──
+    const provider = buildProvider(opts.provider, opts.models[0]);
+    const metadata = await fetchModelMetadata(opts.provider, opts.models[0]);
+
+    // opts.models is already priority-ordered (from --model flags or the CLI defaults).
+    const modelSelector =
+      opts.provider === 'openrouter' && opts.models.length > 1
+        ? new PriorityModelSelector(
+            opts.models.map(modelId => ({
+              modelId,
+              provider: buildProvider(opts.provider, modelId),
+            })),
+          )
+        : undefined;
+    const budget = deriveExecutionBudget(opts.concurrency, metadata);
+
+    config = {
+      planDir: opts.planDir,
+      repoRoot,
+      concurrency: budget.concurrency,
+      requestedConcurrency: opts.concurrency,
+      maxIterations: opts.maxIterations,
+      maxDepth: opts.maxDepth,
+      dryRun: opts.dryRun,
+      cycleThreshold: opts.cycleThreshold,
+      strictIntegrity: opts.strictIntegrity,
+      maxNewFilesPerAction: opts.maxNewFilesPerAction,
+      maxTokensPerCall: budget.maxTokensPerCall,
+      quarantineBranch: opts.quarantineBranch,
+      modelMetadata: metadata,
+      provider,
+      modelSelector,
+      fs,
+      git,
+      clock,
+      sleeper,
+    };
+
+    console.log(`[guardian] Starting Plan Guardian`);
+    console.log(`[guardian] Provider: ${opts.provider}/${opts.models[0]}`);
+    if (modelSelector) {
+      console.log(`[guardian] Model priority: ${modelSelector.modelIds.join(' → ')}`);
+    }
+    console.log(`[guardian] Concurrency: ${config.concurrency} (requested ${config.requestedConcurrency}) | Max iterations: ${opts.maxIterations} | Dry run: ${opts.dryRun}`);
+    console.log(`[guardian] Strict integrity: ${opts.strictIntegrity} | Max new files/action: ${opts.maxNewFilesPerAction} | Quarantine branch: ${opts.quarantineBranch ?? 'none'}`);
+    console.log(`[guardian] Max tokens/call: ${config.maxTokensPerCall}`);
+
+    debugLog.log('startup', 'guardian started', {
+      provider: opts.provider,
+      models: opts.models,
+      requestedConcurrency: config.requestedConcurrency,
+      effectiveConcurrency: config.concurrency,
+      maxTokensPerCall: config.maxTokensPerCall,
+      strictIntegrity: config.strictIntegrity,
+      quarantineBranch: config.quarantineBranch ?? null,
+      metadata,
+      budgetNotes: budget.notes,
+    });
+  }
 
   const handle = runScheduler(config, {
     onEpochStart(epoch, batchSize) {

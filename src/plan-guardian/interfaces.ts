@@ -95,6 +95,8 @@ export interface WorkerResult {
   action: PlanningAction;
   tokensUsed: { prompt: number; completion: number };
   latencyMs: number;
+  /** Dollar cost reported by the agentic CLI for this action, if known. */
+  costUsd?: number;
 }
 
 export interface DispatchItem {
@@ -111,6 +113,12 @@ export interface IGitOperations {
   commit(message: string, branch?: string): Promise<string>;
   status(): Promise<string>;
   stagedPaths(): Promise<string[]>;
+  /**
+   * Discard working-tree changes to `paths`: revert tracked modifications to
+   * HEAD and remove any untracked files among them. Used by agentic mode to
+   * roll back an edit that fails the integrity gate.
+   */
+  restore(paths: string[]): Promise<void>;
 }
 
 // ── Clock ───────────────────────────────────────────────────
@@ -153,4 +161,18 @@ export interface GuardianConfig {
   git: IGitOperations;
   clock: IClock;
   sleeper: ISleeper;
+
+  // ── Agentic mode (Claude Code CLI / Ralph-Wiggum) ──────────
+  /**
+   * Execution brain. 'provider' (default) calls an inference API and applies
+   * parsed file blocks. 'agentic' shells out to the Claude Code CLI, which
+   * edits files directly; the scheduler commits the observed diff.
+   */
+  executionMode?: 'provider' | 'agentic';
+  /** Claude CLI invoker — required when executionMode === 'agentic'. */
+  claudeInvoker?: import('./claude-invoker.js').ClaudeInvoker;
+  /** Plan root file passed to the CLI as whole-plan context (agentic mode). */
+  rootPlanFile?: string;
+  /** Per-invocation timeout for the Claude CLI in ms (agentic mode). */
+  claudeTimeoutMs?: number;
 }

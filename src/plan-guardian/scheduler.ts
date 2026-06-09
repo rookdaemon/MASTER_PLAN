@@ -23,6 +23,7 @@ import { buildDAG } from './dag.js';
 import { prioritize, selectIndependentBatch } from './priority.js';
 import { runPlanningWorker } from './worker.js';
 import { runExecutionWorker } from './executor.js';
+import { runAgenticWorker } from './agentic-worker.js';
 import {
   buildSnapshotWithActions,
   validateActionIntegrity,
@@ -136,7 +137,8 @@ export function runScheduler(
     }
 
     const nowMs = getClockMs(config);
-    const epochResult = await runEpoch(
+    const runEpochFn = config.executionMode === 'agentic' ? runAgenticEpoch : runEpoch;
+    const epochResult = await runEpochFn(
       epoch,
       config,
       { ...callbacks, onEpochStart: undefined, onEpochEnd: undefined },
@@ -428,6 +430,138 @@ export async function runEpoch(
   };
   callbacks.onEpochEnd?.(epochResult);
   return epochResult;
+}
+
+/**
+ * Agentic epoch — drives one card per epoch through the Claude Code CLI.
+ *
+ * Same signature as `runEpoch`, so `runScheduler` can pick either runner. The
+ * brain is the CLI (it edits files on disk); this function reuses the guardian's
+ * task selection, integrity gate, and git commit, committing the OBSERVED diff
+ * rather than applying parsed blocks. Agentic mode is strictly serial — exactly
+ * one card per epoch — so the working tree stays clean between commits.
+ */
+export async function runAgenticEpoch(
+  epoch: number,
+  config: GuardianConfig,
+  callbacks: SchedulerCallbacks = {},
+  blockedTasks: ReadonlyMap<string, BlockedTaskState> = new Map(),
+  queuedBatch?: readonly QueuedDispatchItem[],
+): Promise<EpochResult> {
+  const { fs, git, clock, planDir, dryRun } = config;
+  const now = clock.now();
+  const nowMs = Number.isFinite(Date.parse(now)) ? Date.parse(now) : Date.now();
+
+  const dag = await buildDAG(fs, planDir);
+  const fullBatch = queuedBatch
+    ? buildDispatchBatchFromQueue(queuedBatch, dag, blockedTasks, nowMs)
+    : selectIndependentBatch(
+        prioritize(dag, now).filter(candidate => {
+          const blocked = blockedTasks.get(candidate.task.path);
+          return !blocked || blocked.resumeAtMs <= nowMs;
+        }),
+        1,
+      );
+  // Strictly serial: one card per epoch keeps the working tree clean so the
+  // observed diff is exactly this card's edit.
+  const batch = fullBatch.slice(0, 1);
+
+  const base = (over: Partial<EpochResult>): EpochResult => ({
+    epoch,
+    dispatched: 0,
+    completed: 0,
+    failed: 0,
+    rateLimitFailures: 0,
+    rateLimitBackoffHintMs: 0,
+    rateLimitReasons: [],
+    dispatchedTaskPaths: [],
+    rateLimitedTasks: [],
+    commits: [],
+    totalTokens: { prompt: 0, completion: 0 },
+    ...over,
+  });
+
+  if (batch.length === 0) return base({});
+
+  if (!queuedBatch) callbacks.onEpochStart?.(epoch, batch.length);
+
+  const invoker = config.claudeInvoker;
+  if (!invoker) throw new Error('agentic mode requires config.claudeInvoker');
+
+  const agenticConfig = {
+    rootPlanFile: config.rootPlanFile ?? `${planDir}/root.md`,
+    planDir,
+    claudeTimeoutMs: config.claudeTimeoutMs ?? 5 * 60 * 1000,
+  };
+
+  const item = batch[0];
+  const dispatchedTaskPaths = [item.task.path];
+  callbacks.onWorkerStart?.(item.task.path, item.actionType);
+
+  let result: WorkerResult;
+  try {
+    result = await runAgenticWorker(item, { invoker, fs, git }, now, nowMs, agenticConfig);
+  } catch (err) {
+    if (isRateLimitError(err)) {
+      const hintMs = parseRateLimitBackoffHintMs(err, nowMs);
+      const reason = extractRateLimitReason(err);
+      callbacks.onWorkerError?.(item.task.path, err as Error);
+      return base({
+        dispatched: 1,
+        failed: 1,
+        rateLimitFailures: 1,
+        rateLimitBackoffHintMs: hintMs,
+        rateLimitReasons: [reason],
+        dispatchedTaskPaths,
+        rateLimitedTasks: [{ path: item.task.path, reason, hintMs }],
+      });
+    }
+    callbacks.onWorkerError?.(item.task.path, err as Error);
+    return base({ dispatched: 1, failed: 1, dispatchedTaskPaths });
+  }
+
+  // No-op: Claude made no change → this card has converged for now.
+  if (result.action.writeSet.length === 0) {
+    callbacks.onWorkerComplete?.(result);
+    return base({ dispatched: 1, completed: 1, dispatchedTaskPaths });
+  }
+
+  // Integrity gate (artifact-or-nothing): reject + revert the on-disk edit if invalid.
+  if (config.strictIntegrity) {
+    const baselineNodes = dag.nodes;
+    const verdict = validateActionIntegrity(result.action, baselineNodes, config);
+    const graphVerdict = verdict.valid
+      ? validateGraphIntegrity(buildSnapshotWithActions(baselineNodes, [result.action]), planDir)
+      : { valid: true, errors: [] };
+    if (!verdict.valid || !graphVerdict.valid) {
+      const errors = [...verdict.errors, ...graphVerdict.errors];
+      await git.restore(result.action.writeSet);
+      callbacks.onWorkerError?.(
+        item.task.path,
+        new Error(`Integrity gate failed in ${item.task.path}: ${errors.join('; ')}`),
+      );
+      return base({ dispatched: 1, failed: 1, dispatchedTaskPaths });
+    }
+  }
+
+  // Dry-run is a genuine preview: undo Claude's edit, report what would happen.
+  if (dryRun) {
+    await git.restore(result.action.writeSet);
+    callbacks.onWorkerComplete?.(result);
+    return base({ dispatched: 1, completed: 1, dispatchedTaskPaths });
+  }
+
+  const commits: string[] = [];
+  await git.add(result.action.writeSet);
+  if ((await git.stagedPaths()).length > 0) {
+    const message = `[guardian] epoch ${epoch}: ${result.action.summary}`;
+    const hash = await git.commit(message, config.quarantineBranch);
+    commits.push(hash);
+    callbacks.onCommit?.(hash, message);
+  }
+  callbacks.onWorkerComplete?.(result);
+
+  return base({ dispatched: 1, completed: 1, dispatchedTaskPaths, commits });
 }
 
 // ── Internal ────────────────────────────────────────────────

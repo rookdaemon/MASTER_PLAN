@@ -31,4 +31,12 @@ describe('InMemoryGitOperations', () => {
     await git.commit('c');
     expect(await git.stagedPaths()).toEqual([]);
   });
+
+  it('records restore calls and unstages those paths', async () => {
+    const git = new InMemoryGitOperations();
+    await git.add(['plan/a.md', 'plan/b.md']);
+    await git.restore(['plan/a.md']);
+    expect(git.restores).toEqual([['plan/a.md']]);
+    expect((await git.stagedPaths()).sort()).toEqual(['plan/b.md']);
+  });
 });
