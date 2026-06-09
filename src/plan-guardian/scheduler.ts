@@ -501,6 +501,17 @@ export async function runAgenticEpoch(
 
   if (batch.length === 0) return base({});
 
+  // Clean-tree invariant: an agentic epoch captures the post-Claude git diff as
+  // the action. Any pre-existing uncommitted changes would be wrongly swept into
+  // that commit, so refuse to run on a dirty tree (commit/stash first).
+  const preStatus = (await git.status()).trim();
+  if (preStatus.length > 0) {
+    throw new Error(
+      `Refusing agentic epoch: the working tree has uncommitted changes. ` +
+        `Commit or stash them first so only Claude's edits are captured.\n${preStatus}`,
+    );
+  }
+
   if (!queuedBatch) callbacks.onEpochStart?.(epoch, batch.length);
 
   const invoker = config.claudeInvoker;

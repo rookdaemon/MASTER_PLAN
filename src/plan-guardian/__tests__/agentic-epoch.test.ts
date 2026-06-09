@@ -34,13 +34,19 @@ function makeFs(): InMemoryFileSystem {
   return fs;
 }
 
-/** git double whose porcelain status is scripted; add/commit/restore inherited. */
+/**
+ * git double modelling clean-before / dirty-after: status() is clean until an
+ * editing invoker flips `dirty` (simulating Claude editing the tree), then
+ * returns the scripted porcelain. Matches how the real tree behaves across an
+ * epoch (clean at the pre-flight check, dirty after Claude's edit).
+ */
 class ScriptedGit extends InMemoryGitOperations {
+  dirty = false;
   constructor(private porcelain: string) {
     super();
   }
   override async status(): Promise<string> {
-    return this.porcelain;
+    return this.dirty ? this.porcelain : '';
   }
 }
 
@@ -87,6 +93,7 @@ describe('runAgenticEpoch', () => {
     const invoker: ClaudeInvoker = {
       invoke() {
         fs.writeFile('plan/0.0-alpha.md', ALPHA.replace('A task.', 'A task, now refined.'), 'utf-8');
+        git.dirty = true;
         return JSON.stringify({ type: 'result', result: 'refined', total_cost_usd: 0.01 });
       },
     };
@@ -112,6 +119,7 @@ describe('runAgenticEpoch', () => {
       invoke() {
         // Wrong heading id for the path → validateActionIntegrity rejects it.
         fs.writeFile('plan/0.0.1-sub.md', '---\nparent: plan/0.0-alpha.md\nroot: plan/root.md\n---\n# 9.9 Wrong [PLAN]\n', 'utf-8');
+        git.dirty = true;
         return JSON.stringify({ result: 'decomposed' });
       },
     };
@@ -214,12 +222,33 @@ describe('runAgenticEpoch', () => {
     expect(invokedCards.sort()).toEqual(['plan/0.0-alpha.md', 'plan/0.1-beta.md']);
   });
 
+  it('refuses to run on a dirty working tree (so unrelated changes are not swept into the commit)', async () => {
+    const fs = makeFs();
+    const git = new ScriptedGit(' M plan/some-unrelated-edit.md');
+    git.dirty = true; // pre-existing uncommitted changes before the epoch starts
+    let invoked = false;
+    const invoker: ClaudeInvoker = {
+      invoke() {
+        invoked = true;
+        return JSON.stringify({ result: 'should not be called' });
+      },
+    };
+    const config = makeConfig({ fs, git, claudeInvoker: invoker });
+
+    await expect(
+      runAgenticEpoch(0, config, {}, new Map(), queue('refine') as never),
+    ).rejects.toThrow(/uncommitted|clean tree|working tree/i);
+    expect(invoked).toBe(false); // never spawned Claude on a dirty tree
+    expect(git.commits).toHaveLength(0);
+  });
+
   it('dry-run reverts instead of committing (genuine preview)', async () => {
     const fs = makeFs();
     const git = new ScriptedGit(' M plan/0.0-alpha.md');
     const invoker: ClaudeInvoker = {
       invoke() {
         fs.writeFile('plan/0.0-alpha.md', ALPHA.replace('A task.', 'refined'), 'utf-8');
+        git.dirty = true;
         return JSON.stringify({ result: 'refined' });
       },
     };
