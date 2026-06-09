@@ -145,3 +145,20 @@ function validateProvider(value: string): LlmProvider {
   }
   return value as LlmProvider;
 }
+
+const VALID_MODEL_TIERS = new Set<string>(['haiku', 'sonnet', 'opus']);
+const VALID_EFFORTS = new Set<string>(['low', 'medium', 'high', 'xhigh', 'max']);
+
+function validateModelTier(value: string): ModelTier {
+  if (!VALID_MODEL_TIERS.has(value)) {
+    throw new Error(`Invalid model tier: ${value}. Must be one of: ${[...VALID_MODEL_TIERS].join(', ')}`);
+  }
+  return value as ModelTier;
+}
+
+function validateEffort(value: string): EffortLevel {
+  if (!VALID_EFFORTS.has(value)) {
+    throw new Error(`Invalid effort level: ${value}. Must be one of: ${[...VALID_EFFORTS].join(', ')}`);
+  }
+  return value as EffortLevel;
+}
