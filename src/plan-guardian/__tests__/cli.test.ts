@@ -54,6 +54,26 @@ describe('parseCli', () => {
     expect(opts.claudeTimeoutMs).toBe(120000);
   });
 
+  it('parses model/effort policy bounds', () => {
+    const opts = parseCli([
+      'node', 'main.ts', '--agentic',
+      '--model-ceiling', 'sonnet', '--model-floor', 'haiku', '--effort-ceiling', 'high',
+    ]);
+    expect(opts.modelCeiling).toBe('sonnet');
+    expect(opts.modelFloor).toBe('haiku');
+    expect(opts.effortCeiling).toBe('high');
+  });
+
+  it('rejects an invalid model tier', () => {
+    expect(() => parseCli(['node', 'main.ts', '--model-ceiling', 'gpt']))
+      .toThrow(/model tier/i);
+  });
+
+  it('rejects an invalid effort level', () => {
+    expect(() => parseCli(['node', 'main.ts', '--effort-ceiling', 'turbo']))
+      .toThrow(/effort/i);
+  });
+
   it('rejects invalid provider', () => {
     expect(() => parseCli(['node', 'main.ts', '--provider', 'invalid']))
       .toThrow('Invalid provider');

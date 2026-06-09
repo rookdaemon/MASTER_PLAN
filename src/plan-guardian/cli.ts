@@ -11,6 +11,9 @@ export type LlmProvider = 'anthropic' | 'openai' | 'openrouter' | 'local';
 
 export type ExecutionMode = 'provider' | 'agentic';
 
+export type ModelTier = 'haiku' | 'sonnet' | 'opus';
+export type EffortLevel = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
 export interface CliOptions {
   planDir: string;
   /**
