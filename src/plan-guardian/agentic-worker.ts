@@ -91,10 +91,11 @@ export async function runAgenticWorker(
 
   const id = item.task.path.split('/').pop()?.replace(/\.md$/, '') ?? item.task.numericId;
   const totalChanged = filesCreated.length + filesModified.length + changed.deleted.length;
+  const tag = `${model}·${effort}`;
   const summary =
     totalChanged === 0
-      ? `${id}: ${item.actionType} (no change)`
-      : `${id}: ${item.actionType} (${totalChanged} file${totalChanged === 1 ? '' : 's'} changed)`;
+      ? `${id}: ${item.actionType} [${tag}] (no change)`
+      : `${id}: ${item.actionType} [${tag}] (${totalChanged} file${totalChanged === 1 ? '' : 's'} changed)`;
 
   const action: PlanningAction = {
     type: item.actionType,
