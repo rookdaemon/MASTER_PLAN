@@ -18,6 +18,7 @@ import type { DispatchItem, IGitOperations, PlanningAction, WorkerResult } from 
 import { buildClaudeArgs, parseClaudeOutput, type ClaudeInvoker } from './claude-invoker.js';
 import { buildAgenticSystemPrompt } from './prompts.js';
 import { normalizePlanPath } from './actions.js';
+import { selectModelEffort, type ModelPolicyBounds, type ModelTier } from './agentic-model-policy.js';
 
 export interface AgenticWorkerDeps {
   invoker: ClaudeInvoker;
@@ -29,6 +30,13 @@ export interface AgenticWorkerConfig {
   rootPlanFile: string;
   planDir: string;
   claudeTimeoutMs: number;
+  /** Optional bounds for the per-card model/effort policy. */
+  modelBounds?: ModelPolicyBounds;
+}
+
+/** One tier down, for --fallback-model on overload. Opus→sonnet→haiku→none. */
+function fallbackFor(model: ModelTier): string | undefined {
+  return model === 'opus' ? 'sonnet' : model === 'sonnet' ? 'haiku' : undefined;
 }
 
 export interface ChangedFiles {

@@ -92,17 +92,18 @@ const DEFAULT_INSTRUCTION =
  */
 export function buildClaudeArgs(input: ClaudeArgsInput): string[] {
   const userTurn = `@${input.cardPath} @${input.rootPlanFile}\n\n${input.instruction ?? DEFAULT_INSTRUCTION}`;
-  return [
+  const args = [
     '--dangerously-skip-permissions',
     '--print',
     '--output-format',
     'json',
     '--no-session-persistence',
-    '--append-system-prompt',
-    input.systemPrompt,
-    '--',
-    userTurn,
   ];
+  if (input.model) args.push('--model', input.model);
+  if (input.effort) args.push('--effort', input.effort);
+  if (input.fallbackModel) args.push('--fallback-model', input.fallbackModel);
+  args.push('--append-system-prompt', input.systemPrompt, '--', userTurn);
+  return args;
 }
 
 // ── Output parsing ───────────────────────────────────────────
