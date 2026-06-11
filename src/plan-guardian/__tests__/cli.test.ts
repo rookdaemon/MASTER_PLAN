@@ -54,6 +54,11 @@ describe('parseCli', () => {
     expect(opts.claudeTimeoutMs).toBe(120000);
   });
 
+  it('defaults proceduralRollup to false and parses --procedural-rollup', () => {
+    expect(parseCli(['node', 'main.ts']).proceduralRollup).toBe(false);
+    expect(parseCli(['node', 'main.ts', '--procedural-rollup']).proceduralRollup).toBe(true);
+  });
+
   it('parses model/effort policy bounds', () => {
     const opts = parseCli([
       'node', 'main.ts', '--agentic',

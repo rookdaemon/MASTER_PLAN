@@ -147,18 +147,26 @@ Filename rule: the numeric ID in a card's H1 must exactly match the numeric ID p
 
 const AGENTIC_OPERATIONS = `## Your job
 
-Assess this card and perform the single most valuable next operation to move it toward [DONE]. Pick the operation that fits the card's actual state — do not force one that doesn't apply:
+First ASSESS this card honestly — never assume it's fine just because of its status or because its children are done. Ask:
+- Is the **description** concrete and complete enough to act on?
+- Are the **acceptance criteria** present, specific, and testable?
+- Is the content **consistent** with its parent, siblings, and children (no contradictions, stale references, or gaps the children don't cover)?
+- For a **node**: are the children the *right* decomposition, and does this card still need its own synthesis/integration (a summary tying children together, cross-references, an updated file manifest)?
+- For a **leaf**: do the decisions/contracts/specs hold up, and do the referenced artifacts actually exist and meet the criteria?
 
-- **ADVANCE** — If the card's content already satisfies its acceptance criteria (for a leaf: decisions/contracts/specs are present and any referenced implementation + tests exist and pass; for a node: all children are [DONE]), advance its H1 status one step along PLAN → ARCHITECT → IMPLEMENT → REVIEW → DONE. A complete, already-implemented card should be advanced, not re-planned.
-- **DECOMPOSE** — Only if the card is too large or abstract to implement directly, break it into 2-5 child cards: create each child file (full dotted child ID in heading and path, parent/root frontmatter) and add them to this card's \`children:\` frontmatter. Keep this card's status [PLAN].
-- **REFINE** — If the card is underspecified, add a concrete description, 3-5 acceptance criteria, and a file manifest.
-- **IMPLEMENT** — If the card is [ARCHITECT]/[IMPLEMENT] and specifies artifacts to build, create or update those files, then advance the status.
+Then perform the single most valuable operation to close the biggest real gap:
+
+- **ADVANCE** — Move the H1 status one step along PLAN → ARCHITECT → IMPLEMENT → REVIEW → DONE. Do this when the card genuinely satisfies its acceptance criteria for the next phase (for a node, that includes its children being [DONE] AND its own synthesis being complete).
+- **DECOMPOSE** — Only if the card is too large or abstract to implement directly, break it into 2-5 child cards (full dotted child ID in heading and path, parent/root frontmatter; add them to this card's \`children:\`). Keep status [PLAN].
+- **REFINE** — If under-specified or improvable in a material way, add/sharpen the description, acceptance criteria, file manifest, or fix an inconsistency.
+- **IMPLEMENT** — If [ARCHITECT]/[IMPLEMENT] and artifacts are specified, create/update those files, then advance.
 - **RECONCILE** — If parent/child links are broken or stale, repair the frontmatter.
 
-Rules:
-- Perform exactly ONE operation, then stop.
-- Append a one-line entry to the card's "## Revision History" recording the operation and the timestamp.
-- Leave the card unchanged ONLY if it is already [DONE] and structurally correct — otherwise always make forward progress.`;
+Convergence rules (important — avoid both premature DONE and endless polishing):
+- Perform exactly ONE operation, then stop, and append a one-line "## Revision History" entry (operation + timestamp).
+- ADVANCE decisively once the acceptance criteria for the next phase are met — do NOT keep polishing a card that already meets its criteria; advancing IS the forward progress.
+- Conversely, do NOT advance (especially to [DONE]) while a *material* gap remains — fix the gap instead.
+- Make NO change ONLY when the card is already [DONE] and correct, OR it fully meets its current-phase criteria and cannot advance yet (e.g. blocked). "Could be marginally nicer" is not a reason to edit — reserve edits for material gaps and genuine advancement.`;
 
 /**
  * System prompt for agentic mode. Unlike provider mode (which executes one

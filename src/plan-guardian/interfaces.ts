@@ -183,4 +183,11 @@ export interface GuardianConfig {
    * to main serially. Absent → single-card serial agentic on the main tree.
    */
   worktreePool?: import('./worktree-pool.js').IWorktreePool;
+  /**
+   * When true, a node whose children are all DONE is rolled up to DONE
+   * deterministically (no model call). Default false: instead the model runs a
+   * completion-review to confirm the card's own criteria are met / fix gaps
+   * before advancing. (Agentic mode.)
+   */
+  proceduralRollup?: boolean;
 }

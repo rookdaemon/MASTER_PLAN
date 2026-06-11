@@ -41,6 +41,21 @@ import {
   MAX_BACKOFF_MS as MAX_RATE_LIMIT_BACKOFF_MS,
 } from './model-selector.js';
 
+/**
+ * Appended to the user turn when a card's children are all DONE: turns the old
+ * rubber-stamp roll-up into a genuine completion-review.
+ */
+const FINALIZE_NOTE =
+  'NOTE: every child of this card is already [DONE]. Do not simply mark this card DONE — first verify THIS card itself: are its own acceptance criteria fully met, and is its synthesis/integration complete (a summary tying the children together, accurate cross-references, an up-to-date file manifest)? If it is genuinely complete, ADVANCE its status to DONE. If a material gap remains, fix the single biggest gap and leave the status unchanged (it will be reviewed again).';
+
+/**
+ * Safety net against endless "betterment": once a card has been committed this
+ * many times in a run without reaching DONE, it is settled for the rest of the
+ * run. Generous enough for the full PLAN→ARCHITECT→IMPLEMENT→REVIEW→DONE
+ * lifecycle plus a few refinements.
+ */
+const MAX_COMMITS_PER_CARD = 8;
+
 export interface EpochResult {
   epoch: number;
   dispatched: number;
@@ -97,6 +112,10 @@ export function runScheduler(
   // re-selection. Cleared whenever any epoch commits, so progress elsewhere
   // re-opens previously-settled cards (e.g. a node once its children advance).
   const settledTasks = new Set<string>();
+  // Cards committed too many times without reaching DONE — permanently settled
+  // for the run to bound "betterment" churn. NOT cleared on commit.
+  const overworkedTasks = new Set<string>();
+  const commitCountByCard = new Map<string, number>();
   const initialBackoffMs = getInitialRateLimitBackoffMs(config);
 
   const done = (async (): Promise<EpochResult[]> => {
@@ -111,7 +130,8 @@ export function runScheduler(
     if (stopRequested) break;
 
     if (activeQueue == null) {
-      activeQueue = await buildEpochQueue(config, blockedTasks, settledTasks);
+      const excluded = new Set<string>([...settledTasks, ...overworkedTasks]);
+      activeQueue = await buildEpochQueue(config, blockedTasks, excluded);
       if (activeQueue.length === 0) {
         const empty: EpochResult = {
           epoch,
@@ -172,6 +192,19 @@ export function runScheduler(
     }
     for (const path of epochResult.noChangeTaskPaths ?? []) {
       settledTasks.add(path);
+    }
+
+    // Churn cap: count commits per card; a card committed too many times without
+    // reaching DONE is permanently settled so "betterment" can't loop forever.
+    const noChange = new Set(epochResult.noChangeTaskPaths ?? []);
+    const rateLimited = new Set(epochResult.rateLimitedTasks.map(t => t.path));
+    if (epochResult.commits.length > 0) {
+      for (const path of epochResult.dispatchedTaskPaths) {
+        if (noChange.has(path) || rateLimited.has(path)) continue;
+        const n = (commitCountByCard.get(path) ?? 0) + 1;
+        commitCountByCard.set(path, n);
+        if (n >= MAX_COMMITS_PER_CARD) overworkedTasks.add(path);
+      }
     }
 
     const rateLimitedPaths = new Set(epochResult.rateLimitedTasks.map(task => task.path));
@@ -535,11 +568,15 @@ export async function runAgenticEpoch(
   const dispatchedTaskPaths = [item.task.path];
   callbacks.onWorkerStart?.(item.task.path, item.actionType);
 
-  // Procedural status roll-up: a node whose children are all DONE becomes DONE
-  // deterministically. This is a pure state transition, not a judgment call —
-  // so we never spend a model call (or a CLI invocation) on it.
+  // A node whose children are all DONE is a candidate to finalize. With
+  // --procedural-rollup it's marked DONE deterministically (no model call);
+  // otherwise the model runs a completion-review (verify own criteria / fix gaps
+  // before advancing) via the contextNote below.
   const children = dag.childrenOf(item.task.path);
-  if (item.task.status !== 'DONE' && children.length > 0 && children.every(c => c.status === 'DONE')) {
+  const childrenAllDone =
+    item.task.status !== 'DONE' && children.length > 0 && children.every(c => c.status === 'DONE');
+
+  if (childrenAllDone && config.proceduralRollup) {
     const det = makeDeterministicStatusUpdate(item, now);
     const commits: string[] = [];
     if (!dryRun) {
@@ -558,7 +595,10 @@ export async function runAgenticEpoch(
 
   let result: WorkerResult;
   try {
-    result = await runAgenticWorker(item, { invoker, fs, git }, now, nowMs, agenticConfig);
+    result = await runAgenticWorker(item, { invoker, fs, git }, now, nowMs, {
+      ...agenticConfig,
+      contextNote: childrenAllDone ? FINALIZE_NOTE : undefined,
+    });
   } catch (err) {
     if (isRateLimitError(err)) {
       const hintMs = parseRateLimitBackoffHintMs(err, nowMs);
@@ -713,9 +753,9 @@ export async function runAgenticParallelEpoch(
   const outcomes = await Promise.all(
     batch.map(async (item, i): Promise<RunOutcome> => {
       const children = dag.childrenOf(item.task.path);
-      const isRollup =
+      const childrenAllDone =
         item.task.status !== 'DONE' && children.length > 0 && children.every(c => c.status === 'DONE');
-      if (isRollup) {
+      if (childrenAllDone && config.proceduralRollup) {
         callbacks.onWorkerStart?.(item.task.path, item.actionType, 'procedural');
         return { kind: 'procedural', item, result: makeDeterministicStatusUpdate(item, now) };
       }
@@ -728,6 +768,7 @@ export async function runAgenticParallelEpoch(
           ...agenticConfig,
           worktreeDir: pool.dir(i),
           modelEffort: me,
+          contextNote: childrenAllDone ? FINALIZE_NOTE : undefined,
         });
         return { kind: 'ok', item, result };
       } catch (err) {

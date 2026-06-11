@@ -27,6 +27,8 @@ export interface CliOptions {
   modelFloor?: ModelTier;
   modelCeiling?: ModelTier;
   effortCeiling?: EffortLevel;
+  /** Use the cheap deterministic node roll-up instead of a model completion-review. */
+  proceduralRollup: boolean;
   provider: LlmProvider;
   /** Priority-ordered model list; index 0 is most preferred. */
   models: string[];
@@ -44,6 +46,7 @@ const DEFAULTS: CliOptions = {
   planDir: 'plan',
   executionMode: 'provider',
   claudeTimeoutMs: 5 * 60 * 1000,
+  proceduralRollup: false,
   provider: 'openrouter',
   models: [
     'nvidia/nemotron-3-super-120b-a12b:free',
@@ -129,6 +132,9 @@ export function parseCli(argv: string[]): CliOptions {
         break;
       case '--effort-ceiling':
         opts.effortCeiling = validateEffort(next());
+        break;
+      case '--procedural-rollup':
+        opts.proceduralRollup = true;
         break;
       default:
         throw new Error(`Unknown argument: ${arg}`);

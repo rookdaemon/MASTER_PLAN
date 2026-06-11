@@ -73,6 +73,8 @@ export interface ClaudeArgsInput {
   effort?: string;
   /** `--fallback-model` used when the primary is overloaded. */
   fallbackModel?: string;
+  /** Extra context appended to the user turn (e.g. "all children are DONE — verify this card"). */
+  contextNote?: string;
 }
 
 const DEFAULT_INSTRUCTION =
@@ -93,7 +95,8 @@ const DEFAULT_INSTRUCTION =
  * full agent and adds our planning guidance.
  */
 export function buildClaudeArgs(input: ClaudeArgsInput): string[] {
-  const userTurn = `@${input.cardPath} @${input.rootPlanFile}\n\n${input.instruction ?? DEFAULT_INSTRUCTION}`;
+  const note = input.contextNote ? `\n\n${input.contextNote}` : '';
+  const userTurn = `@${input.cardPath} @${input.rootPlanFile}\n\n${input.instruction ?? DEFAULT_INSTRUCTION}${note}`;
   const args = [
     '--dangerously-skip-permissions',
     '--print',

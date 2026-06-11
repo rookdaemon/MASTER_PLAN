@@ -116,6 +116,7 @@ async function main() {
         effortCeiling: opts.effortCeiling,
       },
       worktreePool: agenticPool,
+      proceduralRollup: opts.proceduralRollup,
     };
 
     console.log(`[guardian] Starting Plan Guardian (AGENTIC — Claude Code CLI)`);

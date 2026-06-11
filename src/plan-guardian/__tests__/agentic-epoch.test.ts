@@ -222,7 +222,7 @@ describe('runAgenticEpoch', () => {
     expect(invokedCards.sort()).toEqual(['plan/0.0-alpha.md', 'plan/0.1-beta.md']);
   });
 
-  it('rolls a node up to DONE procedurally when all children are DONE — no Claude call', async () => {
+  it('rolls a node up to DONE procedurally when all children are DONE and --procedural-rollup is set — no Claude call', async () => {
     const fs = new InMemoryFileSystem();
     fs.writeFile(
       'plan/root.md',
@@ -249,7 +249,7 @@ describe('runAgenticEpoch', () => {
       },
     };
     const git = new ScriptedGit('');
-    const config = makeConfig({ fs, git, claudeInvoker: invoker });
+    const config = makeConfig({ fs, git, claudeInvoker: invoker, proceduralRollup: true });
 
     const result = await runAgenticEpoch(0, config, {}, new Map(), [
       { path: 'plan/0.0-alpha.md', actionType: 'status-update', writeSet: ['plan/0.0-alpha.md'] },
@@ -261,6 +261,30 @@ describe('runAgenticEpoch', () => {
     expect(git.commits).toHaveLength(1);
     const written = await fs.readFile('plan/0.0-alpha.md', 'utf-8');
     expect(written).toContain('# 0.0 Alpha [DONE]');
+  });
+
+  it('by default (no --procedural-rollup) runs a model completion-review when children are all DONE', async () => {
+    const fs = new InMemoryFileSystem();
+    fs.writeFile('plan/root.md', '---\nroot: plan/root.md\nchildren:\n  - plan/0.0-alpha.md\n---\n# 0 Root [PLAN]\n\nRoot.\n', 'utf-8');
+    fs.writeFile('plan/0.0-alpha.md', '---\nparent: plan/root.md\nroot: plan/root.md\nchildren:\n  - plan/0.0.1-sub.md\n---\n# 0.0 Alpha [PLAN]\n\nA node.\n', 'utf-8');
+    fs.writeFile('plan/0.0.1-sub.md', '---\nparent: plan/0.0-alpha.md\nroot: plan/root.md\n---\n# 0.0.1 Sub [DONE]\n\nDone.\n', 'utf-8');
+
+    let seenUserTurn = '';
+    const invoker: ClaudeInvoker = {
+      invoke(args) {
+        seenUserTurn = args[args.indexOf('--') + 1] ?? '';
+        return JSON.stringify({ result: 'nothing to do' }); // no edit → no-op (already complete)
+      },
+    };
+    const config = makeConfig({ fs, git: new ScriptedGit(''), claudeInvoker: invoker }); // proceduralRollup defaults false
+
+    await runAgenticEpoch(0, config, {}, new Map(), [
+      { path: 'plan/0.0-alpha.md', actionType: 'status-update', writeSet: ['plan/0.0-alpha.md'] },
+    ] as never);
+
+    // The model was asked to verify the card, not rubber-stamp it.
+    expect(seenUserTurn).toMatch(/every child .* is already \[DONE\]/i);
+    expect(seenUserTurn.toLowerCase()).toContain('do not simply mark this card done');
   });
 
   it('still calls Claude for a status-update when children are NOT all done', async () => {
@@ -300,6 +324,46 @@ describe('runAgenticEpoch', () => {
     ).rejects.toThrow(/uncommitted|clean tree|working tree/i);
     expect(invoked).toBe(false); // never spawned Claude on a dirty tree
     expect(git.commits).toHaveLength(0);
+  });
+
+  it('caps per-card commits so endless "betterment" cannot loop forever', async () => {
+    // A git double that is clean at each epoch's pre-flight, dirty after an edit,
+    // and clean again after commit.
+    class LoopGit extends InMemoryGitOperations {
+      dirty = false;
+      porcelain = ' M plan/0.0-alpha.md';
+      override async status(): Promise<string> {
+        return this.dirty ? this.porcelain : '';
+      }
+      override async commit(m: string, b?: string): Promise<string> {
+        this.dirty = false;
+        return super.commit(m, b);
+      }
+    }
+
+    const fs = new InMemoryFileSystem();
+    fs.writeFile('plan/root.md', '---\nroot: plan/root.md\nchildren:\n  - plan/0.0-alpha.md\n---\n# 0 Root [PLAN]\n\nRoot.\n', 'utf-8');
+    fs.writeFile('plan/0.0-alpha.md', '---\nparent: plan/root.md\nroot: plan/root.md\n---\n# 0.0 Alpha [PLAN]\n\nv0.\n', 'utf-8');
+    const git = new LoopGit();
+
+    // The agent always "improves" the card (commits) but never advances it to DONE.
+    let calls = 0;
+    const invoker: ClaudeInvoker = {
+      invoke() {
+        calls += 1;
+        fs.writeFile('plan/0.0-alpha.md', `---\nparent: plan/root.md\nroot: plan/root.md\n---\n# 0.0 Alpha [PLAN]\n\nv${calls}.\n`, 'utf-8');
+        git.dirty = true;
+        return JSON.stringify({ result: 'bettered' });
+      },
+    };
+    // No pool → single-card agentic path; generous maxIterations.
+    const config = makeConfig({ fs, git, claudeInvoker: invoker, maxIterations: 50 });
+
+    await runScheduler(config, {}).done;
+
+    // Without the cap this would run all 50 epochs; the cap stops it at 8 commits.
+    expect(git.commits.length).toBe(8);
+    expect(calls).toBe(8);
   });
 
   it('dry-run reverts instead of committing (genuine preview)', async () => {

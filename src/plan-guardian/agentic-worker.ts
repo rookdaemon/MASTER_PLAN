@@ -41,6 +41,8 @@ export interface AgenticWorkerConfig {
   worktreeDir?: string;
   /** Precomputed model/effort (so the orchestrator can decide once + display it). */
   modelEffort?: ModelEffort;
+  /** Extra context appended to the user turn (e.g. a completion-review note). */
+  contextNote?: string;
 }
 
 /** One tier down, for --fallback-model on overload. Opus→sonnet→haiku→none. */
@@ -75,6 +77,7 @@ export async function runAgenticWorker(
     model,
     effort,
     fallbackModel: fallbackFor(model),
+    contextNote: config.contextNote,
   });
 
   const worktreeDir = config.worktreeDir ?? '.';
