@@ -54,11 +54,8 @@ import { StabilitySentinel } from '../agency-stability/stability-sentinel.js';
 import type { IValueKernel } from '../agency-stability/interfaces.js';
 import type { AgentConfig } from './types.js';
 import { parseCliArgs } from './cli.js';
-import { SetupTokenAuthProvider, ApiKeyAuthProvider, NoopAuthProvider } from '../llm-substrate/auth-providers.js';
-import { AnthropicLlmClient } from '../llm-substrate/anthropic-llm-client.js';
-import { OpenAiLlmClient } from '../llm-substrate/openai-llm-client.js';
-import { AnthropicInferenceProvider } from '../llm-substrate/anthropic-inference-provider.js';
-import { OllamaInferenceProvider } from '../llm-substrate/ollama-inference-provider.js';
+import { SetupTokenAuthProvider } from '../llm-substrate/auth-providers.js';
+import { buildLlmClient as buildLlmClientShared, buildProvider as buildInferenceProviderShared } from '../llm-substrate/provider-factory.js';
 import { ensureSetupToken, FileTokenStore, StdinLineReader } from './setup-token.js';
 import type { LlmProvider } from '../llm-substrate/llm-substrate-adapter.js';
 import { MemorySystem } from '../memory/memory-system.js';
@@ -86,64 +83,24 @@ const config: AgentConfig = {
   warmStart: process.env['WARM_START'] === 'true',
 };
 
-// ── LLM client factory ──────────────────────────────────────
-// Used for simple text inference (one-shot mode, message-pipeline substrate).
+// ── LLM client / provider factories ─────────────────────────
+// Thin wrappers over the shared llm-substrate factory that add the
+// Anthropic OAuth setup-token fallback (Claude Code subscription path).
 
-const PROVIDER_DEFAULT_ENDPOINTS: Record<LlmProvider, string> = {
-  openai: "https://api.openai.com/v1",
-  anthropic: "https://api.anthropic.com/v1",
-  local: "http://localhost:11434/v1",
-};
-
-async function buildLlmClient(provider: LlmProvider, model: string) {
-  const endpoint = PROVIDER_DEFAULT_ENDPOINTS[provider];
-  const thinkingBudget = parseInt(process.env['THINKING_BUDGET_TOKENS'] ?? '0', 10);
-
-  switch (provider) {
-    case "anthropic": {
-      // Use setup-token (Claude Code subscription) by default; fall back to API key
-      const apiKey = process.env['LLM_API_KEY'];
-      if (apiKey) {
-        return new AnthropicLlmClient(model, new ApiKeyAuthProvider("anthropic", apiKey), endpoint, thinkingBudget);
-      }
-      const token = await ensureSetupToken(new FileTokenStore(), new StdinLineReader());
-      return new AnthropicLlmClient(model, new SetupTokenAuthProvider(token), endpoint, thinkingBudget);
-    }
-    case "openai":
-    case "local":
-    default: {
-      const apiKey = process.env['LLM_API_KEY'];
-      const auth = apiKey ? new ApiKeyAuthProvider(provider, apiKey) : new NoopAuthProvider();
-      return new OpenAiLlmClient(model, auth, endpoint);
-    }
-  }
+async function resolveAnthropicAuthOverride(): Promise<SetupTokenAuthProvider | undefined> {
+  if (process.env['LLM_API_KEY']) return undefined;
+  const token = await ensureSetupToken(new FileTokenStore(), new StdinLineReader());
+  return new SetupTokenAuthProvider(token);
 }
 
-// ── IInferenceProvider factory ───────────────────────────────
-// Used for the agent-loop inference cycle (supports full tool use).
+async function buildLlmClient(provider: LlmProvider, model: string) {
+  const auth = provider === 'anthropic' ? await resolveAnthropicAuthOverride() : undefined;
+  return buildLlmClientShared(provider, model, auth);
+}
 
 async function buildInferenceProvider(provider: LlmProvider, model: string) {
-  const endpoint = PROVIDER_DEFAULT_ENDPOINTS[provider];
-  const thinkingBudget = parseInt(process.env['THINKING_BUDGET_TOKENS'] ?? '0', 10);
-
-  switch (provider) {
-    case "anthropic": {
-      const apiKey = process.env['LLM_API_KEY'];
-      if (apiKey) {
-        return new AnthropicInferenceProvider(model, new ApiKeyAuthProvider("anthropic", apiKey), endpoint, thinkingBudget);
-      }
-      const token = await ensureSetupToken(new FileTokenStore(), new StdinLineReader());
-      return new AnthropicInferenceProvider(model, new SetupTokenAuthProvider(token), endpoint, thinkingBudget);
-    }
-    case "openai":
-    case "local":
-    default: {
-      // Both local (Ollama) and OpenAI-compatible endpoints use prompt-based tool injection
-      const apiKey = process.env['LLM_API_KEY'];
-      const auth = apiKey ? new ApiKeyAuthProvider(provider, apiKey) : new NoopAuthProvider();
-      return new OllamaInferenceProvider(model, auth, endpoint);
-    }
-  }
+  const auth = provider === 'anthropic' ? await resolveAnthropicAuthOverride() : undefined;
+  return buildInferenceProviderShared(provider, model, auth);
 }
 
 // ── One-shot mode ────────────────────────────────────────────

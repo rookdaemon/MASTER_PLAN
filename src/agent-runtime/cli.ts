@@ -16,11 +16,35 @@ import type { LlmProvider } from "../llm-substrate/llm-substrate-adapter.js";
 const VALID_PROVIDERS: readonly string[] = [
   "openai",
   "anthropic",
+  "openrouter",
   "local",
 ];
 
-const DEFAULT_MODEL = "claude-sonnet-4-20250514";
-const DEFAULT_PROVIDER: LlmProvider = "anthropic";
+const HARDCODED_MODEL_BY_PROVIDER: Record<LlmProvider, string> = {
+  anthropic: "claude-sonnet-4-20250514",
+  openrouter: "anthropic/claude-opus-4.6",
+  openai: "gpt-4o",
+  local: "llama3.1",
+};
+
+const DEFAULT_PROVIDER: LlmProvider = (() => {
+  const env = process.env['LLM_PROVIDER'];
+  return env && VALID_PROVIDERS.includes(env) ? (env as LlmProvider) : "anthropic";
+})();
+
+/**
+ * Default model for a given provider, resolved with this priority:
+ *   1. LLM_MODEL_<PROVIDER>  (e.g. LLM_MODEL_OPENROUTER)
+ *   2. LLM_MODEL             (global override)
+ *   3. Hardcoded per-provider default
+ */
+function defaultModelFor(provider: LlmProvider): string {
+  const perProvider = process.env[`LLM_MODEL_${provider.toUpperCase()}`];
+  if (perProvider && perProvider.trim().length > 0) return perProvider.trim();
+  const global = process.env['LLM_MODEL'];
+  if (global && global.trim().length > 0) return global.trim();
+  return HARDCODED_MODEL_BY_PROVIDER[provider];
+}
 
 export interface CliOptions {
   mode: "one-shot" | "agent-loop" | "web" | "sim";
@@ -43,7 +67,7 @@ export function parseCliArgs(argv: readonly string[]): CliOptions {
   const args = argv.slice(2);
 
   let prompt: string | undefined;
-  let model: string = DEFAULT_MODEL;
+  let modelOverride: string | undefined;
   let provider: LlmProvider = DEFAULT_PROVIDER;
   let stateDir: string | undefined;
   let webMode = false;
@@ -70,7 +94,7 @@ export function parseCliArgs(argv: readonly string[]): CliOptions {
       if (value === undefined || value.startsWith("-")) {
         throw new Error(`"--model" requires a value (e.g. --model claude-sonnet-4-20250514)`);
       }
-      model = value;
+      modelOverride = value;
       i += 2;
       continue;
     }
@@ -135,7 +159,7 @@ export function parseCliArgs(argv: readonly string[]): CliOptions {
   return {
     mode: prompt !== undefined ? "one-shot" : simMode ? "sim" : webMode ? "web" : "agent-loop",
     prompt,
-    model,
+    model: modelOverride ?? defaultModelFor(provider),
     provider,
     stateDir,
     webPort,

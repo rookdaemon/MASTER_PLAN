@@ -22,7 +22,7 @@ import { runScheduler } from './scheduler.js';
 import { NodeFileSystem } from '../agent-runtime/filesystem.js';
 import { NodeGitOperations } from './git-state.js';
 import type { GuardianConfig } from './interfaces.js';
-import { buildProvider } from './provider-factory.js';
+import { buildProvider } from '../llm-substrate/provider-factory.js';
 import { fetchModelMetadata, deriveExecutionBudget } from './model-metadata.js';
 import { PriorityModelSelector } from './model-selector.js';
 import { GuardianDebugLog } from './debug-log.js';

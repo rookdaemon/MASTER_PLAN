@@ -7,7 +7,8 @@
  * Domain: Plan Guardian
  */
 
-export type LlmProvider = 'anthropic' | 'openai' | 'openrouter' | 'local';
+import type { LlmProvider } from '../llm-substrate/llm-substrate-adapter.js';
+export type { LlmProvider };
 
 export type ExecutionMode = 'provider' | 'agentic';
 export type AgenticProvider = 'claude' | 'codex';
