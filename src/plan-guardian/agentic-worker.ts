@@ -1,9 +1,9 @@
 /**
- * Agentic Worker — runs the Claude Code CLI on a single card (Ralph-Wiggum).
+ * Agentic Worker — runs an agentic CLI on a single card (Ralph-Wiggum).
  *
  * Unlike the provider worker (which calls an inference API and parses returned
  * text into file blocks that the scheduler then writes), the agentic worker
- * shells out to `claude`, which edits the plan files directly on disk. The
+ * shells out to a CLI that edits the plan files directly on disk. The
  * worker then OBSERVES the resulting git diff and packages it as a normal
  * `PlanningAction`, so the scheduler's integrity → commit pipeline is reused.
  *
@@ -17,9 +17,11 @@ import { join } from 'node:path';
 import type { IFileSystem } from '../agent-runtime/filesystem.js';
 import type { DispatchItem, IGitOperations, PlanningAction, WorkerResult } from './interfaces.js';
 import { buildClaudeArgs, parseClaudeOutput, type ClaudeInvoker } from './claude-invoker.js';
+import { buildCodexArgs, parseCodexOutput } from './codex-invoker.js';
 import { buildAgenticSystemPrompt } from './prompts.js';
 import { normalizePlanPath } from './actions.js';
 import { selectModelEffort, type ModelEffort, type ModelPolicyBounds, type ModelTier } from './agentic-model-policy.js';
+import type { AgenticProvider } from './cli.js';
 
 export interface AgenticWorkerDeps {
   invoker: ClaudeInvoker;
@@ -34,13 +36,17 @@ export interface AgenticWorkerConfig {
   /** Optional bounds for the per-card model/effort policy. */
   modelBounds?: ModelPolicyBounds;
   /**
-   * Directory Claude runs in and whose changed files are read back. Defaults to
+   * Directory the agentic CLI runs in and whose changed files are read back. Defaults to
    * '.' (the main tree). In parallel mode this is the agent's git worktree, so
    * its edits are isolated; the returned action paths stay repo-relative.
    */
   worktreeDir?: string;
   /** Precomputed model/effort (so the orchestrator can decide once + display it). */
   modelEffort?: ModelEffort;
+  /** Agentic CLI provider. Defaults to Claude for existing callers. */
+  agenticProvider?: AgenticProvider;
+  /** Optional provider-specific model id. Used by Codex as `-m`. */
+  agenticModel?: string;
   /** Extra context appended to the user turn (e.g. a completion-review note). */
   contextNote?: string;
 }
@@ -58,7 +64,7 @@ export interface ChangedFiles {
 
 /**
  * Run one agentic operation on `item.task`. Returns a `WorkerResult` whose
- * action reflects the files Claude changed on disk. Throws a rate-limit-shaped
+ * action reflects the files changed on disk. Throws a rate-limit-shaped
  * error if the CLI was rate limited.
  */
 export async function runAgenticWorker(
@@ -69,32 +75,52 @@ export async function runAgenticWorker(
   config: AgenticWorkerConfig,
 ): Promise<WorkerResult> {
   const systemPrompt = buildAgenticSystemPrompt(item.actionType);
-  const { model, effort } = config.modelEffort ?? selectModelEffort(item.task, item.actionType, config.modelBounds);
-  const args = buildClaudeArgs({
-    systemPrompt,
-    cardPath: item.task.path,
-    rootPlanFile: config.rootPlanFile,
-    model,
-    effort,
-    fallbackModel: fallbackFor(model),
-    contextNote: config.contextNote,
-  });
-
   const worktreeDir = config.worktreeDir ?? '.';
   const cwd = worktreeDir === '.' ? undefined : worktreeDir;
-  const output = deps.invoker.invoke(args, config.claudeTimeoutMs, cwd);
-  const parsed = parseClaudeOutput(output, nowMs);
+  const provider = config.agenticProvider ?? 'claude';
+  const { args, stdin, modelTag } =
+    provider === 'codex'
+      ? (() => {
+          const invocation = buildCodexArgs({
+            systemPrompt,
+            cardPath: item.task.path,
+            rootPlanFile: config.rootPlanFile,
+            model: config.agenticModel,
+            cwd: cwd ?? '.',
+            contextNote: config.contextNote,
+          });
+          return { ...invocation, modelTag: `codex:${config.agenticModel ?? 'default'}` };
+        })()
+      : (() => {
+          const { model, effort } = config.modelEffort ?? selectModelEffort(item.task, item.actionType, config.modelBounds);
+          return {
+            args: buildClaudeArgs({
+              systemPrompt,
+              cardPath: item.task.path,
+              rootPlanFile: config.rootPlanFile,
+              model,
+              effort,
+              fallbackModel: fallbackFor(model),
+              contextNote: config.contextNote,
+            }),
+            stdin: undefined,
+            modelTag: `${model}·${effort}`,
+          };
+        })();
+
+  const output = deps.invoker.invoke(args, config.claudeTimeoutMs, cwd, stdin);
+  const parsed = provider === 'codex' ? parseCodexOutput(output, nowMs) : parseClaudeOutput(output, nowMs);
 
   if (parsed.rateLimited) {
     const secs = parsed.retryAfterSecs ?? 60;
     // Message is shaped so the scheduler's isRateLimitError() matches it and
     // parseRateLimitBackoffHintMs() can read the delay.
-    throw new Error(`429 rate limit (claude cli) for ${item.task.path}; retry-after: ${secs}`);
+    throw new Error(`429 rate limit (${provider} cli) for ${item.task.path}; retry-after: ${secs}`);
   }
 
   if (parsed.isError) {
     // Surface auth/exec errors as a real failure instead of masking as a no-op.
-    throw new Error(`claude CLI error for ${item.task.path}: ${parsed.errorMessage ?? 'unknown error'}`);
+    throw new Error(`${provider} CLI error for ${item.task.path}: ${parsed.errorMessage ?? 'unknown error'}`);
   }
 
   const changed = parseGitStatusPorcelain(await deps.git.status());
@@ -107,11 +133,10 @@ export async function runAgenticWorker(
 
   const id = item.task.path.split('/').pop()?.replace(/\.md$/, '') ?? item.task.numericId;
   const totalChanged = filesCreated.length + filesModified.length + changed.deleted.length;
-  const tag = `${model}·${effort}`;
   const summary =
     totalChanged === 0
-      ? `${id}: ${item.actionType} [${tag}] (no change)`
-      : `${id}: ${item.actionType} [${tag}] (${totalChanged} file${totalChanged === 1 ? '' : 's'} changed)`;
+      ? `${id}: ${item.actionType} [${modelTag}] (no change)`
+      : `${id}: ${item.actionType} [${modelTag}] (${totalChanged} file${totalChanged === 1 ? '' : 's'} changed)`;
 
   const action: PlanningAction = {
     type: item.actionType,

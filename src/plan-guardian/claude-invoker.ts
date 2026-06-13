@@ -26,7 +26,7 @@ export interface ClaudeInvoker {
    * call to a git worktree. Implementations should still return captured stdout
    * on non-zero exit so the caller can parse rate-limit / error envelopes.
    */
-  invoke(args: string[], timeoutMs: number, cwd?: string): string | null;
+  invoke(args: string[], timeoutMs: number, cwd?: string, stdin?: string): string | null;
 }
 
 /** Production invoker: `execFileSync` against the resolved `claude` binary. */

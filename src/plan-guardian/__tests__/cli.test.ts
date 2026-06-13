@@ -51,7 +51,30 @@ describe('parseCli', () => {
   it('parses --agentic into agentic execution mode with a claude timeout', () => {
     const opts = parseCli(['node', 'main.ts', '--agentic', '--claude-timeout', '120000']);
     expect(opts.executionMode).toBe('agentic');
+    expect(opts.agenticProvider).toBe('claude');
     expect(opts.claudeTimeoutMs).toBe(120000);
+  });
+
+  it('parses codex as the agentic CLI provider with a codex model', () => {
+    const opts = parseCli([
+      'node', 'main.ts',
+      '--agentic',
+      '--agentic-provider', 'codex',
+      '--codex-model', 'gpt-5.4',
+    ]);
+    expect(opts.executionMode).toBe('agentic');
+    expect(opts.agenticProvider).toBe('codex');
+    expect(opts.agenticModel).toBe('gpt-5.4');
+  });
+
+  it('accepts --agentic-model as a provider-neutral alias', () => {
+    const opts = parseCli(['node', 'main.ts', '--agentic', '--agentic-provider', 'codex', '--agentic-model', 'gpt-5.4-mini']);
+    expect(opts.agenticModel).toBe('gpt-5.4-mini');
+  });
+
+  it('rejects an invalid agentic CLI provider', () => {
+    expect(() => parseCli(['node', 'main.ts', '--agentic-provider', 'banana']))
+      .toThrow(/agentic provider/i);
   });
 
   it('defaults proceduralRollup to false and parses --procedural-rollup', () => {

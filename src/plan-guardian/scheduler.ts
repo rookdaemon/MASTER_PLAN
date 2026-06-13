@@ -491,7 +491,7 @@ export async function runEpoch(
 }
 
 /**
- * Agentic epoch — drives one card per epoch through the Claude Code CLI.
+ * Agentic epoch — drives one card per epoch through the configured agentic CLI.
  *
  * Same signature as `runEpoch`, so `runScheduler` can pick either runner. The
  * brain is the CLI (it edits files on disk); this function reuses the guardian's
@@ -541,14 +541,14 @@ export async function runAgenticEpoch(
 
   if (batch.length === 0) return base({});
 
-  // Clean-tree invariant: an agentic epoch captures the post-Claude git diff as
+  // Clean-tree invariant: an agentic epoch captures the post-CLI git diff as
   // the action. Any pre-existing uncommitted changes would be wrongly swept into
   // that commit, so refuse to run on a dirty tree (commit/stash first).
   const preStatus = (await git.status()).trim();
   if (preStatus.length > 0) {
     throw new Error(
       `Refusing agentic epoch: the working tree has uncommitted changes. ` +
-        `Commit or stash them first so only Claude's edits are captured.\n${preStatus}`,
+        `Commit or stash them first so only the agentic CLI edits are captured.\n${preStatus}`,
     );
   }
 
@@ -562,11 +562,13 @@ export async function runAgenticEpoch(
     planDir,
     claudeTimeoutMs: config.claudeTimeoutMs ?? 5 * 60 * 1000,
     modelBounds: config.modelBounds,
+    agenticProvider: config.agenticProvider,
+    agenticModel: config.agenticModel,
   };
 
   const item = batch[0];
   const dispatchedTaskPaths = [item.task.path];
-  callbacks.onWorkerStart?.(item.task.path, item.actionType);
+  callbacks.onWorkerStart?.(item.task.path, item.actionType, agenticModelLabel(config));
 
   // A node whose children are all DONE is a candidate to finalize. With
   // --procedural-rollup it's marked DONE deterministically (no model call);
@@ -620,7 +622,7 @@ export async function runAgenticEpoch(
     return base({ dispatched: 1, failed: 1, dispatchedTaskPaths, noChangeTaskPaths: [item.task.path] });
   }
 
-  // No-op: Claude made no change → this card has converged for now. Report it
+  // No-op: the CLI made no change → this card has converged for now. Report it
   // so the scheduler stops re-selecting it (otherwise the 1-item queue rebuilds
   // to the same top-priority card every epoch).
   if (result.action.writeSet.length === 0) {
@@ -646,7 +648,7 @@ export async function runAgenticEpoch(
     }
   }
 
-  // Dry-run is a genuine preview: undo Claude's edit, report what would happen.
+  // Dry-run is a genuine preview: undo the CLI edit, report what would happen.
   if (dryRun) {
     await git.restore(result.action.writeSet);
     callbacks.onWorkerComplete?.(result);
@@ -671,7 +673,7 @@ export async function runAgenticEpoch(
  * its own git worktree, then applies results to the main tree SERIALLY (gate +
  * commit). Same signature as runEpoch so runScheduler can select it.
  *
- * Isolation model: each agent edits only its worktree, so parallel Claude
+ * Isolation model: each agent edits only its worktree, so parallel CLI
  * processes can't collide. We then write each agent's resulting file contents
  * to main and commit one card at a time — on an integrity-gate failure we
  * simply don't write to main (the worktree is discarded on the next reset), so
@@ -739,6 +741,8 @@ export async function runAgenticParallelEpoch(
     planDir,
     claudeTimeoutMs: config.claudeTimeoutMs ?? 5 * 60 * 1000,
     modelBounds: config.modelBounds,
+    agenticProvider: config.agenticProvider,
+    agenticModel: config.agenticModel,
   };
 
   type RunOutcome =
@@ -760,14 +764,16 @@ export async function runAgenticParallelEpoch(
         return { kind: 'procedural', item, result: makeDeterministicStatusUpdate(item, now) };
       }
 
-      const me = selectModelEffort(item.task, item.actionType, config.modelBounds);
-      callbacks.onWorkerStart?.(item.task.path, item.actionType, `${me.model}·${me.effort}`);
+      const me = config.agenticProvider === 'codex'
+        ? undefined
+        : selectModelEffort(item.task, item.actionType, config.modelBounds);
+      callbacks.onWorkerStart?.(item.task.path, item.actionType, me ? `${me.model}·${me.effort}` : agenticModelLabel(config));
       try {
         await pool.prepare(i);
         const result = await runAgenticWorker(item, { invoker, fs, git: pool.git(i) }, now, nowMs, {
           ...agenticConfig,
           worktreeDir: pool.dir(i),
-          modelEffort: me,
+          ...(me ? { modelEffort: me } : {}),
           contextNote: childrenAllDone ? FINALIZE_NOTE : undefined,
         });
         return { kind: 'ok', item, result };
@@ -1132,6 +1138,10 @@ function getClockMs(config: GuardianConfig): number {
   const now = config.clock.now();
   const parsed = Date.parse(now);
   return Number.isFinite(parsed) ? parsed : Date.now();
+}
+
+function agenticModelLabel(config: GuardianConfig): string | undefined {
+  return config.agenticProvider === 'codex' ? `codex:${config.agenticModel ?? 'default'}` : undefined;
 }
 
 function summarizeBlockedReasons(blockedTasks: ReadonlyMap<string, BlockedTaskState>): string[] {

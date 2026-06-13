@@ -10,6 +10,7 @@
 export type LlmProvider = 'anthropic' | 'openai' | 'openrouter' | 'local';
 
 export type ExecutionMode = 'provider' | 'agentic';
+export type AgenticProvider = 'claude' | 'codex';
 
 export type ModelTier = 'haiku' | 'sonnet' | 'opus';
 export type EffortLevel = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
@@ -21,6 +22,10 @@ export interface CliOptions {
    * 'agentic' shells out to the Claude Code CLI, which edits files directly.
    */
   executionMode: ExecutionMode;
+  /** Agentic CLI backend. Claude is the legacy/default behavior. */
+  agenticProvider: AgenticProvider;
+  /** Optional provider-specific model id for the agentic CLI. */
+  agenticModel?: string;
   /** Per-invocation Claude CLI timeout in ms (agentic mode). */
   claudeTimeoutMs: number;
   /** Per-card model/effort policy bounds (agentic mode). */
@@ -45,6 +50,8 @@ export interface CliOptions {
 const DEFAULTS: CliOptions = {
   planDir: 'plan',
   executionMode: 'provider',
+  agenticProvider: 'claude',
+  agenticModel: undefined,
   claudeTimeoutMs: 5 * 60 * 1000,
   proceduralRollup: false,
   provider: 'openrouter',
@@ -64,6 +71,7 @@ const DEFAULTS: CliOptions = {
 };
 
 const VALID_PROVIDERS = new Set<string>(['anthropic', 'openai', 'openrouter', 'local']);
+const VALID_AGENTIC_PROVIDERS = new Set<string>(['claude', 'codex']);
 
 export function parseCli(argv: string[]): CliOptions {
   const opts: CliOptions = { ...DEFAULTS, models: [...DEFAULTS.models] };
@@ -121,6 +129,13 @@ export function parseCli(argv: string[]): CliOptions {
       case '--agentic':
         opts.executionMode = 'agentic';
         break;
+      case '--agentic-provider':
+        opts.agenticProvider = validateAgenticProvider(next());
+        break;
+      case '--agentic-model':
+      case '--codex-model':
+        opts.agenticModel = next();
+        break;
       case '--claude-timeout':
         opts.claudeTimeoutMs = parseInt(next(), 10);
         break;
@@ -150,6 +165,13 @@ function validateProvider(value: string): LlmProvider {
     throw new Error(`Invalid provider: ${value}. Must be one of: ${[...VALID_PROVIDERS].join(', ')}`);
   }
   return value as LlmProvider;
+}
+
+function validateAgenticProvider(value: string): AgenticProvider {
+  if (!VALID_AGENTIC_PROVIDERS.has(value)) {
+    throw new Error(`Invalid agentic provider: ${value}. Must be one of: ${[...VALID_AGENTIC_PROVIDERS].join(', ')}`);
+  }
+  return value as AgenticProvider;
 }
 
 const VALID_MODEL_TIERS = new Set<string>(['haiku', 'sonnet', 'opus']);

@@ -162,14 +162,18 @@ export interface GuardianConfig {
   clock: IClock;
   sleeper: ISleeper;
 
-  // ── Agentic mode (Claude Code CLI / Ralph-Wiggum) ──────────
+  // ── Agentic mode (Claude Code CLI or Codex CLI) ─────────────
   /**
    * Execution brain. 'provider' (default) calls an inference API and applies
-   * parsed file blocks. 'agentic' shells out to the Claude Code CLI, which
+   * parsed file blocks. 'agentic' shells out to an agentic CLI, which
    * edits files directly; the scheduler commits the observed diff.
    */
   executionMode?: 'provider' | 'agentic';
-  /** Claude CLI invoker — required when executionMode === 'agentic'. */
+  /** Agentic CLI provider. Defaults to 'claude' for legacy compatibility. */
+  agenticProvider?: import('./cli.js').AgenticProvider;
+  /** Optional provider-specific model id for the agentic CLI. */
+  agenticModel?: string;
+  /** Agentic CLI invoker — required when executionMode === 'agentic'. */
   claudeInvoker?: import('./claude-invoker.js').ClaudeInvoker;
   /** Plan root file passed to the CLI as whole-plan context (agentic mode). */
   rootPlanFile?: string;

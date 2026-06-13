@@ -96,6 +96,41 @@ describe('runAgenticWorker', () => {
     expect(userTurn).toContain('@plan/root.md');
   });
 
+  it('can run the same observed-diff workflow through codex exec with stdin and model', async () => {
+    const fs = new InMemoryFileSystem();
+    await fs.writeFile('plan/0.0-alpha.md', '# 0.0 Alpha [PLAN]\n', 'utf-8');
+    const git = new ScriptedGit(' M plan/0.0-alpha.md');
+    let seenArgs: string[] = [];
+    let seenStdin: string | undefined;
+    let seenCwd: string | undefined;
+    const invoker: ClaudeInvoker = {
+      invoke(args, _timeoutMs, cwd, stdin) {
+        seenArgs = args;
+        seenCwd = cwd;
+        seenStdin = stdin;
+        fs.writeFile('plan/0.0-alpha.md', '# 0.0 Alpha [PLAN]\n\nEdited by Codex.\n', 'utf-8');
+        return JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'done' } });
+      },
+    };
+
+    const result = await runAgenticWorker(item(), { invoker, fs, git }, NOW, NOW_MS, {
+      ...config,
+      agenticProvider: 'codex',
+      agenticModel: 'gpt-5.4',
+    });
+
+    expect(seenArgs.slice(0, 2)).toEqual(['exec', '--dangerously-bypass-approvals-and-sandbox']);
+    expect(seenArgs).toContain('--json');
+    expect(seenArgs[seenArgs.indexOf('-m') + 1]).toBe('gpt-5.4');
+    expect(seenArgs[seenArgs.indexOf('-C') + 1]).toBe('.');
+    expect(seenArgs.at(-1)).toBe('-');
+    expect(seenCwd).toBeUndefined();
+    expect(seenStdin).toContain('SYSTEM INSTRUCTIONS:');
+    expect(seenStdin).toContain('@plan/0.0-alpha.md');
+    expect(result.action.filesModified[0].content).toContain('Edited by Codex');
+    expect(result.action.summary).toContain('[codex:gpt-5.4]');
+  });
+
   it('packages the observed diff into a PlanningAction with read-back content', async () => {
     const fs = new InMemoryFileSystem();
     await fs.writeFile('plan/0.0-alpha.md', '# 0.0 Alpha [PLAN]\n', 'utf-8');

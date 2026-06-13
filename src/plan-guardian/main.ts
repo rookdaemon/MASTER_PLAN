@@ -27,6 +27,7 @@ import { fetchModelMetadata, deriveExecutionBudget } from './model-metadata.js';
 import { PriorityModelSelector } from './model-selector.js';
 import { GuardianDebugLog } from './debug-log.js';
 import { NodeClaudeInvoker } from './claude-invoker.js';
+import { NodeCodexInvoker } from './codex-invoker.js';
 import { NodeWorktreePool } from './worktree-pool.js';
 import { GuardianDashboard, type PlanStats } from './dashboard.js';
 import type { IFileSystem } from '../agent-runtime/filesystem.js';
@@ -82,10 +83,10 @@ async function main() {
   let agenticPool: NodeWorktreePool | undefined;
 
   if (opts.executionMode === 'agentic') {
-    // ── Agentic mode: the Claude Code CLI is the brain (Ralph-Wiggum). ──
+    // ── Agentic mode: an agentic CLI is the brain. ──
     const rootPlanFile = `${opts.planDir}/root.md`;
-    // Each concurrent agent runs in its own git worktree so parallel Claude
-    // processes can't collide; results are applied to main serially.
+    // Each concurrent agent runs in its own git worktree so parallel CLI
+    // processes cannot collide; results are applied to main serially.
     const concurrency = Math.max(1, opts.concurrency);
     agenticPool = new NodeWorktreePool(repoRoot, resolve('.guardian', 'wt'), concurrency);
     config = {
@@ -107,7 +108,9 @@ async function main() {
       clock,
       sleeper,
       executionMode: 'agentic',
-      claudeInvoker: new NodeClaudeInvoker(),
+      agenticProvider: opts.agenticProvider,
+      agenticModel: opts.agenticModel,
+      claudeInvoker: opts.agenticProvider === 'codex' ? new NodeCodexInvoker() : new NodeClaudeInvoker(),
       rootPlanFile,
       claudeTimeoutMs: opts.claudeTimeoutMs,
       modelBounds: {
@@ -119,14 +122,20 @@ async function main() {
       proceduralRollup: opts.proceduralRollup,
     };
 
-    console.log(`[guardian] Starting Plan Guardian (AGENTIC — Claude Code CLI)`);
+    const agenticLabel = opts.agenticProvider === 'codex' ? 'Codex CLI' : 'Claude Code CLI';
+    console.log(`[guardian] Starting Plan Guardian (AGENTIC — ${agenticLabel})`);
     console.log(`[guardian] Plan dir: ${opts.planDir} | root: ${rootPlanFile}`);
-    console.log(`[guardian] Concurrency: ${concurrency} (parallel, ${concurrency} worktree${concurrency === 1 ? '' : 's'}) | Max iterations: ${opts.maxIterations} | Dry run: ${opts.dryRun} | Claude timeout: ${opts.claudeTimeoutMs}ms`);
+    console.log(`[guardian] Concurrency: ${concurrency} (parallel, ${concurrency} worktree${concurrency === 1 ? '' : 's'}) | Max iterations: ${opts.maxIterations} | Dry run: ${opts.dryRun} | CLI timeout: ${opts.claudeTimeoutMs}ms`);
+    if (opts.agenticProvider === 'codex') {
+      console.log(`[guardian] Codex model: ${opts.agenticModel ?? 'default'}`);
+    }
     console.log(`[guardian] Model policy: floor=${opts.modelFloor ?? 'haiku'} ceiling=${opts.modelCeiling ?? 'opus'} effort-ceiling=${opts.effortCeiling ?? 'max'}`);
     console.log(`[guardian] Strict integrity: ${opts.strictIntegrity} | Max new files/action: ${opts.maxNewFilesPerAction} | Quarantine branch: ${opts.quarantineBranch ?? 'none'}`);
 
     debugLog.log('startup', 'guardian started (agentic)', {
       executionMode: 'agentic',
+      agenticProvider: opts.agenticProvider,
+      agenticModel: opts.agenticModel ?? null,
       planDir: opts.planDir,
       rootPlanFile,
       concurrency,
@@ -204,7 +213,9 @@ async function main() {
         {
           mode: opts.executionMode,
           concurrency: config.concurrency,
-          modelPolicy: `floor=${opts.modelFloor ?? 'haiku'} ceiling=${opts.modelCeiling ?? 'opus'} eff=${opts.effortCeiling ?? 'max'}`,
+          modelPolicy: opts.agenticProvider === 'codex'
+            ? `codex=${opts.agenticModel ?? 'default'}`
+            : `floor=${opts.modelFloor ?? 'haiku'} ceiling=${opts.modelCeiling ?? 'opus'} eff=${opts.effortCeiling ?? 'max'}`,
         },
         { write: s => process.stdout.write(s), now: () => Date.now() },
       )
