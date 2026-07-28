@@ -19,6 +19,7 @@ describe('buildCodexArgs', () => {
       '--json',
       '--color',
       'never',
+      '--ignore-user-config',
       '--skip-git-repo-check',
       '--ephemeral',
       '-m',

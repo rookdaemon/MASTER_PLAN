@@ -77,6 +77,7 @@ export function buildCodexArgs(input: CodexArgsInput): CodexInvocation {
     '--json',
     '--color',
     'never',
+    '--ignore-user-config',
     '--skip-git-repo-check',
     '--ephemeral',
   ];

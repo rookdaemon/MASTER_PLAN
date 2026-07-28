@@ -28,12 +28,15 @@ npm run guardian -- --agentic --dry-run --max-iterations 1
 # Run continuously, agentic:
 npm run guardian -- --agentic
 
-# Run agentic through Codex with an explicit Codex model:
-npm run guardian -- --agentic --agentic-provider codex --codex-model gpt-5.4
+# Run agentic through Codex (defaults to gpt-5.6):
+npm run guardian -- --agentic --agentic-provider codex
+
+# Override the Codex model:
+npm run guardian -- --agentic --agentic-provider codex --codex-model gpt-5.6
 
 # Useful flags:
 #   --agentic-provider <p>    claude (default) or codex
-#   --agentic-model <model>   provider-neutral model flag
+#   --agentic-model <model>   provider-neutral model flag (Codex default: gpt-5.6)
 #   --codex-model <model>     alias for --agentic-model
 #   --claude-timeout <ms>     per-invocation CLI timeout (default 300000)
 #   --quarantine-branch <b>   commit onto a side branch

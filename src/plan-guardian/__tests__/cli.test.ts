@@ -67,6 +67,11 @@ describe('parseCli', () => {
     expect(opts.agenticModel).toBe('gpt-5.4');
   });
 
+  it('defaults codex agentic runs to gpt-5.6', () => {
+    const opts = parseCli(['node', 'main.ts', '--agentic', '--agentic-provider', 'codex']);
+    expect(opts.agenticModel).toBe('gpt-5.6');
+  });
+
   it('accepts --agentic-model as a provider-neutral alias', () => {
     const opts = parseCli(['node', 'main.ts', '--agentic', '--agentic-provider', 'codex', '--agentic-model', 'gpt-5.4-mini']);
     expect(opts.agenticModel).toBe('gpt-5.4-mini');
