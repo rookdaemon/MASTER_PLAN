@@ -71,4 +71,19 @@ describe('parseCodexOutput', () => {
     expect(parsed.isError).toBe(true);
     expect(parsed.errorMessage).toMatch(/authentication/i);
   });
+
+  it('surfaces nested Codex API error messages without dumping the full event', () => {
+    const out = JSON.stringify({
+      type: 'error',
+      status: 400,
+      error: {
+        type: 'invalid_request_error',
+        message: "The 'gpt-5.6' model is not supported when using Codex with a ChatGPT account.",
+      },
+    });
+    const parsed = parseCodexOutput(out, NOW_MS);
+    expect(parsed.rateLimited).toBe(false);
+    expect(parsed.isError).toBe(true);
+    expect(parsed.errorMessage).toBe("The 'gpt-5.6' model is not supported when using Codex with a ChatGPT account.");
+  });
 });

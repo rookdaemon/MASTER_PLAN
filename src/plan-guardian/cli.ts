@@ -16,7 +16,7 @@ export type AgenticProvider = 'claude' | 'codex';
 export type ModelTier = 'haiku' | 'sonnet' | 'opus';
 export type EffortLevel = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
-export const DEFAULT_CODEX_AGENTIC_MODEL = 'gpt-5.6';
+export const DEFAULT_CODEX_AGENTIC_MODEL = 'gpt-5.6-sol';
 
 export interface CliOptions {
   planDir: string;
@@ -27,7 +27,7 @@ export interface CliOptions {
   executionMode: ExecutionMode;
   /** Agentic CLI backend. Claude is the legacy/default behavior. */
   agenticProvider: AgenticProvider;
-  /** Provider-specific model id for the agentic CLI. Codex defaults to gpt-5.6. */
+  /** Provider-specific model id for the agentic CLI. Codex defaults to gpt-5.6-sol. */
   agenticModel?: string;
   /** Per-invocation Claude CLI timeout in ms (agentic mode). */
   claudeTimeoutMs: number;
