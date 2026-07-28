@@ -18,7 +18,7 @@ import { resolveClaudePath } from './resolve-claude.js';
 
 // ── Injectable invocation seam ───────────────────────────────
 
-/** Abstraction over a single synchronous Claude Code CLI invocation. */
+/** Abstraction over a single agentic CLI invocation. */
 export interface ClaudeInvoker {
   /**
    * Run `claude` with `args`, returning its stdout (or null on empty output).
@@ -26,7 +26,13 @@ export interface ClaudeInvoker {
    * call to a git worktree. Implementations should still return captured stdout
    * on non-zero exit so the caller can parse rate-limit / error envelopes.
    */
-  invoke(args: string[], timeoutMs: number, cwd?: string, stdin?: string): string | null;
+  invoke(
+    args: string[],
+    timeoutMs: number,
+    cwd?: string,
+    stdin?: string,
+    onStdout?: (chunk: string) => void,
+  ): string | null | Promise<string | null>;
 }
 
 /** Production invoker: `execFileSync` against the resolved `claude` binary. */

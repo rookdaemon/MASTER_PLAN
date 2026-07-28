@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildCodexArgs, parseCodexOutput } from '../codex-invoker.js';
+import {
+  buildCodexArgs,
+  NodeCodexInvoker,
+  parseCodexOutput,
+  type CodexProcessRunner,
+} from '../codex-invoker.js';
 
 const NOW_MS = Date.parse('2026-06-09T12:00:00.000Z');
 
@@ -85,5 +90,72 @@ describe('parseCodexOutput', () => {
     expect(parsed.rateLimited).toBe(false);
     expect(parsed.isError).toBe(true);
     expect(parsed.errorMessage).toBe("The 'gpt-5.6' model is not supported when using Codex with a ChatGPT account.");
+  });
+});
+
+describe('NodeCodexInvoker', () => {
+  it('runs Codex asynchronously, closes stdin, and forwards streamed stdout', async () => {
+    const chunks: string[] = [];
+    const calls: Array<{
+      command: string;
+      args: readonly string[];
+      timeoutMs: number;
+      cwd?: string;
+      stdin?: string;
+    }> = [];
+    const runner: CodexProcessRunner = {
+      async run(command, args, options) {
+        calls.push({
+          command,
+          args,
+          timeoutMs: options.timeoutMs,
+          cwd: options.cwd,
+          stdin: options.stdin,
+        });
+        options.onStdout?.('{"type":"turn.started"}\n');
+        await Promise.resolve();
+        options.onStdout?.('{"type":"turn.completed"}\n');
+        return {
+          stdout: '{"type":"turn.started"}\n{"type":"turn.completed"}\n',
+          stderr: '',
+          exitCode: 0,
+        };
+      },
+    };
+    const invoker = new NodeCodexInvoker(() => '/bin/codex', runner);
+
+    const pending = invoker.invoke(
+      ['exec', '--json', '-'],
+      60_000,
+      '/repo/wt/0',
+      'prompt',
+      chunk => chunks.push(chunk),
+    );
+
+    expect(pending).toBeInstanceOf(Promise);
+    await expect(pending).resolves.toContain('"type":"turn.completed"');
+    expect(calls).toEqual([{
+      command: '/bin/codex',
+      args: ['exec', '--json', '-'],
+      timeoutMs: 60_000,
+      cwd: '/repo/wt/0',
+      stdin: 'prompt',
+    }]);
+    expect(chunks).toEqual([
+      '{"type":"turn.started"}\n',
+      '{"type":"turn.completed"}\n',
+    ]);
+  });
+
+  it('surfaces stderr when Codex exits non-zero without JSON stdout', async () => {
+    const runner: CodexProcessRunner = {
+      async run() {
+        return { stdout: '', stderr: 'authentication failed', exitCode: 1 };
+      },
+    };
+    const invoker = new NodeCodexInvoker(() => 'codex', runner);
+
+    await expect(invoker.invoke(['exec'], 1_000))
+      .rejects.toThrow(/authentication failed/i);
   });
 });

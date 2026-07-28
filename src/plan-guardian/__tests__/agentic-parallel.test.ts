@@ -88,11 +88,24 @@ describe('runAgenticParallelEpoch', () => {
   it('runs cards concurrently in worktrees and commits each to main serially', async () => {
     const fs = makeFs();
     const pool = new FakePool(2);
+    let arrivals = 0;
+    let maxActive = 0;
+    let active = 0;
+    let releaseBoth!: () => void;
+    const bothInvoked = new Promise<void>(resolve => {
+      releaseBoth = resolve;
+    });
 
     // Each invocation: identify the worktree from cwd, edit that card in the
     // worktree, and mark that worktree's git dirty with the card's diff.
     const invoker: ClaudeInvoker = {
-      invoke(args, _timeout, cwd) {
+      async invoke(args, _timeout, cwd) {
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        arrivals += 1;
+        if (arrivals === 2) releaseBoth();
+        await bothInvoked;
+
         const i = Number(String(cwd).replace('wt', ''));
         const userTurn = args[args.indexOf('--') + 1] ?? '';
         const cardPath = userTurn.match(/@(plan\/[^\s]+\.md)/)?.[1] ?? '';
@@ -100,6 +113,7 @@ describe('runAgenticParallelEpoch', () => {
         const newContent = `---\nparent: plan/root.md\nroot: plan/root.md\n---\n# ${title} [PLAN]\n\nRefined by agent.\n`;
         fs.writeFile(`${cwd}/${cardPath}`, newContent, 'utf-8'); // edit in the worktree
         pool.gits[i].porcelain = ` M ${cardPath}`;
+        active -= 1;
         return JSON.stringify({ type: 'result', result: 'refined', total_cost_usd: 0.01 });
       },
     };
@@ -121,6 +135,7 @@ describe('runAgenticParallelEpoch', () => {
     // Both cards dispatched (in parallel) and both worktrees prepared.
     expect(started.sort()).toEqual(['plan/0.0-alpha.md', 'plan/0.1-beta.md']);
     expect(pool.prepared.sort()).toEqual([0, 1]);
+    expect(maxActive).toBe(2);
     // A model·effort tag was reported for each (refine → sonnet·medium).
     expect(startedModels.every(m => m.includes('·'))).toBe(true);
     // Both applied + committed to main, no failures.

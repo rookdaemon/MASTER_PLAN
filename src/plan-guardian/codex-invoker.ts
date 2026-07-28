@@ -6,21 +6,81 @@
  * mockable process boundary.
  */
 
-import { execFileSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import type { ParsedClaudeOutput } from './claude-invoker.js';
 
-export type ExecFileSyncLike = (
-  file: string,
-  args: readonly string[],
-  options: {
-    stdio: ['pipe', 'pipe', 'inherit'];
-    encoding: 'utf-8';
-    timeout: number;
-    maxBuffer: number;
-    cwd?: string;
-    input?: string;
-  },
-) => string;
+export interface CodexProcessResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+}
+
+export interface CodexProcessRunOptions {
+  timeoutMs: number;
+  cwd?: string;
+  stdin?: string;
+  onStdout?: (chunk: string) => void;
+  onStderr?: (chunk: string) => void;
+}
+
+/** Injectable boundary around the OS child-process interaction. */
+export interface CodexProcessRunner {
+  run(
+    command: string,
+    args: readonly string[],
+    options: CodexProcessRunOptions,
+  ): Promise<CodexProcessResult>;
+}
+
+/** Production async process runner. Output is consumed as it arrives. */
+export class NodeCodexProcessRunner implements CodexProcessRunner {
+  run(
+    command: string,
+    args: readonly string[],
+    options: CodexProcessRunOptions,
+  ): Promise<CodexProcessResult> {
+    return new Promise((resolve, reject) => {
+      const child = spawn(command, [...args], {
+        cwd: options.cwd,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      let stdout = '';
+      let stderr = '';
+      let settled = false;
+
+      const finish = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        fn();
+      };
+
+      child.stdout.on('data', (data: Buffer) => {
+        const chunk = data.toString();
+        stdout += chunk;
+        options.onStdout?.(chunk);
+      });
+      child.stderr.on('data', (data: Buffer) => {
+        const chunk = data.toString();
+        stderr += chunk;
+        options.onStderr?.(chunk);
+      });
+      child.on('error', error => finish(() => reject(error)));
+      child.on('close', code => finish(() => resolve({
+        stdout,
+        stderr,
+        exitCode: code ?? 1,
+      })));
+
+      child.stdin.end(options.stdin);
+
+      const timeout = setTimeout(() => {
+        child.kill('SIGTERM');
+        finish(() => reject(new Error(`Codex process timed out after ${options.timeoutMs}ms`)));
+      }, options.timeoutMs);
+    });
+  }
+}
 
 export interface CodexArgsInput {
   systemPrompt: string;
@@ -44,26 +104,28 @@ const DEFAULT_INSTRUCTION =
 export class NodeCodexInvoker {
   constructor(
     private readonly resolvePath: () => string = () => 'codex',
-    private readonly execFile: ExecFileSyncLike = execFileSync as ExecFileSyncLike,
+    private readonly processRunner: CodexProcessRunner = new NodeCodexProcessRunner(),
+    private readonly writeStderr: (chunk: string) => void = chunk => process.stderr.write(chunk),
   ) {}
 
-  invoke(args: string[], timeoutMs: number, cwd?: string, stdin?: string): string | null {
-    try {
-      return this.execFile(this.resolvePath(), args, {
-        stdio: ['pipe', 'pipe', 'inherit'],
-        encoding: 'utf-8',
-        timeout: timeoutMs,
-        maxBuffer: 64 * 1024 * 1024,
-        ...(cwd ? { cwd } : {}),
-        ...(stdin !== undefined ? { input: stdin } : {}),
-      });
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'stdout' in err) {
-        const stdout = (err as { stdout: unknown }).stdout;
-        if (typeof stdout === 'string' && stdout.trim().length > 0) return stdout;
-      }
-      throw err;
+  async invoke(
+    args: string[],
+    timeoutMs: number,
+    cwd?: string,
+    stdin?: string,
+    onStdout?: (chunk: string) => void,
+  ): Promise<string | null> {
+    const result = await this.processRunner.run(this.resolvePath(), args, {
+      timeoutMs,
+      ...(cwd ? { cwd } : {}),
+      ...(stdin !== undefined ? { stdin } : {}),
+      ...(onStdout ? { onStdout } : {}),
+      onStderr: this.writeStderr,
+    });
+    if (result.exitCode !== 0 && result.stdout.trim().length === 0) {
+      throw new Error(result.stderr.trim() || `Codex exited with code ${result.exitCode}`);
     }
+    return result.stdout || null;
   }
 }
 

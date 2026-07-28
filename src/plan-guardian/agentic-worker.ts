@@ -108,7 +108,7 @@ export async function runAgenticWorker(
           };
         })();
 
-  const output = deps.invoker.invoke(args, config.claudeTimeoutMs, cwd, stdin);
+  const output = await deps.invoker.invoke(args, config.claudeTimeoutMs, cwd, stdin);
   const parsed = provider === 'codex' ? parseCodexOutput(output, nowMs) : parseClaudeOutput(output, nowMs);
 
   if (parsed.rateLimited) {

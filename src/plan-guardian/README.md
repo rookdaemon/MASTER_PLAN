@@ -31,6 +31,10 @@ npm run guardian -- --agentic
 # Run agentic through Codex (defaults to gpt-5.6-sol):
 npm run guardian -- --agentic --agentic-provider codex
 
+# Run one prioritized card with a one-minute CLI ceiling:
+npm run guardian -- --agentic --agentic-provider codex \
+  --concurrency 1 --max-iterations 1 --claude-timeout 60000
+
 # Override the Codex model:
 npm run guardian -- --agentic --agentic-provider codex --codex-model gpt-5.6-sol
 
