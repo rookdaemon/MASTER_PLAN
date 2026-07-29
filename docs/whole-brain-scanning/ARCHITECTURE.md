@@ -6,7 +6,7 @@ This document defines the architecture for scanning a complete biological brain 
 
 ## Dependency: Fidelity Level
 
-All scanning parameters are derived from the fidelity level determined by 0.2.2.1.1. The architecture must support up to **molecular-level** fidelity (the most demanding plausible requirement), with graceful down-scoping if connectome-level or cellular-level proves sufficient.
+All scanning parameters derive from the **L2+ cellular fidelity** selected by 0.2.2.1.1. The required output captures individual neuron morphology, synaptic connectivity and weights, receptor distributions, glial topology, an abstracted neuromodulatory baseline, and pre-fixation activity. Full molecular reconstruction and quantum-state capture are outside this card's scope.
 
 | Fidelity Level | Spatial Resolution | Key Data Captured |
 |---|---|---|
@@ -25,10 +25,10 @@ A multi-modal scanning approach is required because no single technology current
 
 **Purpose:** Capture the static connectome — neuron positions, morphology, and synaptic connectivity.
 
-**Candidate modalities (by fidelity):**
-- **Connectome-level:** Diffusion tensor MRI + light-sheet microscopy on cleared tissue
-- **Cellular-level:** Serial block-face scanning electron microscopy (SBF-SEM), or expansion microscopy + light-sheet
-- **Molecular-level:** Cryo-electron tomography (cryo-ET) with serial sectioning, or advanced X-ray nanotomography
+**Selected modalities:**
+- **Primary:** Massively parallel serial block-face scanning electron microscopy (SBF-SEM) at approximately 30 nm isotropic resolution for morphology and connectivity.
+- **Complementary:** Expansion microscopy with multiplexed fluorescence (ExM-IF) on registered, interleaved tissue blocks for receptor distributions.
+- **Preservation:** Cryo-vitrification fixes the dynamic state before destructive structural acquisition.
 
 **Interface:**
 ```
@@ -53,9 +53,9 @@ SectionData {
 
 **Candidate modalities:**
 - **Synaptic weights:** Inferred from structural scanning (spine volume, synapse area, receptor density via immuno-EM)
-- **Neurotransmitter levels:** MALDI mass spectrometry imaging, or genetically encoded fluorescent sensors (in vivo, pre-fixation)
-- **Ion channel states:** Computational inference from molecular-level structural data + known electrophysiology
-- **Activity snapshot:** High-density electrophysiology or functional calcium imaging immediately before fixation
+- **Neurotransmitter levels:** Multiplexed fluorescence and calibrated pre-fixation measurements
+- **Ion-channel effects:** Represented by the L2+ stochastic-noise abstraction rather than molecular reconstruction
+- **Activity snapshot:** High-density electrophysiology immediately before fixation
 
 **Interface:**
 ```
@@ -87,7 +87,7 @@ ScanTimingProtocol {
 }
 ```
 
-**Non-destructive consideration:** Current technology cannot scan at cellular or finer resolution without tissue processing (sectioning, clearing, or freezing). The architecture must document whether the scan is destructive and, if so, specify the minimally-destructive alternative and preservation protocol.
+**Destructiveness decision:** The selected SBF-SEM pipeline is destructive because no demonstrated non-destructive modality resolves synapses across a whole brain at the required fidelity. ExM with optical clearing is the minimally destructive alternative, but it is complementary rather than sufficient for connectivity ground truth. Every dataset records this justification, the preservation protocol, and the alternative considered.
 
 ```
 DestructivenessAssessment {
@@ -183,5 +183,7 @@ The final deliverable of the scanning pipeline is a `BrainScanDataset` object (s
 ## Files Produced by This Card
 
 - `docs/whole-brain-scanning/ARCHITECTURE.md` — this document
-- Scan protocol specification (future, during IMPLEMENT)
-- Data format schema documentation (future, during IMPLEMENT)
+- `src/whole-brain-scanning/types.ts` — dataset and scanning-domain contracts
+- `src/whole-brain-scanning/constants.ts` — injectable threshold registry
+- `src/whole-brain-scanning/validation.ts` — dataset, timing, resolution, and accuracy validation
+- `src/whole-brain-scanning/serialization.ts` — HDF5 schema mapping and serialization-readiness contract
