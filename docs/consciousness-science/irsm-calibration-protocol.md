@@ -113,10 +113,20 @@ resamples of `related_group_id`, stratified by each group's frozen partition
 stratum, using seed `irsm-inference-v1`; sample with replacement within every
 stratum and carry all records in each selected group together, including
 records whose own substrate or outcome differs from the group's stratum.
-Confidence intervals are descriptive. The family of four primary calibration
-estimands is tested, where applicable, with Holm correction at family-wise
-alpha `.05`; discrimination estimands are reported without confirmatory
-p-values. No secondary or sensitivity result can replace a primary result.
+Compute each interval from the finite estimates among the 10,000 resamples,
+using the nearest-rank 2.5th and 97.5th percentiles. If fewer than 9,500 finite
+estimates remain, report that interval as `not_estimable` and report the finite
+count; do not redraw resamples. AUC, sensitivity, specificity, calibration
+intercept, or calibration slope is non-finite when its required outcome or
+prediction class is absent or its regression does not converge. Confidence
+intervals, log loss, Brier score, and expected calibration error are
+descriptive. The only confirmatory calibration hypotheses are
+`H0: alpha=0` and `H0: beta=1`; compute their two-sided Wald p-values from the
+registered calibration regression and apply Holm correction across those two
+tests at family-wise alpha `.05`. If either test is not estimable, mark it
+`not_estimable` and apply Holm only when both raw p-values are finite.
+Discrimination estimands are reported without confirmatory p-values. No
+secondary or sensitivity result can replace a primary result.
 
 Fitting may start only with at least 100 eligible related groups, at least 25
 groups per outcome, and at least 10 groups in each observed
