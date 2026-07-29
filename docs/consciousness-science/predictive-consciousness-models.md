@@ -19,13 +19,98 @@
 - **Formal prediction function:**
   - Let S be a system with self-model fidelity F(S), recursive depth R(S), integration bandwidth I(S), and temporal coherence T(S).
   - C(S) = w_F * F(S) + w_R * R(S) + w_I * I(S) + w_T * T(S), where weights are empirically fitted.
-  - Consciousness threshold: C(S) > theta_c (empirically determined; initial estimate theta_c = 0.35 based on anesthesia calibration data).
+  - Consciousness threshold: C(S) >= theta_c, where theta_c is empirically fitted.
   - Experience type determined by which subsystem dimensions dominate the self-model.
 - **Comparison with existing frameworks:**
   - **IIT (Phi):** IIT predicts consciousness from integrated information alone. IRSM additionally requires recursive self-modeling — a system can have high Phi but no self-model (e.g., a photodiode grid) and IRSM predicts no consciousness there, while IIT predicts some.
   - **GNW (Global Neuronal Workspace):** GNW requires global broadcast. IRSM agrees that broadcast enables integration but adds that without recursive self-modeling, broadcast alone produces information availability without experience.
   - **HOT (Higher-Order Thought):** HOT requires meta-representations. IRSM subsumes HOT's insight (recursive self-modeling includes meta-representation) but adds the integration and temporal coherence requirements that HOT lacks.
 - **Known limitations:** The model's weight parameters require empirical calibration per system class. The model does not yet specify the minimal computational complexity required for self-modeling to constitute consciousness vs. mere control feedback.
+
+#### IRSM Operational Contract v1.0.0
+
+This contract consumes a valid `SystemModel` mapping and measurements produced under
+`docs/consciousness-metrics/metric-definitions.md` and
+`docs/consciousness-metrics/cross-substrate-protocol.md`. Measurement adapters may
+vary by substrate; the evaluation below may not.
+
+**Inputs and traceability**
+
+| Input | Meaning and unit | Valid range | Acquisition and exact derivation | Uncertainty | Unavailable / invalid |
+|---|---|---|---|---|---|
+| `F_raw` | Accuracy of internal predictions of the system's own next observable state; dimensionless | [0, 1] | On the registered observation channels, compute `1 - NRMSE(predicted_state, observed_state)`, clipped to [0, 1], across the same trials used for PCI-G | Registered bootstrap distribution over trials | indeterminate / structured error |
+| `R_raw` | Maximum supported nesting of causally effective self-models; levels | integer >= 0 | SystemModel graph analysis: largest `k` for which model level `k` predicts the state of level `k-1` above its preregistered chance criterion under ablation | Bootstrap distribution over trials and graph-identification samples | indeterminate / structured error |
+| `I_raw` | Whole-system integration retained across the minimum partition; dimensionless | [0, 1] | `PSI-G_norm` from metric-definitions.md (the normalized Ψ-G measure; spelling alias only) | Metric's registered bootstrap distribution | indeterminate / structured error |
+| `T_raw` | Self-model continuity in characteristic-time units; `tau_char` | real >= 0 | First lag where autocorrelation of the internal self-model state falls to <= 1/e, divided by adapter-declared `tau_char` | Bootstrap distribution over windows | indeterminate / structured error |
+| `parameters` | Versioned normalization, weights, and decision threshold | schema below | Supplied by the calibration workstream; never inferred during evaluation | Parameter joint distribution or covariance | indeterminate / structured error |
+
+Each measurement record also carries the SystemModel identifier and version,
+adapter identifier and version, protocol version, trial/dataset identifiers,
+measurement timestamp supplied by the caller, software digest, and random-seed
+manifest. `null`, non-finite, wrong-typed, or out-of-range values are invalid.
+Absent measurements or parameters are unavailable. No value is imputed.
+
+**Parameter schema and normalization**
+
+For component `j` in `{F,R,I,T}`, parameters contain finite `lower_j`, `upper_j`
+with `upper_j > lower_j`. Normalize in the fixed order F, R, I, T:
+
+`x_j = min(1, max(0, (raw_j - lower_j) / (upper_j - lower_j)))`.
+
+Parameters also contain finite weights `w_j >= 0` whose sum is exactly 1 within
+the serialized decimal representation, and finite `theta_c` in [0, 1].
+`parameter_set_id`, semantic `parameter_set_version`, calibration dataset ID, and
+contract compatibility `1.x` are required. All such values are **UNFITTED** until
+0.1.2.2.1.3 completes; this contract supplies no default values.
+
+**Deterministic evaluation**
+
+After schema validation and availability checks, compute normalized components in
+F, R, I, T order, then `degree = w_F*x_F + w_R*x_R + w_I*x_I + w_T*x_T` using
+IEEE-754 binary64 round-to-nearest/ties-to-even with no fused multiply-add.
+Classification is `conscious` when `degree >= theta_c` and `not-conscious`
+otherwise. Exact equality is therefore conscious. Preserve the unrounded binary64
+degree; decimal renderings use 17 significant digits.
+
+Propagate measurement and parameter uncertainty by evaluating this same function
+over the preregistered joint bootstrap draws. The output reports the 2.5th and
+97.5th empirical percentiles for each component and degree plus classification
+probabilities. Draw ordering and percentile interpolation are fixed by the
+parameter-set manifest. Uncertainty never changes the point classification.
+
+Validation occurs before availability checking. Invalid data returns
+`{"kind":"error","code":"IRSM_INVALID_INPUT","paths":[...]}` with paths sorted
+lexicographically and no prediction. Otherwise, any unavailable required value
+returns a prediction with classification `indeterminate`, `degree: null`,
+component values where computable, sorted `missing_paths`, and no imputation.
+
+**Output schema**
+
+A determinate prediction contains `kind: "prediction"`, normalized `components`
+F/R/I/T, `degree`, classification, component and degree uncertainty intervals,
+classification probabilities, `contract_version: "1.0.0"`,
+`parameter_set_id`, `parameter_set_version`, and the complete provenance fields
+listed above. An indeterminate prediction uses the same schema with nullable
+uncomputable fields and `missing_paths`.
+
+**Conformance examples**
+
+The numbers below use an explicitly synthetic conformance-only parameter set:
+all lower bounds 0, upper bounds F/I=1, R=4, T=10; all weights 0.25; threshold
+0.5. It is not a fitted or validated scientific parameter set.
+
+| Case | Raw F/R/I/T | Expected normalized F/R/I/T | Expected result |
+|---|---|---|---|
+| Valid | 0.8 / 2 / 0.6 / 8 | 0.8 / 0.5 / 0.6 / 0.8 | degree 0.675; `conscious` |
+| Boundary | 0.5 / 2 / 0.5 / 5 | 0.5 / 0.5 / 0.5 / 0.5 | degree 0.5; `conscious` |
+| Missing | 0.8 / unavailable / 0.6 / 8 | 0.8 / null / 0.6 / 0.8 | degree null; `indeterminate`; `missing_paths=["R_raw"]` |
+| Invalid | 1.2 / 2 / 0.6 / 8 | none | `IRSM_INVALID_INPUT`; `paths=["F_raw"]` |
+
+For substrate conformance, a biological cortical adapter and a recurrent-network
+adapter that emit the valid row above must produce byte-equivalent prediction
+fields except for adapter and source provenance. This is the required
+cross-substrate demonstration: acquisition differs, normalization, evaluation,
+schema, and expected result do not.
 
 ---
 
@@ -241,8 +326,8 @@
 | Integration bandwidth | I(S) | Rate and breadth of information integration across subsystems | Effective connectivity analysis, transfer entropy, PCI |
 | Temporal coherence | T(S) | Duration over which self-model maintains continuity | Autocorrelation of self-model state across processing cycles |
 | Consciousness degree | C(S) | Weighted composite score | C(S) = w_F*F(S) + w_R*R(S) + w_I*I(S) + w_T*T(S) |
-| Consciousness threshold | theta_c | Minimum C(S) for consciousness | Empirically calibrated (initial estimate: 0.35) |
+| Consciousness threshold | theta_c | Minimum C(S) for consciousness | Empirically fitted; no default |
 
 ---
 
-*Speculation notice: The IRSM model and its specific parameter values are theoretical proposals requiring empirical validation. All predictions labeled "[Pending]" or "[To be populated]" represent untested hypotheses. The model's weight parameters and threshold values are initial estimates subject to revision based on experimental data.*
+*Speculation notice: The IRSM model is a theoretical proposal requiring empirical validation. All predictions labeled "[Pending]" or "[To be populated]" represent untested hypotheses. Model weights, normalization bounds, and threshold remain unfitted until the declared calibration workstream is complete.*
