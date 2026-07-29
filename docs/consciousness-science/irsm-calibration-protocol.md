@@ -60,13 +60,20 @@ without held-out outcomes.
 
 Sort groups by SHA-256 of
 `"<split_seed>:<related_group_id>"`. Use split seed
-`irsm-calibration-v1` and assign 70% of groups to calibration and 30% to
-held-out within each joint `(substrate, outcome)` stratum, rounding the
-calibration count to the nearest integer with ties upward. Strata with fewer
-than four groups are assigned by the same global ordering and flagged. Before
-use, reject duplicate IDs, a `system_model_id` or `related_group_id` appearing
-in both partitions, records absent from the snapshot, or a manifest whose hash
-does not match the registry.
+`irsm-calibration-v1`. Assign each group to the joint `(substrate, outcome)`
+stratum occurring most often among its eligible records; break count ties by
+lexicographic order of the literal pair
+`("biological","conscious")`, `("biological","not_conscious")`,
+`("non-biological","conscious")`, `("non-biological","not_conscious")`.
+Record the selected stratum and the four source counts in the partition
+manifest. Within each stratum containing at least four groups, assign the first
+70% of the hash-sorted groups to calibration and the remainder to held-out,
+rounding the calibration count to the nearest integer with ties upward. Pool
+all groups from strata containing fewer than four groups, flag each source
+stratum, sort the pool by the same hash, and apply the same 70/30 allocation
+once to that pool. Before use, reject duplicate IDs, a `system_model_id` or
+`related_group_id` appearing in both partitions, records absent from the
+snapshot, or a manifest whose hash does not match the registry.
 
 The held-out reader returns inputs and provenance but denies outcomes until it
 receives a model-freeze record containing the selected parameter set, protocol
