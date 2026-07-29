@@ -179,12 +179,12 @@ L3 may be required for emulations that must reproduce *specific memories* or *ex
 
 | Metric | Estimate | Notes |
 |---|---|---|
-| **Molecular species** | ~10^14 per neuron (10^25 brain-wide) | Proteins, metabolites, ions, second messengers |
+| **Molecular species** | ~10^14 per neuron (~10^25 brain-wide) | Proteins, metabolites, ions, second messengers |
 | **State variables** | ~10^26 | Concentrations or particle counts for each species in each compartment |
 | **Timestep** | 1 us (10^-6 s) | Required for fast molecular kinetics |
 | **Steps per second** | 10^6 | For real-time emulation |
 | **FLOPS** | ~10^34 FLOPS | ~10^26 variables x 10^6 steps/s x ~100 ops/update |
-| **Memory** | ~400 EB (exabytes) | 10^26 variables x 4 bytes |
+| **Memory** | ~400 YB (4 x 10^26 bytes) | 10^26 variables x 4 bytes |
 | **Bandwidth** | ~10^32 bytes/s | State variable reads/writes per timestep |
 
 **Feasibility reference:** L3 requires ~10^16 times current supercomputing capability. This is beyond any foreseeable classical computing architecture. L3 emulation would require fundamental breakthroughs in computing (molecular computing, reversible computing, or equivalent).
