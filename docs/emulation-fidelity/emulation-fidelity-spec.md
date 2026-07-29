@@ -303,7 +303,7 @@ The argument proceeds in two parts: (A) L2 is sufficient, and (B) L1 is insuffic
 | **State variables** | ~10^14 | ~2 x 10^15 | ~10^17 | ~10^26 | 2^(10^27) |
 | **Timestep** | N/A | 100 us | 100 us | 1 us | ~1 fs |
 | **FLOPS (real-time)** | N/A | ~10^19 | ~10^21 | ~10^34 | Intractable |
-| **Memory** | ~600 TB | ~8 PB | ~350 PB | ~400 EB | Intractable |
+| **Memory** | ~600 TB | ~8 PB | ~350 PB | ~400 YB | Intractable |
 | **Bandwidth** | Minimal | ~10^20 B/s | ~10^22 B/s | ~10^32 B/s | Intractable |
 
 ### 4.2 Current and Projected Computing Capabilities
@@ -359,10 +359,10 @@ The scanning system must capture the following at the specified resolution:
 | **Integration timestep** | <= 100 us | For numerical stability of HH equations |
 | **State dimensions per neuron** | ~20-50 | Membrane potential per compartment, channel states, calcium, neuromodulator sensitivity |
 | **Real-time factor** | ≥1.0 (real-time or faster) | Required for consciousness continuity |
-| **Total state space** | ~10^12 to 10^13 floating-point variables (neuron state); total including synaptic state ~10^15 | See Threshold Registry: L2_memory = 10^15 bytes |
-| **Total FLOPS** | 10^21 FLOPS | See Threshold Registry: L2_FLOPS (valid range: 10^20–10^22) |
-| **Total memory** | 10^15 bytes (1 PB) | See Threshold Registry: L2_memory (valid range: 10^14–10^16) |
-| **Total bandwidth** | 10^18 bytes/s (1 EB/s) | See Threshold Registry: L2_bandwidth (valid range: 10^17–10^19) |
+| **Total state space** | ~2 x 10^15 to 8.7 x 10^16 floating-point variables, including neuronal, synaptic, and astrocytic state | Reduced-to-detailed L2+ bounds from Section 2.2.4 |
+| **Total FLOPS** | ~10^19 to 10^21 FLOPS | Reduced-to-detailed L2+ bounds from Section 2.2.4 |
+| **Total memory** | ~8 x 10^15 to 3.5 x 10^17 bytes (8–350 PB) | Reduced-to-detailed L2+ bounds from Section 2.2.4 |
+| **Total bandwidth** | ~10^20 bytes/s for reduced L2+; up to ~10^22 bytes/s for detailed L2+ | State-variable reads/writes at a 0.1 ms timestep; Section 4.1 |
 
 ### 5.3 Requirements for 0.2.2.1.4 (Emulation Validation)
 
