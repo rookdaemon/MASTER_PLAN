@@ -6,9 +6,15 @@ Define the structure, interfaces, and deliverables for predictive consciousness 
 
 ## Deliverable
 
-A structured research document: `docs/consciousness-science/predictive-consciousness-models.md`
+A structured research record: `docs/consciousness-science/predictive-consciousness-models.md`
 
-This is a **research synthesis** card, not a software card. The "implementation" is the model specification and verification framework itself.
+This is an **experimental research** card, not a software card. The model specification
+and verification framework begin implementation, but do not complete it. Advancement
+to REVIEW requires the record to replace every planned or pending result with traceable
+experimental evidence, including preregistration identifiers, dated datasets and
+analyses, publication identifiers and peer-review status, and reports from at least two
+independent replication groups. Protocol targets, proposed venues, and synthetic or
+hypothetical observations are not verification evidence.
 
 ---
 
@@ -128,9 +134,11 @@ The document is organized into these major sections:
 
 ## Constraints
 
-- This is a research-synthesis deliverable, not software
+- This is an experimental-research deliverable, not software
 - All predictions must be stated in falsifiable form with explicit null alternatives
 - The model must consume the computational theory from 0.1.1.2 as its theoretical foundation
 - All measurements must use the operationalized metrics from 0.1.1.4
 - During IMPLEMENT, only files under `docs/consciousness-science/` are written
 - Speculation must be clearly labeled and distinguished from empirically grounded claims
+- Empty, planned, pending, or target-only result fields do not satisfy any experimental-verification acceptance criterion
+- Every claimed result must identify its preregistration, dataset, analysis, and responsible research group; publication and independent-replication claims must identify durable external records
