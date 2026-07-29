@@ -109,8 +109,10 @@ log loss, Brier score `mean((p-y)^2)`, calibration intercept and slope from
 ten fixed bins `[0,.1),...,[.9,1]`. AUC uses midranks for ties.
 
 Report two-sided 95% percentile confidence intervals from 10,000 bootstrap
-resamples of `related_group_id`, stratified by substrate and outcome, using
-seed `irsm-inference-v1`; all records in a selected group travel together.
+resamples of `related_group_id`, stratified by each group's frozen partition
+stratum, using seed `irsm-inference-v1`; sample with replacement within every
+stratum and carry all records in each selected group together, including
+records whose own substrate or outcome differs from the group's stratum.
 Confidence intervals are descriptive. The family of four primary calibration
 estimands is tested, where applicable, with Holm correction at family-wise
 alpha `.05`; discrimination estimands are reported without confirmatory
