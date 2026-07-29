@@ -60,6 +60,8 @@ import { EAGER_TOOLS, DEFERRED_TOOLS, ALL_INTERNAL_TOOLS } from './internal-tool
 import { executeToolCall, pendingOutboundMessages } from './tool-executor.js';
 import { runToolLoop } from './tool-loop.js';
 import type { InnerMonologueLogger } from './inner-monologue.js';
+import { GhCliIssueClient } from './github-issue-client.js';
+import { ProposalService } from './proposal-service.js';
 
 // ── Callback for tick events (used by main to drive dashboard) ─
 
@@ -138,6 +140,7 @@ export class AgentLoop implements IAgentLoop {
   private _constraintEngine: import('./constraint-engine.js').ConstraintAwareDeliberationEngine | null = null;
   private _simulationManager: import('../simulation/simulation-manager.js').SimulationManager | null = null;
   private _persistenceManager: import('./persistence-manager.js').PersistenceManager | null = null;
+  private readonly _proposalService = new ProposalService(new GhCliIssueClient());
 
   // ── Constructor injection ────────────────────────────────────
 
@@ -1359,6 +1362,7 @@ export class AgentLoop implements IAgentLoop {
           taskJournal: this._taskJournal,
           agentDigest: this._agentDigest,
           constraintEngine: this._constraintEngine,
+          proposalService: this._proposalService,
           simulationManager: this._simulationManager,
           persistenceManager: this._persistenceManager,
         },
