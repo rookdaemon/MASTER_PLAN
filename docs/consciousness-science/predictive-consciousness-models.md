@@ -97,20 +97,35 @@ uncomputable fields and `missing_paths`.
 
 The numbers below use an explicitly synthetic conformance-only parameter set:
 all lower bounds 0, upper bounds F/I=1, R=4, T=10; all weights 0.25; threshold
-0.5. It is not a fitted or validated scientific parameter set.
+0.5, `parameter_set_id="synthetic-conformance"`, and
+`parameter_set_version="0.0.0-unfitted"`. It is not a fitted or validated
+scientific parameter set. Each example uses a one-draw joint bootstrap equal to
+its point inputs, so every computable 95% interval is the singleton point value
+and the valid and boundary cases have classification probabilities
+`{"conscious":1,"not-conscious":0}`. All examples use
+`contract_version="1.0.0"` and the provenance fixture
+`system_model_id="fixture-system"`, `system_model_version="1.0.0"`,
+`adapter_id="fixture-adapter"`, `adapter_version="1.0.0"`,
+`protocol_version="1.0.0"`, `trial_ids=["fixture-trial"]`,
+`dataset_id="fixture-dataset"`, `measurement_timestamp="2000-01-01T00:00:00Z"`,
+`software_digest="sha256:fixture"`, and `random_seed_manifest=[0]`.
 
 | Case | Raw F/R/I/T | Expected normalized F/R/I/T | Expected result |
 |---|---|---|---|
 | Valid | 0.8 / 2 / 0.6 / 8 | 0.8 / 0.5 / 0.6 / 0.8 | degree 0.675; `conscious` |
 | Boundary | 0.5 / 2 / 0.5 / 5 | 0.5 / 0.5 / 0.5 / 0.5 | degree 0.5; `conscious` |
-| Missing | 0.8 / unavailable / 0.6 / 8 | 0.8 / null / 0.6 / 0.8 | degree null; `indeterminate`; `missing_paths=["R_raw"]` |
+| Missing | 0.8 / unavailable / 0.6 / 8 | 0.8 / null / 0.6 / 0.8 | degree and degree interval null; `indeterminate`; classification probabilities null; `missing_paths=["R_raw"]` |
 | Invalid | 1.2 / 2 / 0.6 / 8 | none | `IRSM_INVALID_INPUT`; `paths=["F_raw"]` |
 
-For substrate conformance, a biological cortical adapter and a recurrent-network
-adapter that emit the valid row above must produce byte-equivalent prediction
-fields except for adapter and source provenance. This is the required
-cross-substrate demonstration: acquisition differs, normalization, evaluation,
-schema, and expected result do not.
+For substrate conformance, fixture records from a biological cortical-state
+adapter and a non-biological recurrent-network hidden-state adapter both emit the
+valid row above. Substituting respectively
+`adapter_id="cortical-state-fixture"` and
+`adapter_id="recurrent-hidden-state-fixture"` produces byte-equivalent
+components, degree, classification, uncertainty, contract version, and parameter
+identifiers; only adapter and source provenance differ. This demonstrates that
+acquisition differs while normalization, evaluation, schema, and expected result
+do not.
 
 ---
 
