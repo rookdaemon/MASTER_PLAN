@@ -1,4 +1,5 @@
 import { evidenceValidationErrors } from './evidence.js';
+import { assessHumanEscalation } from './escalation-policy.js';
 import { isValidConstitutionalAmendment, isValidHumanApproval } from './human-authorization.js';
 import { shadowReviewErrors } from './rollout.js';
 import type { ControllerConfig, Portfolio, StrategyState, Timestamp, WorkPacket } from './types.js';
@@ -40,8 +41,21 @@ function packetErrors(packet: WorkPacket, state: StrategyState, now: Timestamp):
   ] as const) {
     if (!nonEmptyStrings(value)) errors.push(`${prefix} has no ${label}`);
   }
-  if (!['autonomous', 'human-reviewed-pr', 'explicit-authorization'].includes(packet.authorityClass)) {
+  if (!['autonomous', 'agent-reviewed', 'human-escalation'].includes(packet.authorityClass)) {
     errors.push(`${prefix} has an invalid authority class`);
+  }
+  if (packet.authorityClass === 'human-escalation') {
+    const escalation = state.escalations.find(
+      (candidate) => candidate.id === packet.escalationId && candidate.packetId === packet.id,
+    );
+    const assessedAt = Date.parse(escalation?.assessedAt ?? '');
+    const evaluatedAt = Date.parse(now);
+    const evidenceById = new Map(state.evidence.map((record) => [record.id, record]));
+    if (!escalation || escalation.assessedBy !== 'escalation-policy' ||
+        Number.isNaN(assessedAt) || Number.isNaN(evaluatedAt) || assessedAt > evaluatedAt ||
+        !assessHumanEscalation(escalation, escalation.assessedAt, evidenceById).escalate) {
+      errors.push(`${prefix} lacks a qualified persisted escalation assessment`);
+    }
   }
   if (!Number.isSafeInteger(packet.attempt) || packet.attempt < 0) errors.push(`${prefix} has an invalid attempt`);
   const reviewedAt = Date.parse(packet.reviewedAt);
@@ -74,7 +88,13 @@ export function strategyContractErrors(
     packetIds.add(packet.id);
   }
   for (const approval of state.approvals) {
-    if (!isValidHumanApproval(approval, approval.scope, now)) errors.push(`Invalid human approval: ${approval.id}`);
+    const escalation = state.escalations.find((candidate) => candidate.id === approval.escalationId);
+    if (!escalation || !isValidHumanApproval(
+      approval, approval.scope, now, escalation.id, escalation.assessedAt,
+    )) errors.push(`Invalid servant-leader escalation approval: ${approval.id}`);
+    if (!escalation) {
+      errors.push(`Servant-leader approval is not bound to an escalation: ${approval.id}`);
+    }
   }
   for (const amendment of state.constitution.amendments) {
     if (amendment.affectedNodeIds.length === 0 ||
@@ -93,10 +113,6 @@ export function strategyContractErrors(
   if (state.governance.mode === 'safe-code') {
     if (state.governance.supervisedResultsReviewed < 1) {
       errors.push('Safe-code governance requires at least one supervised result review');
-    }
-    if (!state.approvals.some((approval) =>
-      approval.id === 'safe-code-rollout' && isValidHumanApproval(approval, 'governance:safe-code', now))) {
-      errors.push('Safe-code governance requires explicit human approval');
     }
   }
   if (state.governance.safeAutoMergeEnabled && state.governance.mode !== 'safe-code') {

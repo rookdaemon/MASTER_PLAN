@@ -9,10 +9,12 @@ import type {
   Constitution,
   ControllerConfig,
   EvidenceRecord,
+  EscalationRecord,
   GovernanceState,
   Portfolio,
   StrategyState,
   ShadowCycleReview,
+  ShadowCycleRecord,
   SupersedingAssessment,
   Timestamp,
   WorkPacket,
@@ -52,6 +54,8 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
     auditEvents,
     portfolio,
     governance,
+    escalations,
+    shadowCyclesReport,
     shadowCycleReviews,
     legacyAudit,
   ] = await Promise.all([
@@ -64,6 +68,8 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
     json<AuditEvent[]>(fileSystem, 'strategy/audit-log.json'),
     json<PortfolioFile>(fileSystem, 'strategy/portfolio.json'),
     json<GovernanceState>(fileSystem, 'strategy/governance.json'),
+    json<EscalationRecord[]>(fileSystem, 'strategy/escalations.json'),
+    json<{ cycles: ShadowCycleRecord[] }>(fileSystem, 'strategy/shadow-cycles.json'),
     json<ShadowCycleReview[]>(fileSystem, 'strategy/shadow-reviews.json'),
     json<LegacyAuditRecord[]>(fileSystem, 'strategy/legacy-audit.json'),
   ]);
@@ -79,6 +85,8 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
     auditEvents,
     portfolioEffort: portfolio.currentEffort,
     governance,
+    escalations,
+    shadowCycles: shadowCyclesReport.cycles,
     shadowCycleReviews,
   };
   return {

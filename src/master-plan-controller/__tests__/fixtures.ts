@@ -1,6 +1,7 @@
 import type {
   ControllerConfig,
   EvidenceRecord,
+  EscalationRecord,
   PlanNode,
   StrategyState,
   WorkPacket,
@@ -59,6 +60,30 @@ export function makeEvidence(overrides: Partial<EvidenceRecord> = {}): EvidenceR
   };
 }
 
+export function makeEscalationEvidence(): EvidenceRecord[] {
+  return [
+    makeEvidence({ id: 'escalation-failure-1', source: 'artifact://attempt-1', outcome: 'negative', observedAt: '2026-08-03T10:00:00.000Z' }),
+    makeEvidence({ id: 'escalation-failure-2', source: 'artifact://attempt-2', outcome: 'negative', observedAt: '2026-08-03T11:00:00.000Z' }),
+  ];
+}
+
+export function makeEscalation(overrides: Partial<EscalationRecord> = {}): EscalationRecord {
+  return {
+    id: 'escalation-1',
+    packetId: 'packet-1',
+    kind: 'legal-consent',
+    automationImpossibility: 'Legally valid consent must be recorded by the named human.',
+    automatedAttempts: [
+      { description: 'consent API unavailable', evidenceReference: 'escalation-failure-1', outcome: 'failed', attemptedAt: '2026-08-03T10:00:00.000Z' },
+      { description: 'delegated consent flow unavailable', evidenceReference: 'escalation-failure-2', outcome: 'failed', attemptedAt: '2026-08-03T11:00:00.000Z' },
+    ],
+    decisionRequested: { operation: 'record-legal-consent', scope: 'packet-1', expectedOutput: 'Consent artifact.' },
+    assessedBy: 'escalation-policy',
+    assessedAt: NOW,
+    ...overrides,
+  };
+}
+
 export function makePacket(overrides: Partial<WorkPacket> = {}): WorkPacket {
   return {
     id: 'packet-1',
@@ -113,6 +138,8 @@ export function makeState(overrides: Partial<StrategyState> = {}): StrategyState
     packets: [makePacket()],
     activePacketId: null,
     approvals: [],
+    escalations: [],
+    shadowCycles: [],
     shadowCycleReviews: [],
     auditEvents: [],
     portfolioEffort: {

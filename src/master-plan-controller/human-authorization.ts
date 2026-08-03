@@ -6,10 +6,20 @@ function atOrBefore(value: Timestamp, now: Timestamp): boolean {
   return !Number.isNaN(timestamp) && !Number.isNaN(reference) && timestamp <= reference;
 }
 
-export function isValidHumanApproval(approval: Approval, scope: string, now: Timestamp): boolean {
+export function isValidHumanApproval(
+  approval: Approval,
+  scope: string,
+  now: Timestamp,
+  escalationId?: string,
+  notBefore?: Timestamp,
+): boolean {
+  const approvedAt = Date.parse(approval.approvedAt);
+  const earliest = notBefore === undefined ? approvedAt : Date.parse(notBefore);
   return approval.scope === scope &&
+    (escalationId === undefined || approval.escalationId === escalationId) &&
     approval.approverRole === 'human' &&
     approval.approvedBy.trim().length > 0 &&
+    !Number.isNaN(earliest) && approvedAt >= earliest &&
     atOrBefore(approval.approvedAt, now);
 }
 

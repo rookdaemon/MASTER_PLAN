@@ -59,10 +59,11 @@ export function renderRoadmap(bundle: RepositoryStrategyBundle): string {
     '## Rollout status',
     '',
     `- Mode: **${bundle.state.governance.mode}**.`,
-    `- Human-reviewed shadow cycles: ${bundle.state.governance.shadowCyclesReviewed}/20.`,
+    `- Agent-reviewed shadow cycles: ${bundle.state.governance.shadowCyclesReviewed}/20.`,
     `- Safe auto-merge enabled: ${bundle.state.governance.safeAutoMergeEnabled ? 'yes' : 'no'}.`,
     '- Supervised execution requires every result to receive fresh review.',
-    '- Weekly portfolio review and quarterly evidence, weight, and constitutional-risk review remain human responsibilities.',
+    '- Weekly portfolio review and quarterly evidence, weight, and constitutional-risk review are automated with independent agent review.',
+    '- The human servant leader is contacted only for an evidence-backed, intrinsically human escalation.',
   );
   return `${lines.join('\n')}\n`;
 }

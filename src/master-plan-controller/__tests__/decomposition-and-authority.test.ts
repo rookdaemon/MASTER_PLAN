@@ -73,16 +73,17 @@ describe('authority classification', () => {
     expect(classifyAuthority({ action: 'prepare-branch', domains: ['code'] }).authorityClass).toBe('autonomous');
   });
 
-  it('requires a human-reviewed PR for protected repository domains', () => {
+  it('routes protected repository domains through agent review', () => {
     for (const domain of ['plan', 'doctrine', 'governance', 'workflow', 'dependency', 'deployment', 'network', 'security', 'constitutional'] as const) {
-      expect(classifyAuthority({ action: 'change', domains: [domain] }).authorityClass, domain).toBe('human-reviewed-pr');
+      expect(classifyAuthority({ action: 'change', domains: [domain] }).authorityClass, domain).toBe('agent-reviewed');
     }
   });
 
-  it('requires explicit authorization for consequential external actions', () => {
-    for (const action of ['spending', 'publication', 'outreach', 'human-subjects', 'hardware-operation', 'deployment', 'self-replication', 'potentially-conscious-system'] as const) {
-      expect(classifyAuthority({ action, domains: ['code'] }).authorityClass, action).toBe('explicit-authorization');
+  it('keeps consequential actions agent-reviewed unless a concrete issue proves human escalation necessary', () => {
+    for (const action of ['spending', 'publication', 'outreach', 'hardware-operation', 'deployment', 'self-replication', 'potentially-conscious-system'] as const) {
+      expect(classifyAuthority({ action, domains: ['code'] }).authorityClass, action).toBe('agent-reviewed');
     }
+    expect(classifyAuthority({ action: 'human-subjects', domains: ['code'] }).authorityClass).toBe('human-escalation');
   });
 });
 

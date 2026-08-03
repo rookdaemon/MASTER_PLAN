@@ -3,7 +3,7 @@ import type { ChangeClassification } from './change-classifier.js';
 export interface ProposalPolicyAssessment {
   allowed: boolean;
   risk: 'routine' | 'protected';
-  mergeMode: 'automatic' | 'manual';
+  mergeMode: 'automatic' | 'agent-controlled';
   agentReviewRequired: true;
   reasons: string[];
 }
@@ -18,10 +18,10 @@ export function assessProposalPolicy(
     return {
       allowed: validCommitCount,
       risk: 'protected',
-      mergeMode: 'manual',
+      mergeMode: 'agent-controlled',
       agentReviewRequired: true,
       reasons: validCommitCount
-        ? ['Protected changes require agent review and manual merge']
+        ? ['Protected changes require independent agent review and an agent-controlled merge']
         : ['A protected change must be confined to exactly one commit'],
     };
   }
@@ -39,7 +39,7 @@ export function assessProposalPolicy(
   return {
     allowed: true,
     risk: 'routine',
-    mergeMode: automatic ? 'automatic' : 'manual',
+    mergeMode: automatic ? 'automatic' : 'agent-controlled',
     agentReviewRequired: true,
     reasons: automatic
       ? ['Bounded, backward-compatible behavior is covered by tests']

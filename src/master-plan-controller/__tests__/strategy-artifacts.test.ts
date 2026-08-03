@@ -5,20 +5,27 @@ import { loadRepositoryStrategy, verifyRepositoryStrategy } from '../repository-
 import { replayLegacyPlan } from '../legacy-replay.js';
 import { renderRoadmap } from '../roadmap.js';
 import { simulateShadowCycles } from '../shadow-simulation.js';
+import { shadowCycleFingerprint } from '../rollout.js';
+import type { ShadowCycleRecord } from '../types.js';
 import { NodeFileSystem, SystemClock } from '../runtime-adapters.js';
 import {
   InMemoryClock,
   InMemoryFileSystem,
   InMemoryScheduler,
 } from '../testing/in-memory-adapters.js';
-import { CONFIG, NOW } from './fixtures.js';
+import { CONFIG, makeEscalation, makeEscalationEvidence, NOW } from './fixtures.js';
 
-function acceptedShadowReviews() {
-  return Array.from({ length: 20 }, (_, index) => ({
+const STRATEGY_NOW = '2026-08-03T17:00:00.000Z';
+
+function acceptedShadowReviews(cycles: readonly ShadowCycleRecord[]) {
+  return cycles.map((cycle, index) => ({
     cycle: index + 1,
     cycleObservedAt: `2026-08-03T00:${String(index).padStart(2, '0')}:00.000Z`,
-    reviewer: 'human-reviewer',
-    reviewerRole: 'human' as const,
+    reviewer: 'independent-agent-reviewer',
+    reviewerRole: 'agent' as const,
+    reviewRunId: `agent-run-${index + 1}`,
+    selectedPacketId: cycle.selectedPacketId,
+    cycleFingerprint: shadowCycleFingerprint(cycle),
     reviewedAt: NOW,
     useful: true,
     nonChurning: true,
@@ -61,7 +68,7 @@ describe('checked-in strategy v2 bundle', () => {
   it('covers every current v1 plan card while preserving the v1 files as history', async () => {
     const fileSystem = new NodeFileSystem('.');
     const bundle = await loadRepositoryStrategy(fileSystem);
-    const report = await verifyRepositoryStrategy(fileSystem, bundle, NOW, CONFIG);
+    const report = await verifyRepositoryStrategy(fileSystem, bundle, STRATEGY_NOW, CONFIG);
     expect(report.errors).toEqual([]);
     expect(report.legacyPlanFileCount).toBeGreaterThan(100);
     expect(bundle.legacyAudit).toHaveLength(report.legacyPlanFileCount);
@@ -101,16 +108,31 @@ describe('checked-in strategy v2 bundle', () => {
     bundle.config.maxDecompositionDepth = 5;
     bundle.config.maxChildrenPerDecomposition = 6;
 
-    const errors = (await verifyRepositoryStrategy(fileSystem, bundle, NOW)).errors.join('\n');
+    const errors = (await verifyRepositoryStrategy(fileSystem, bundle, STRATEGY_NOW)).errors.join('\n');
     expect(errors).toMatch(/evidence.*future/i);
     expect(errors).toMatch(/limitations/i);
     expect(errors).toMatch(/missing hypothesis/i);
     expect(errors).toMatch(/packet.*owner/i);
     expect(errors).toMatch(/budget/i);
-    expect(errors).toMatch(/human approval/i);
+    expect(errors).toMatch(/servant-leader escalation approval/i);
     expect(errors).toMatch(/constitutional amendment/i);
     expect(errors).toMatch(/decomposition depth/i);
     expect(errors).toMatch(/children/i);
+  });
+
+  it('fails closed on an escalation assessment with an invalid timestamp', async () => {
+    const fileSystem = new NodeFileSystem('.');
+    const bundle = structuredClone(await loadRepositoryStrategy(fileSystem));
+    const packet = bundle.state.packets[0];
+    packet.authorityClass = 'human-escalation';
+    packet.escalationId = 'escalation-invalid-time';
+    bundle.state.evidence.push(...makeEscalationEvidence());
+    bundle.state.escalations.push(makeEscalation({
+      id: packet.escalationId, packetId: packet.id, assessedAt: 'not-a-timestamp',
+    }));
+
+    const errors = (await verifyRepositoryStrategy(fileSystem, bundle, STRATEGY_NOW)).errors.join('\n');
+    expect(errors).toMatch(/qualified persisted escalation assessment/i);
   });
 
   it('contains the constitutional core, exact portfolio weights, and disabled-by-default automation', async () => {
@@ -122,7 +144,7 @@ describe('checked-in strategy v2 bundle', () => {
       'enabling-capabilities': 0.2,
       'institutional-continuity': 0.15,
     });
-    expect(bundle.state.governance).toMatchObject({ mode: 'shadow', safeAutoMergeEnabled: false });
+    expect(bundle.state.governance).toMatchObject({ mode: 'supervised', shadowCyclesReviewed: 20, safeAutoMergeEnabled: false });
     const packetPortfolios = new Set(bundle.state.packets.map((packet) => packet.portfolio));
     expect(packetPortfolios).toEqual(new Set([
       'consciousness-epistemics',
@@ -135,19 +157,19 @@ describe('checked-in strategy v2 bundle', () => {
   it('allows a valid reviewed transition to supervised mode to keep passing strategy verification', async () => {
     const fileSystem = new NodeFileSystem('.');
     const bundle = structuredClone(await loadRepositoryStrategy(fileSystem));
-    bundle.state.shadowCycleReviews = acceptedShadowReviews();
+    bundle.state.shadowCycleReviews = acceptedShadowReviews(bundle.state.shadowCycles);
     bundle.state.governance = {
       mode: 'supervised', shadowCyclesReviewed: 20, supervisedResultsReviewed: 0, safeAutoMergeEnabled: false,
     };
-    expect((await verifyRepositoryStrategy(fileSystem, bundle, NOW)).errors).toEqual([]);
+    expect((await verifyRepositoryStrategy(fileSystem, bundle, STRATEGY_NOW)).errors).toEqual([]);
   });
 
   it('allows auditable shadow reviews to accumulate before the twentieth review', async () => {
     const fileSystem = new NodeFileSystem('.');
     const bundle = structuredClone(await loadRepositoryStrategy(fileSystem));
-    bundle.state.shadowCycleReviews = acceptedShadowReviews().slice(0, 1);
-    bundle.state.governance.shadowCyclesReviewed = 1;
-    expect((await verifyRepositoryStrategy(fileSystem, bundle, NOW)).errors).toEqual([]);
+    bundle.state.shadowCycleReviews = acceptedShadowReviews(bundle.state.shadowCycles).slice(0, 1);
+    bundle.state.governance = { ...bundle.state.governance, mode: 'shadow', shadowCyclesReviewed: 1 };
+    expect((await verifyRepositoryStrategy(fileSystem, bundle, STRATEGY_NOW)).errors).toEqual([]);
   });
 
   it('keeps expansion, self-replication, and cosmological work behind scientific and capability gates', async () => {
@@ -199,21 +221,24 @@ describe('checked-in strategy v2 bundle', () => {
     expect(await fileSystem.readText('strategy/ROADMAP.md')).toBe(renderRoadmap(bundle));
   });
 
-  it('generates 20 non-executing shadow cycles without claiming human review', async () => {
+  it('reports automated review progress separately from generated shadow cycles', async () => {
     const fileSystem = new NodeFileSystem('.');
     const bundle = await loadRepositoryStrategy(fileSystem);
     const timestamps = Array.from(
       { length: 20 },
       (_, index) => `2026-08-03T00:${String(index).padStart(2, '0')}:00.000Z`,
     );
-    const report = simulateShadowCycles(bundle.state, timestamps, bundle.config);
+    const report = simulateShadowCycles({
+      ...bundle.state,
+      governance: { ...bundle.state.governance, mode: 'shadow' },
+    }, timestamps, bundle.config);
     expect(report.summary).toEqual({
       cyclesGenerated: 20,
-      cyclesHumanReviewed: 0,
+      cyclesReviewed: 20,
       anyExecution: false,
       anyMerge: false,
       stableFrontier: true,
-      humanReviewPending: true,
+      automatedReviewPending: false,
     });
     const checkedIn = JSON.parse(await fileSystem.readText('strategy/shadow-cycles.json')) as typeof report;
     expect(checkedIn).toEqual(report);

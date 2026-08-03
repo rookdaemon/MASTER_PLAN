@@ -15,7 +15,7 @@ describe('blocking CI and governed workflows', () => {
     expect(workflow).toContain('npm run strategy:verify');
   });
 
-  it('declares protected-branch controls that must be applied by human-reviewed governance', async () => {
+  it('declares protected-branch controls for automated stewardship', async () => {
     const controls = JSON.parse(await fileSystem.readText('strategy/branch-protection.json')) as {
       branch: string;
       requiredStatusChecks: string[];
@@ -28,7 +28,7 @@ describe('blocking CI and governed workflows', () => {
       repositoryAutoMergeEnabled: boolean;
       safeAutoMergeVariableEnabled: boolean;
       highRiskPolicy: { maximumCommitCount: number; mergeMode: string };
-      agentReview: { provider: string; automatic: boolean; reviewOnPush: boolean };
+      agentReview: { provider: string; automatic: boolean; reviewOnPush: boolean; fallback: string };
     };
     expect(controls).toMatchObject({
       branch: 'main',
@@ -41,8 +41,11 @@ describe('blocking CI and governed workflows', () => {
       appliedAndVerified: true,
       repositoryAutoMergeEnabled: true,
       safeAutoMergeVariableEnabled: true,
-      highRiskPolicy: { maximumCommitCount: 1, mergeMode: 'manual' },
-      agentReview: { provider: 'github-copilot', automatic: true, reviewOnPush: true },
+      highRiskPolicy: { maximumCommitCount: 1, mergeMode: 'agent-controlled' },
+      agentReview: {
+        provider: 'github-agent-reviewers', automatic: true, reviewOnPush: true,
+        fallback: 'github-models',
+      },
     });
   });
 
@@ -51,7 +54,8 @@ describe('blocking CI and governed workflows', () => {
     const status = await fileSystem.readText('STATUS.md');
     expect(readme).toContain('strategy/ROADMAP.md');
     expect(readme).toMatch(/v1.*histor/i);
-    expect(status).toContain('Shadow cycles human-reviewed: **0 / 20**');
+    expect(status).toContain('Shadow cycles agent-reviewed: **20 / 20**');
+    expect(status).toContain('Human role: **servant leader for exceptional escalation**');
     expect(status).toContain('Branch protection applied and verified: **yes**');
     expect(status).toContain('Safe auto-merge: **enabled for routine code/test changes**');
   });
@@ -61,6 +65,7 @@ describe('blocking CI and governed workflows', () => {
     const safeMerge = await fileSystem.readText('.github/workflows/safe-auto-merge.yml');
     const mergeRequest = await fileSystem.readText('.github/workflows/safe-auto-merge-request.yml');
     const agentReview = await fileSystem.readText('.github/workflows/agent-review.yml');
+    const agentReviewRequest = await fileSystem.readText('.github/workflows/agent-review-request.yml');
     expect(proposal).toContain('pull_request:');
     expect(proposal).toContain('npm run governance:classify');
     expect(proposal).toContain('PR_COMMIT_COUNT');
@@ -71,15 +76,37 @@ describe('blocking CI and governed workflows', () => {
     expect(safeMerge).not.toContain('pull-requests: write');
     expect(safeMerge).toContain('npm run strategy:verify');
     expect(mergeRequest).toContain('workflow_run:');
-    expect(mergeRequest).toContain('workflows: [Agent review, Safe code auto-merge]');
+    expect(mergeRequest).toContain('workflows: [CI, Proposal review, Agent review, Safe code auto-merge]');
     expect(mergeRequest).not.toContain('actions/checkout');
     expect(mergeRequest).not.toContain('npm ci');
-    expect(mergeRequest).toContain('copilot-pull-request-reviewer[bot]');
+    expect(mergeRequest).not.toContain('copilot-pull-request-reviewer[bot]');
+    expect(mergeRequest).toContain('commit_count');
+    expect(mergeRequest).toContain('agent_controlled_candidate');
+    expect(mergeRequest).toContain('.github/workflows/agent-review.yml');
+    expect(mergeRequest).toContain('.pull_requests');
     for (const protectedPattern of ['network', 'security', 'deploy']) {
       expect(mergeRequest).toContain(protectedPattern);
     }
-    expect(agentReview).toContain('agent-review:');
+    expect(agentReview).toContain("name='agent-review'");
+    expect(agentReview).toContain('pull_request_target:');
+    expect(agentReview).toContain('workflow_dispatch:');
+    expect(agentReview).toContain('external_id');
+    expect(agentReview).toContain('actions: write');
     expect(agentReview).toContain('commit_id');
+    expect(agentReview).toContain('models: read');
+    expect(agentReview).toContain('checks: write');
+    expect(agentReview).toContain('/check-runs');
+    expect(agentReview).toContain('head.sha');
+    expect(agentReview).toContain('models.github.ai/inference/chat/completions');
+    expect(agentReview).toContain('response_format');
+    expect(agentReview).not.toContain('actions/checkout');
+    expect(agentReviewRequest).toContain('schedule:');
+    expect(agentReviewRequest).toContain('requested_reviewers');
+    expect(agentReviewRequest).toContain('if ! gh api --method POST');
+    expect(agentReviewRequest).toContain('gh workflow run agent-review.yml');
+    expect(mergeRequest).toContain('workflow_dispatch:');
+    expect(agentReviewRequest).not.toContain('actions/checkout');
+    expect(agentReviewRequest).not.toContain('npm ci');
   });
 
   it('provides CLI scripts for deterministic strategy and governance checks', async () => {

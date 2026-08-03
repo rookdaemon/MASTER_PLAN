@@ -6,6 +6,7 @@ export * from './controller.js';
 export * from './decomposition.js';
 export * from './diagnosis.js';
 export * from './evidence.js';
+export * from './escalation-policy.js';
 export * from './gates.js';
 export * from './graph.js';
 export * from './human-authorization.js';

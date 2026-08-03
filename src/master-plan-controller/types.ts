@@ -66,7 +66,48 @@ export interface EvidenceRecord {
   outcome: 'positive' | 'negative' | 'null';
 }
 
-export type AuthorityClass = 'autonomous' | 'human-reviewed-pr' | 'explicit-authorization';
+export type AuthorityClass = 'autonomous' | 'agent-reviewed' | 'human-escalation';
+
+export type EscalationIssueKind =
+  | 'owner-credential'
+  | 'physical-presence'
+  | 'legal-consent'
+  | 'constitutional-conflict'
+  | 'ci-failure'
+  | 'review-unavailable'
+  | 'uncertainty'
+  | 'novelty'
+  | 'high-risk';
+
+export interface AutomatedAttempt {
+  description: string;
+  evidenceReference: string;
+  outcome: 'failed' | 'succeeded';
+  attemptedAt: Timestamp;
+}
+
+export type BoundedHumanOperation =
+  | 'provide-owner-credential'
+  | 'perform-physical-act'
+  | 'record-legal-consent'
+  | 'resolve-constitutional-conflict';
+
+export interface BoundedHumanDecision {
+  operation: BoundedHumanOperation;
+  scope: string;
+  expectedOutput: string;
+}
+
+export interface EscalationRecord {
+  id: string;
+  packetId: string;
+  kind: EscalationIssueKind;
+  automationImpossibility: string;
+  automatedAttempts: AutomatedAttempt[];
+  decisionRequested: BoundedHumanDecision;
+  assessedBy: 'escalation-policy';
+  assessedAt: Timestamp;
+}
 
 export interface PriorityFactors {
   impact: number;
@@ -94,6 +135,7 @@ export interface WorkPacket {
   verificationMethod: string;
   rollback: string;
   authorityClass: AuthorityClass;
+  escalationId?: string;
   authorityReasons: string[];
   owner: string;
   lifecycle: LifecycleState;
@@ -127,6 +169,7 @@ export interface Approval {
   approvedBy: string;
   approverRole: 'human';
   approvedAt: Timestamp;
+  escalationId?: string;
 }
 
 export interface SupersedingAssessment {
@@ -167,12 +210,25 @@ export interface ShadowCycleReview {
   cycle: number;
   cycleObservedAt: Timestamp;
   reviewer: string;
-  reviewerRole: 'human';
+  reviewerRole: 'agent';
+  reviewRunId: string;
+  selectedPacketId: string | null;
+  cycleFingerprint: string;
   reviewedAt: Timestamp;
   useful: boolean;
   nonChurning: boolean;
   decision: 'accept' | 'revise' | 'reject';
   rationale: string;
+}
+
+export interface ShadowCycleRecord {
+  cycle: number;
+  observedAt: Timestamp;
+  rankedFrontier: string[];
+  selectedPacketId: string | null;
+  executed: false;
+  merged: false;
+  stateMutated: false;
 }
 
 export interface StrategyState {
@@ -186,6 +242,8 @@ export interface StrategyState {
   auditEvents: AuditEvent[];
   portfolioEffort: Record<Portfolio, number>;
   governance: GovernanceState;
+  escalations: EscalationRecord[];
+  shadowCycles: ShadowCycleRecord[];
   shadowCycleReviews: ShadowCycleReview[];
 }
 

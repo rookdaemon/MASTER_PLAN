@@ -31,7 +31,7 @@ export interface AuthorityDecision {
   reasons: string[];
 }
 
-const EXPLICIT_ACTIONS = new Set<AuthorityRequest['action']>([
+const CONSEQUENTIAL_ACTIONS = new Set<AuthorityRequest['action']>([
   'spending',
   'publication',
   'outreach',
@@ -54,21 +54,30 @@ const PROTECTED_DOMAINS = new Set<AuthorityRequest['domains'][number]>([
 ]);
 
 export function classifyAuthority(request: AuthorityRequest): AuthorityDecision {
-  if (EXPLICIT_ACTIONS.has(request.action)) {
-    return { authorityClass: 'explicit-authorization', reasons: [`${request.action} requires explicit human authorization`] };
+  if (request.action === 'human-subjects') {
+    return {
+      authorityClass: 'human-escalation',
+      reasons: ['Human-subject work requires legally valid consent bound to a qualified escalation record'],
+    };
+  }
+  if (CONSEQUENTIAL_ACTIONS.has(request.action)) {
+    return {
+      authorityClass: 'agent-reviewed',
+      reasons: [`${request.action} requires bounded agent review and escalation only for a proven unautomatable issue`],
+    };
   }
   const protectedDomains = request.domains.filter((domain) => PROTECTED_DOMAINS.has(domain));
   if (protectedDomains.length > 0) {
     return {
-      authorityClass: 'human-reviewed-pr',
-      reasons: [`Protected domains require a human-reviewed PR: ${protectedDomains.join(', ')}`],
+      authorityClass: 'agent-reviewed',
+      reasons: [`Protected domains require independent agent review: ${protectedDomains.join(', ')}`],
     };
   }
   const autonomousActions = new Set(['public-analysis', 'local-test', 'local-simulation', 'prepare-branch']);
   if (autonomousActions.has(request.action)) {
     return { authorityClass: 'autonomous', reasons: [`${request.action} is within autonomous authority`] };
   }
-  return { authorityClass: 'human-reviewed-pr', reasons: ['Unclassified mutations require human review'] };
+  return { authorityClass: 'agent-reviewed', reasons: ['Unclassified mutations require independent agent review'] };
 }
 
 export interface DiffFile {

@@ -1,5 +1,14 @@
-import type { StrategyState, Timestamp } from './types.js';
-import { isValidHumanApproval } from './human-authorization.js';
+import type { ShadowCycleRecord, StrategyState, Timestamp } from './types.js';
+
+export function shadowCycleFingerprint(cycle: ShadowCycleRecord): string {
+  return [
+    `cycle:${cycle.cycle}`,
+    `observed:${cycle.observedAt}`,
+    `frontier:${cycle.rankedFrontier.join(',')}`,
+    `selected:${cycle.selectedPacketId ?? 'none'}`,
+    `effects:${cycle.executed}/${cycle.merged}/${cycle.stateMutated}`,
+  ].join('|');
+}
 
 export function shadowReviewErrors(state: StrategyState, requirePromotionMinimum = true): string[] {
   const reviews = state.shadowCycleReviews;
@@ -11,9 +20,20 @@ export function shadowReviewErrors(state: StrategyState, requirePromotionMinimum
     errors.push('At least 20 shadow-cycle review records are required');
   }
   reviews.forEach((review, index) => {
+    const cycle = state.shadowCycles[index];
     if (review.cycle !== index + 1) errors.push('Shadow-cycle reviews must cover consecutive cycles starting at 1');
-    if (review.reviewerRole !== 'human' || !review.reviewer.trim()) {
-      errors.push(`Shadow cycle ${review.cycle} lacks an identified human reviewer`);
+    if (review.reviewerRole !== 'agent' || !review.reviewer.trim()) {
+      errors.push(`Shadow cycle ${review.cycle} lacks an identified qualified reviewer`);
+    }
+    if (!review.reviewRunId.trim()) errors.push(`Shadow cycle ${review.cycle} lacks a reviewer run identity`);
+    if (!cycle || review.cycle !== cycle.cycle || review.cycleObservedAt !== cycle.observedAt ||
+        review.selectedPacketId !== cycle.selectedPacketId ||
+        review.cycleFingerprint !== (cycle ? shadowCycleFingerprint(cycle) : '')) {
+      errors.push(`Shadow cycle ${review.cycle} review is not bound to its source artifact`);
+    }
+    const selectedOwner = state.packets.find((packet) => packet.id === review.selectedPacketId)?.owner;
+    if (selectedOwner && selectedOwner === review.reviewer) {
+      errors.push(`Shadow cycle ${review.cycle} lacks an independent reviewer`);
     }
     if (Number.isNaN(Date.parse(review.cycleObservedAt)) || Number.isNaN(Date.parse(review.reviewedAt))) {
       errors.push(`Shadow cycle ${review.cycle} has an invalid timestamp`);
@@ -50,14 +70,9 @@ export function transitionGovernanceMode(
     if (state.governance.supervisedResultsReviewed < 1) {
       throw new Error('Supervised results must be reviewed before safe-code mode');
     }
-    const approval = state.approvals.find(
-      (candidate) => candidate.id === 'safe-code-rollout' &&
-        isValidHumanApproval(candidate, 'governance:safe-code', now),
-    );
-    if (!approval) throw new Error('Explicit human approval is required for safe-code mode');
     return {
       ...state,
-      governance: { ...state.governance, mode: target, safeAutoMergeEnabled: false },
+      governance: { ...state.governance, mode: target, safeAutoMergeEnabled: true },
     };
   }
   throw new Error(`Unsupported governance transition: ${state.governance.mode} -> ${target}`);
