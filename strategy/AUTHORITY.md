@@ -6,8 +6,9 @@ bounded actions within those constraints.
 
 Plan, doctrine, governance, workflow, dependency, deployment, network, security, and
 constitutional changes require independent agent review and an agent-controlled merge. They do
-not require routine human approval. GitHub Copilot is preferred; the trusted GitHub Models review
-workflow supplies the automated second source when Copilot is unavailable.
+not require routine human approval. GitHub Copilot is preferred; when it is unavailable, the
+trusted GitHub-hosted workflow runs a checksum-pinned local model against the exact pull-request
+head as the independent second source.
 
 Consequential actions require bounded plans, evidence, rollback where possible, and a fresh
 qualified agent reviewer distinct from the packet owner. Risk or novelty alone does not transfer
