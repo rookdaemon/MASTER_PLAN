@@ -23,6 +23,10 @@ permissions:
   contents: read
   pull-requests: read
 
+concurrency:
+  group: agent-review-${{ github.event.pull_request.number || inputs.pr_number }}-${{ github.event.pull_request.head.sha || inputs.head_sha }}
+  cancel-in-progress: false
+
 jobs:
   agent-review-orchestrator:
     runs-on: ubuntu-latest
@@ -40,6 +44,17 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: |
           set -euo pipefail
+          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          test "$(jq -r '.head.sha' <<< "$pr_json")" = "$HEAD_SHA"
+          existing_success="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?check_name=agent-review" \
+            | jq -r --arg external_id "agent-review:pr:${PR_NUMBER}:head:${HEAD_SHA}:" \
+              '[.check_runs[] | select(.external_id != null and (.external_id | startswith($external_id)))]
+               | any(.[]; .conclusion == "success")')"
+          if test "$existing_success" = true; then
+            echo "Exact-head agent review is already successful; skipping duplicate run"
+            exit 0
+          fi
           check_id="$(gh api --method POST "repos/${GITHUB_REPOSITORY}/check-runs" \
             -f name='agent-review' -f head_sha="$HEAD_SHA" -f status='in_progress' \
             -f external_id="agent-review:pr:${PR_NUMBER}:head:${HEAD_SHA}:run:${GITHUB_RUN_ID}" \
@@ -68,8 +83,6 @@ jobs:
           }
           trap finish_check EXIT
 
-          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
-          test "$(jq -r '.head.sha' <<< "$pr_json")" = "$HEAD_SHA"
           for attempt in $(seq 1 7); do
             copilot_reviewed="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
               | jq -s -r --arg head "$HEAD_SHA" \
