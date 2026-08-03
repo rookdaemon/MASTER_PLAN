@@ -15,7 +15,7 @@ import {
 } from '../testing/in-memory-adapters.js';
 import { CONFIG, makeEscalation, makeEscalationEvidence, NOW } from './fixtures.js';
 
-const STRATEGY_NOW = '2026-08-03T21:31:00.000Z';
+const STRATEGY_NOW = '2026-08-03T22:53:00.000Z';
 
 function acceptedShadowReviews(cycles: readonly ShadowCycleRecord[]) {
   return cycles.map((cycle, index) => ({
@@ -194,7 +194,7 @@ describe('checked-in strategy v2 bundle', () => {
 
   it('uses explicit source limitations and does not declare current AI systems conscious', async () => {
     const bundle = await loadRepositoryStrategy(new NodeFileSystem('.'));
-    expect(bundle.state.evidence).toHaveLength(4);
+    expect(bundle.state.evidence).toHaveLength(5);
     expect(bundle.state.evidence.every((record) => record.limitations.length > 0)).toBe(true);
     expect(bundle.state.evidence.find((record) =>
       record.id === 'evidence-preservation-risk-register-v1-reviewed')?.limitations.join(' '))
@@ -354,14 +354,25 @@ describe('supervised preservation risk-register artifact', () => {
       'git:882d62fdd3144be9a9ce8c81b74348b121b0c39e',
     ]));
     expect(result.evidence[0].limitations.join(' ')).toMatch(/not reduced real-world risk/i);
-    expect(bundle.state.evidence.some((record) => record.id === result.evidence[0].id)).toBe(true);
+    expect(bundle.state.evidence.find((record) => record.id === result.evidence[0].id))
+      .toEqual(result.evidence[0]);
     expect(bundle.state.packets.find((packet) =>
       packet.id === 'packet-preservation-risk-register')?.lifecycle).toBe('verified');
-    expect(bundle.state.governance.supervisedResultsReviewed).toBe(1);
+    expect(bundle.state.governance.supervisedResultsReviewed).toBe(2);
   });
 });
 
 describe('consciousness prediction registry artifact', () => {
+  it('uses automated domain review and reserves human escalation for ethics and consent', async () => {
+    const bundle = await loadRepositoryStrategy(new NodeFileSystem('.'));
+    const packet = bundle.state.packets.find((candidate) =>
+      candidate.id === 'packet-consciousness-prediction-registry');
+
+    expect(packet?.verificationMethod).toMatch(/independent domain-focused agent/i);
+    expect(packet?.verificationMethod).toMatch(/exact head/i);
+    expect(packet?.verificationMethod).toMatch(/legal consent|institutional ethics/i);
+  });
+
   it('is preregistration-ready, theory-neutral, source-limited, and gated before subject research', async () => {
     const fileSystem = new NodeFileSystem('.');
     const registry = JSON.parse(await fileSystem.readText(
@@ -476,6 +487,37 @@ describe('consciousness prediction registry artifact', () => {
       prediction.id === 'prediction-metacognitive-dissociation');
     expect(metacognitivePrediction?.measurement.manipulation).toMatch(/random|post-decision evidence/i);
     expect(metacognitivePrediction?.measurement.analysisPlan.join(' ')).toMatch(/manipulation-strength/i);
+  });
+
+  it('retains exact review provenance without claiming an experiment or consciousness finding', async () => {
+    const fileSystem = new NodeFileSystem('.');
+    const bundle = await loadRepositoryStrategy(fileSystem);
+    const result = JSON.parse(await fileSystem.readText(
+      'strategy/results/consciousness-prediction-registry-v1.result.json',
+    )) as {
+      artifactReferences: string[];
+      evidence: Array<{ id: string; limitations: string[] }>;
+      verification: { status: string; verifier: string; reviewedAt: string };
+    };
+
+    expect(result.verification).toEqual({
+      status: 'passed',
+      verifier: 'independent-agent-review:4849079054+github-run:30859173640',
+      reviewedAt: '2026-08-03T22:51:31.000Z',
+    });
+    expect(result.artifactReferences).toEqual(expect.arrayContaining([
+      'https://github.com/rookdaemon/MASTER_PLAN/pull/119',
+      'https://github.com/rookdaemon/MASTER_PLAN/pull/119#pullrequestreview-4849079054',
+      'https://github.com/rookdaemon/MASTER_PLAN/actions/runs/30859173640',
+      'git:db0df364758917e3fe48b6111afce78cf2625f01',
+    ]));
+    expect(result.evidence[0].limitations.join(' ')).toMatch(/does not report a human-subject experiment/i);
+    expect(result.evidence[0].limitations.join(' ')).toMatch(/comment.*owner account/i);
+    expect(bundle.state.evidence.find((record) => record.id === result.evidence[0].id))
+      .toEqual(result.evidence[0]);
+    expect(bundle.state.packets.find((packet) =>
+      packet.id === 'packet-consciousness-prediction-registry')?.lifecycle).toBe('verified');
+    expect(bundle.state.governance.supervisedResultsReviewed).toBe(2);
   });
 });
 
