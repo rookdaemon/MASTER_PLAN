@@ -1,9 +1,26 @@
 # MASTER_PLAN
 
-A serious attempt at mapping — and beginning to build — the path to making subjective
-experience survive and spread in the universe, by applying AI and a simulation framework.
+MASTER_PLAN v2 is a recursive strategy and execution system for selecting the bounded,
+evidence-bearing intervention that offers the greatest credible progress toward preserving and
+expanding subjective experience.
 
-- **Start here:** [STATUS.md](STATUS.md) — current state, operating model, and how to run things.
-- **The doctrine + roadmap:** [plan/root.md](plan/root.md) — the Rare Consciousness Doctrine and the 7-tier plan.
-- **The Credo:** [docs/consciousness-credo.md](docs/consciousness-credo.md) — the outer doctrine.
-- **Run the simulation:** `npx tsx src/simulation-ui/run.ts` → http://localhost:1339
+- Start with the [v2 roadmap](strategy/ROADMAP.md) and
+  [current status](STATUS.md).
+- The machine-readable graph, evidence registry, portfolio, authority boundaries, and v1 audit
+  live in [`strategy/`](strategy/README.md).
+- The original technology-first roadmap remains unchanged in [`plan/`](plan/root.md) as v1 history;
+  its `[DONE]` labels are artifact claims, not presumed scientific or real-world outcomes.
+- The cognitive stack and simulation remain reusable components, not the privileged center of
+  strategy. Run the simulation with `npx tsx src/simulation-ui/run.ts`.
+
+Verify the repository with:
+
+```bash
+npm run lint
+npm test
+npm run strategy:verify
+```
+
+The controller starts in shadow mode. It cannot publish, spend, deploy, operate hardware,
+self-replicate, create a potentially conscious system, or enable safe auto-merge without the
+specified human authorization and externally verified repository controls.

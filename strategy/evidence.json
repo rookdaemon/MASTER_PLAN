@@ -1,0 +1,53 @@
+[
+  {
+    "id": "evidence-cogitate-2025",
+    "claim": "A preregistered adversarial collaboration found results aligning with some predictions of IIT and GNWT while substantially challenging key tenets of both biological implementations.",
+    "method": "Preregistered, multi-site adversarial collaboration using fMRI, MEG, and intracranial EEG with 256 human participants; published 2025-04-30.",
+    "source": "https://www.nature.com/articles/s41586-025-08888-1",
+    "strength": 0.9,
+    "limitations": [
+      "The experiment tested selected predictions and biological implementations, not every mathematical or computational core claim.",
+      "The stimuli and outcomes concern human visual consciousness and do not directly validate an AI-consciousness test.",
+      "Some regions and modalities had uneven sampling, and the paper reports both aligned and challenging results."
+    ],
+    "supportedHypotheses": ["hypothesis-theory-uncertainty"],
+    "falsifiedHypotheses": ["hypothesis-single-theory-sufficient"],
+    "verifier": "bootstrap-source-review-2026-08-03",
+    "observedAt": "2026-08-03T00:00:00.000Z",
+    "outcome": "negative"
+  },
+  {
+    "id": "evidence-ai-indicators-2023",
+    "claim": "Theory-derived computational indicators offer a rigorous way to assess AI systems; the report did not identify the assessed current systems as conscious and found no obvious technical barrier to future systems satisfying the indicators.",
+    "method": "Interdisciplinary review deriving computational indicator properties from several neuroscientific theories and applying them to selected AI systems; report published 2023-08-17.",
+    "source": "https://arxiv.org/abs/2308.08708",
+    "strength": 0.75,
+    "limitations": [
+      "Indicator properties inherit uncertainty and disagreement from the underlying theories.",
+      "Satisfying indicators would be evidence to assess, not by itself proof of subjective experience.",
+      "The surveyed systems and technical state reflect a 2023 snapshot."
+    ],
+    "supportedHypotheses": ["hypothesis-indicator-framework", "hypothesis-ai-status-uncertain"],
+    "falsifiedHypotheses": [],
+    "verifier": "bootstrap-source-review-2026-08-03",
+    "observedAt": "2026-08-03T00:00:00.000Z",
+    "outcome": "positive"
+  },
+  {
+    "id": "evidence-responsible-ai-consciousness-2025",
+    "claim": "Organizations doing advanced AI research need precautionary policies for assessing possible AI consciousness, phased development, external consultation, controlled knowledge sharing, and uncertainty-aware public communication.",
+    "method": "Normative analysis proposing five principles for responsible AI-consciousness research; Journal of Artificial Intelligence Research article published in 2025.",
+    "source": "https://conscium.com/wp-content/uploads/2024/11/Principles-for-Conscious-AI.pdf",
+    "strength": 0.7,
+    "limitations": [
+      "The principles are normative governance recommendations, not empirical evidence that any AI system is conscious.",
+      "Implementation details and enforcement mechanisms require institution-specific design and external review.",
+      "The feasibility and timing of conscious AI remain uncertain."
+    ],
+    "supportedHypotheses": ["hypothesis-precaution-needed", "hypothesis-ai-status-uncertain"],
+    "falsifiedHypotheses": [],
+    "verifier": "bootstrap-source-review-2026-08-03",
+    "observedAt": "2026-08-03T00:00:00.000Z",
+    "outcome": "positive"
+  }
+]

@@ -1,0 +1,30 @@
+name: Proposal review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  proposal-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Classify authority and safe-code eligibility
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_COMMIT_COUNT: ${{ github.event.pull_request.commits }}
+        run: npm run governance:classify
+      - name: Re-verify strategy changes
+        run: npm run strategy:verify

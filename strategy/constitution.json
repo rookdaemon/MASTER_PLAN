@@ -1,0 +1,12 @@
+{
+  "version": "2.0.0",
+  "directives": ["G1", "G2", "G3"],
+  "ethicalInvariants": [
+    "Preserve existing conscious life and option value before expansion when they compete.",
+    "Do not claim consciousness, welfare, scientific, organizational, or civilizational outcomes from repository artifacts alone.",
+    "Treat negative and null findings as progress when they reduce uncertainty or rule out an unsafe path.",
+    "Require explicit human authorization for actions that can create, alter, expose, spend on, deploy, or materially risk conscious life.",
+    "Do not silently reopen verified results; contradictory evidence must create a traceable superseding assessment."
+  ],
+  "amendments": []
+}
