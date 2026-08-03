@@ -23,7 +23,7 @@
     "automatic": true,
     "reviewOnPush": true,
     "reviewDraftPullRequests": true,
-    "fallback": "github-models"
+    "fallback": "github-hosted-pinned-local-model"
   },
   "humanEscalation": {
     "role": "servant-leader",

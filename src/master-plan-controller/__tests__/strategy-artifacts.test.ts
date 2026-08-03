@@ -245,6 +245,83 @@ describe('checked-in strategy v2 bundle', () => {
   });
 });
 
+describe('supervised preservation risk-register artifact', () => {
+  it('contains ten ranked, sourced risks with indicators, uncertainty, reversible responses, and authority boundaries', async () => {
+    const fileSystem = new NodeFileSystem('.');
+    const register = JSON.parse(await fileSystem.readText(
+      'strategy/results/preservation-risk-register-v1.json',
+    )) as {
+      packetId: string;
+      assessedAt: string;
+      scope: { claimsRealWorldOutcome: boolean };
+      methodology: { rankingDimensions: string[]; limitations: string[] };
+      sources: Array<{
+        id: string; title: string; publisher: string; url: string;
+        publishedAt: string; accessedAt: string; limitations: string[];
+      }>;
+      risks: Array<{
+        id: string; rank: number; title: string; rankingRationale: string;
+        sourceIds: string[];
+        uncertainty: { confidence: number; keyUnknowns: string[] };
+        leadingIndicators: Array<{
+          indicator: string; directionOfConcern: string; sourceId: string; updateCadence: string;
+        }>;
+        reversibleResponses: Array<{
+          action: string; trigger: string; rollback: string;
+          candidateOwners: string[]; authorityBoundary: string;
+        }>;
+      }>;
+    };
+
+    expect(register.packetId).toBe('packet-preservation-risk-register');
+    expect(Number.isNaN(Date.parse(register.assessedAt))).toBe(false);
+    expect(register.scope.claimsRealWorldOutcome).toBe(false);
+    expect(register.methodology.rankingDimensions).toEqual(expect.arrayContaining([
+      'directive impact', 'urgency', 'tractability', 'information value',
+      'reversibility', 'cost', 'downside risk',
+    ]));
+    expect(register.methodology.limitations.length).toBeGreaterThan(0);
+    expect(register.risks).toHaveLength(10);
+    expect(register.risks.map((risk) => risk.rank)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+
+    const sourceIds = new Set(register.sources.map((source) => source.id));
+    expect(sourceIds.size).toBe(register.sources.length);
+    for (const source of register.sources) {
+      expect(source.title.trim()).not.toBe('');
+      expect(source.publisher.trim()).not.toBe('');
+      expect(source.url).toMatch(/^https:\/\//);
+      expect(Number.isNaN(Date.parse(source.publishedAt))).toBe(false);
+      expect(Number.isNaN(Date.parse(source.accessedAt))).toBe(false);
+      expect(source.limitations.length).toBeGreaterThan(0);
+    }
+    for (const risk of register.risks) {
+      expect(risk.id.trim()).not.toBe('');
+      expect(risk.title.trim()).not.toBe('');
+      expect(risk.rankingRationale.trim()).not.toBe('');
+      expect(risk.sourceIds.length).toBeGreaterThan(0);
+      expect(risk.sourceIds.every((id) => sourceIds.has(id))).toBe(true);
+      expect(risk.uncertainty.confidence).toBeGreaterThanOrEqual(0);
+      expect(risk.uncertainty.confidence).toBeLessThanOrEqual(1);
+      expect(risk.uncertainty.keyUnknowns.length).toBeGreaterThan(0);
+      expect(risk.leadingIndicators.length).toBeGreaterThan(0);
+      expect(risk.reversibleResponses.length).toBeGreaterThan(0);
+      for (const indicator of risk.leadingIndicators) {
+        expect(indicator.indicator.trim()).not.toBe('');
+        expect(indicator.directionOfConcern.trim()).not.toBe('');
+        expect(sourceIds.has(indicator.sourceId)).toBe(true);
+        expect(indicator.updateCadence.trim()).not.toBe('');
+      }
+      for (const response of risk.reversibleResponses) {
+        expect(response.action.trim()).not.toBe('');
+        expect(response.trigger.trim()).not.toBe('');
+        expect(response.rollback.trim()).not.toBe('');
+        expect(response.candidateOwners.length).toBeGreaterThan(0);
+        expect(response.authorityBoundary.trim()).not.toBe('');
+      }
+    }
+  });
+});
+
 describe('continuous loop', () => {
   it('repeats bounded cycles after the configured cooldown using injected time and scheduling', async () => {
     const clock = new InMemoryClock(NOW);

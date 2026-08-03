@@ -36,7 +36,7 @@ jobs:
             if test "$reviewed" != true; then
               if ! gh api --method POST "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/requested_reviewers" \
                 --input - <<< '{"reviewers":["copilot-pull-request-reviewer[bot]"]}'; then
-                echo "Copilot review request unavailable; dispatching GitHub Models fallback"
+                echo "Copilot review request unavailable; dispatching GitHub-hosted pinned local-model fallback"
               fi
             fi
             gh workflow run agent-review.yml --repo "$GITHUB_REPOSITORY" --ref main \
