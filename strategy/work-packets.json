@@ -17,7 +17,7 @@
     "authorityClass": "autonomous",
     "authorityReasons": ["public-information analysis and local artifact preparation only"],
     "owner": "preservation-analyst",
-    "lifecycle": "eligible",
+    "lifecycle": "verified",
     "attempt": 0,
     "retrySignature": "preservation-risk-register-v1",
     "priority": {"impact": 0.9, "urgency": 0.9, "tractability": 0.7, "informationValue": 0.8, "reversibility": 1, "cost": 0.2, "downsideRisk": 0.1},

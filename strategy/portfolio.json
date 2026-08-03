@@ -6,10 +6,10 @@
     "institutional-continuity": 0.15
   },
   "currentEffort": {
-    "consciousness-epistemics": 0,
-    "near-term-preservation": 0,
-    "enabling-capabilities": 0,
-    "institutional-continuity": 0
+    "consciousness-epistemics": 0.35,
+    "near-term-preservation": 0.3,
+    "enabling-capabilities": 0.2,
+    "institutional-continuity": 0.15
   },
   "scoreWeights": {
     "impact": 0.25,

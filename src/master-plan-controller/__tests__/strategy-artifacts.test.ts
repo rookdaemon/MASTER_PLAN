@@ -15,7 +15,7 @@ import {
 } from '../testing/in-memory-adapters.js';
 import { CONFIG, makeEscalation, makeEscalationEvidence, NOW } from './fixtures.js';
 
-const STRATEGY_NOW = '2026-08-03T17:00:00.000Z';
+const STRATEGY_NOW = '2026-08-03T21:31:00.000Z';
 
 function acceptedShadowReviews(cycles: readonly ShadowCycleRecord[]) {
   return cycles.map((cycle, index) => ({
@@ -194,8 +194,11 @@ describe('checked-in strategy v2 bundle', () => {
 
   it('uses explicit source limitations and does not declare current AI systems conscious', async () => {
     const bundle = await loadRepositoryStrategy(new NodeFileSystem('.'));
-    expect(bundle.state.evidence).toHaveLength(3);
+    expect(bundle.state.evidence).toHaveLength(4);
     expect(bundle.state.evidence.every((record) => record.limitations.length > 0)).toBe(true);
+    expect(bundle.state.evidence.find((record) =>
+      record.id === 'evidence-preservation-risk-register-v1-reviewed')?.limitations.join(' '))
+      .toMatch(/not reduced real-world risk/i);
     const serialized = JSON.stringify(bundle.state).toLowerCase();
     expect(serialized).not.toMatch(/current ai systems are conscious/);
   });
@@ -221,7 +224,7 @@ describe('checked-in strategy v2 bundle', () => {
     expect(await fileSystem.readText('strategy/ROADMAP.md')).toBe(renderRoadmap(bundle));
   });
 
-  it('reports automated review progress separately from generated shadow cycles', async () => {
+  it('preserves historical shadow cycles while excluding a verified packet from the current frontier', async () => {
     const fileSystem = new NodeFileSystem('.');
     const bundle = await loadRepositoryStrategy(fileSystem);
     const timestamps = Array.from(
@@ -241,7 +244,11 @@ describe('checked-in strategy v2 bundle', () => {
       automatedReviewPending: false,
     });
     const checkedIn = JSON.parse(await fileSystem.readText('strategy/shadow-cycles.json')) as typeof report;
-    expect(checkedIn).toEqual(report);
+    expect(checkedIn.summary).toEqual(report.summary);
+    expect(checkedIn.cycles.every((cycle) =>
+      cycle.selectedPacketId === 'packet-preservation-risk-register')).toBe(true);
+    expect(report.cycles.every((cycle) =>
+      cycle.selectedPacketId !== 'packet-preservation-risk-register')).toBe(true);
   });
 });
 
@@ -319,6 +326,38 @@ describe('supervised preservation risk-register artifact', () => {
         expect(response.authorityBoundary.trim()).not.toBe('');
       }
     }
+  });
+
+  it('retains exact review provenance without upgrading artifact completion to a real-world outcome', async () => {
+    const fileSystem = new NodeFileSystem('.');
+    const bundle = await loadRepositoryStrategy(fileSystem);
+    const result = JSON.parse(await fileSystem.readText(
+      'strategy/results/preservation-risk-register-v1.result.json',
+    )) as {
+      outcome: string;
+      artifactReferences: string[];
+      evidence: Array<{ id: string; limitations: string[] }>;
+      verification: { status: string; verifier: string; reviewedAt: string };
+    };
+
+    expect(result).toMatchObject({
+      outcome: 'positive',
+      verification: {
+        status: 'passed',
+        verifier: 'agent-review:github-run:30852585749',
+        reviewedAt: '2026-08-03T21:26:29.000Z',
+      },
+    });
+    expect(result.artifactReferences).toEqual(expect.arrayContaining([
+      'https://github.com/rookdaemon/MASTER_PLAN/pull/116',
+      'https://github.com/rookdaemon/MASTER_PLAN/actions/runs/30852585749',
+      'git:882d62fdd3144be9a9ce8c81b74348b121b0c39e',
+    ]));
+    expect(result.evidence[0].limitations.join(' ')).toMatch(/not reduced real-world risk/i);
+    expect(bundle.state.evidence.some((record) => record.id === result.evidence[0].id)).toBe(true);
+    expect(bundle.state.packets.find((packet) =>
+      packet.id === 'packet-preservation-risk-register')?.lifecycle).toBe('verified');
+    expect(bundle.state.governance.supervisedResultsReviewed).toBe(1);
   });
 });
 

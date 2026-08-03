@@ -1,1 +1,19 @@
-[]
+[
+  {
+    "id": "audit:packet-preservation-risk-register:packet-verified:2026-08-03T21:30:00.000Z",
+    "type": "packet-verified",
+    "packetId": "packet-preservation-risk-register",
+    "occurredAt": "2026-08-03T21:30:00.000Z",
+    "details": {
+      "outcome": "positive",
+      "artifactReferences": [
+        "strategy/results/preservation-risk-register-v1.json",
+        "https://github.com/rookdaemon/MASTER_PLAN/pull/116",
+        "https://github.com/rookdaemon/MASTER_PLAN/pull/116#pullrequestreview-4848516713",
+        "https://github.com/rookdaemon/MASTER_PLAN/actions/runs/30852585749",
+        "git:882d62fdd3144be9a9ce8c81b74348b121b0c39e"
+      ],
+      "verifier": "agent-review:github-run:30852585749"
+    }
+  }
+]
