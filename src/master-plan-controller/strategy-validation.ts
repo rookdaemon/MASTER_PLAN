@@ -90,7 +90,7 @@ export function strategyContractErrors(
   for (const approval of state.approvals) {
     const escalation = state.escalations.find((candidate) => candidate.id === approval.escalationId);
     if (!escalation || !isValidHumanApproval(
-      approval, approval.scope, now, escalation.id, escalation.assessedAt,
+      approval, escalation.packetId, now, escalation.id, escalation.assessedAt,
     )) errors.push(`Invalid servant-leader escalation approval: ${approval.id}`);
     if (!escalation) {
       errors.push(`Servant-leader approval is not bound to an escalation: ${approval.id}`);

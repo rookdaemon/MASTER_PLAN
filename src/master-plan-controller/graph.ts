@@ -85,8 +85,6 @@ function parseGate(value: unknown, nodeId: string): ActivationGate {
       return { type: value.type, minimumStrength: value.minimumStrength, maxAgeMs: value.maxAgeMs };
     case 'metric-target':
       return { type: value.type, metricId: requireString(value, 'metricId') };
-    case 'human-approval':
-      return { type: value.type, approvalId: requireString(value, 'approvalId') };
     case 'node-verified':
       return { type: value.type, nodeId: requireString(value, 'nodeId') };
     default:

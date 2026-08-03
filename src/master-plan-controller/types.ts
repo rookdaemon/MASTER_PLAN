@@ -30,7 +30,6 @@ export type ActivationGate =
   | { type: 'minimum-confidence'; minimum: number }
   | { type: 'fresh-evidence'; minimumStrength: number; maxAgeMs: number }
   | { type: 'metric-target'; metricId: string }
-  | { type: 'human-approval'; approvalId: string }
   | { type: 'node-verified'; nodeId: string };
 
 export interface PlanNode {

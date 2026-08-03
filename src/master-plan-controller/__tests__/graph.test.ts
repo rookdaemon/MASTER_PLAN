@@ -19,6 +19,13 @@ describe('strategy graph parsing and validation', () => {
     expect(() => parsePlanNodes([{ ...makeNode(), externallyDemonstrated: 'false' }])).toThrow(/externallyDemonstrated/);
   });
 
+  it('rejects generic human approval as an activation gate', () => {
+    expect(() => parsePlanNodes([{
+      ...makeNode(),
+      activationGates: [{ type: 'human-approval', approvalId: 'approval-1' }],
+    }])).toThrow(/unknown activation gate human-approval/i);
+  });
+
   it('rejects duplicate identities and missing dependencies', () => {
     const duplicate = makeNode({ id: 'duplicate' });
     const result = validateDependencyGraph([

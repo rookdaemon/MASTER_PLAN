@@ -134,7 +134,7 @@ describe('repository packet-result integration', () => {
     const originalPackets = initial['strategy/work-packets.json'];
     expect((await fileSystem.readText('strategy/work-packets.json')).replace('"lifecycle": "verified"', '"lifecycle": "eligible"'))
       .toBe(originalPackets);
-    expect(await fileSystem.readText('strategy/ROADMAP.md')).toContain('Supervised results independently reviewed: 1.');
+    expect(await fileSystem.readText('strategy/ROADMAP.md')).toContain('Agent-supervised results independently reviewed: 1.');
     expect(await fileSystem.readText('STATUS.md')).toContain('Supervised results independently reviewed: **1**');
   });
 
