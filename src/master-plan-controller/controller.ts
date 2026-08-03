@@ -2,6 +2,7 @@ import { evaluateActivationGates } from './gates.js';
 import { integrateEvidence } from './evidence.js';
 import { diagnoseStrategy } from './diagnosis.js';
 import { isValidHumanApproval } from './human-authorization.js';
+import { assessHumanEscalation } from './escalation-policy.js';
 import type {
   AdvanceResult,
   AuditEvent,
@@ -43,6 +44,22 @@ function scorePacket(packet: WorkPacket, state: StrategyState, config: Controlle
 
 function addEvent(state: StrategyState, auditEvent: AuditEvent): StrategyState {
   return { ...state, auditEvents: [...state.auditEvents, auditEvent] };
+}
+
+function qualifiedEscalation(state: StrategyState, packet: WorkPacket, now: Timestamp) {
+  const escalation = state.escalations.find(
+    (candidate) => candidate.id === packet.escalationId && candidate.packetId === packet.id,
+  );
+  if (!escalation || escalation.assessedBy !== 'escalation-policy') {
+    return null;
+  }
+  const assessedAt = Date.parse(escalation.assessedAt);
+  const evaluatedAt = Date.parse(now);
+  if (Number.isNaN(assessedAt) || Number.isNaN(evaluatedAt) || assessedAt > evaluatedAt) {
+    return null;
+  }
+  const evidenceById = new Map(state.evidence.map((record) => [record.id, record]));
+  return assessHumanEscalation(escalation, escalation.assessedAt, evidenceById).escalate ? escalation : null;
 }
 
 function validatedPortfolioEffort(result: PacketResult): StrategyState['portfolioEffort'] {
@@ -101,14 +118,21 @@ export class Controller {
         continue;
       }
       if (
-        packet.authorityClass !== 'autonomous' &&
-        !state.approvals.some((approval) => isValidHumanApproval(approval, packet.id, now))
+        packet.authorityClass === 'human-escalation' && !qualifiedEscalation(state, packet, now)
       ) {
         rejected.push({
           packet,
-          reasons: [`${packet.authorityClass} work is pending human approval or authorization`],
+          reasons: ['Human escalation lacks a qualified, evidence-bound assessment'],
         });
         continue;
+      }
+      if (packet.authorityClass === 'human-escalation') {
+        const escalation = qualifiedEscalation(state, packet, now)!;
+        if (!state.approvals.some((approval) =>
+          isValidHumanApproval(approval, packet.id, now, escalation.id, escalation.assessedAt))) {
+          rejected.push({ packet, reasons: ['Human escalation is pending the bounded servant-leader decision'] });
+          continue;
+        }
       }
       ranked.push({
         packet,
@@ -171,8 +195,10 @@ export class Controller {
       return { state: addEvent(next, verification), event: verification };
     }
 
-    if (current.authorityClass !== 'autonomous') {
-      const approval = next.approvals.find((candidate) => isValidHumanApproval(candidate, current.id, now));
+    if (current.authorityClass === 'human-escalation') {
+      const escalation = qualifiedEscalation(next, current, now);
+      const approval = escalation && next.approvals.find((candidate) =>
+        isValidHumanApproval(candidate, current.id, now, escalation.id, escalation.assessedAt));
       if (!approval) {
         next.packets[index] = { ...current, lifecycle: 'verifying' };
         next.activePacketId = null;

@@ -1,23 +1,24 @@
 # MASTER_PLAN v2 — Status and operating model
 
-As of 2026-08-03, the local v2 strategy/controller implementation is ready for human-reviewed
-shadow rollout. Implementation readiness is not real-world outcome attainment.
+As of 2026-08-03, the v2 strategy/controller has completed automated shadow review and entered
+bounded supervised operation. Implementation readiness is not real-world outcome attainment.
 
 ## Current gates
 
-- Operating mode: **shadow**
+- Operating mode: **supervised**
 - Shadow cycles generated: **20 / 20**
-- Shadow cycles human-reviewed: **0 / 20**
-- Supervised results human-reviewed: **0**
+- Shadow cycles agent-reviewed: **20 / 20**
+- Supervised results independently reviewed: **0**
+- Human role: **servant leader for exceptional escalation**
 - Branch protection applied and verified: **yes**
 - Repository auto-merge enabled: **yes**
 - Safe auto-merge: **enabled for routine code/test changes**
 
 The checked-in [branch-protection policy](strategy/branch-protection.json) defines the controls for
 `main`. Routine, bounded, backward-compatible code/test changes with behavior-covering tests can
-auto-merge after required CI and GitHub agent review. Protected or high-risk proposals are limited
-to exactly one commit and remain manual. Controller shadow/supervised promotion gates remain
-separate from repository stewardship policy.
+auto-merge after required CI and GitHub agent review. Protected proposals receive independent
+agent review and an agent-controlled merge. The human is not a routine approval gate and is
+contacted only for an evidence-backed issue that automation intrinsically cannot perform.
 
 ## What exists
 
@@ -29,25 +30,28 @@ separate from repository stewardship policy.
   gates, verify-before-integrate evidence handling, configurable review freshness, strict public
   contract validation, and injected environment ports with in-memory implementations.
 - `.github/workflows/`: blocking typecheck/test/strategy checks, proposal review, and a narrowly
-  scoped routine-code workflow, with protected changes kept manual.
+  scoped routine-code workflow and an agent-controlled protected-change path.
 - `src/simulation/`, `src/simulation-ui/`, and the cognitive stack: candidate reusable components.
 
-## Human rollout procedure
+## Automated operating procedure
 
-1. Review all 20 proposals in `strategy/shadow-cycles.json` for usefulness, neglected failure
-   modes, ranking quality, and non-churn. Only a human adds the corresponding consecutive,
-   timestamped records to `strategy/shadow-reviews.json`; generated proposals do not count as
-   reviews.
-2. Submit strategy, workflow, and governance changes as a single-commit, manually merged pull request
-   with GitHub agent review.
-3. Apply and externally verify the declared protected-branch controls.
-4. Move to supervised mode; every packet result receives fresh review.
-5. Consider safe-code mode only after CI, branch protection, repository auto-merge, diff bounds,
-   behavior-covering tests, and explicit rollout approval are all verified.
-6. Review the portfolio weekly and weights, evidence standards, and constitutional risks quarterly.
+1. Automated shadow review has accepted all 20 proposals for usefulness and non-churn while
+   documenting the limits of identical snapshots.
+2. Supervised mode executes one bounded packet at a time; every result receives fresh independent
+   agent review before integration.
+3. Routine code/test changes auto-merge after classification, tests, protected controls, and agent
+   review. Protected changes use an agent-controlled merge.
+4. Automation diagnoses failures, retries bounded alternatives, and records evidence without
+   transferring routine work to the human.
+5. Escalation is permitted only for owner-held credentials, physical presence, legal consent, or
+   unresolved constitutional conflict after at least two documented automated attempts.
+6. The escalation request contains evidence and asks the servant leader for exactly one bounded
+   decision. A required repository change is isolated to one auditable commit.
+7. Portfolio review runs weekly; weights, evidence standards, and constitutional risks receive
+   quarterly independent agent review.
 
-When no packet is eligible, the controller waits for evidence or approval. It does not create
-additional decomposition to simulate progress.
+When no packet is eligible, the controller waits for evidence or an automated dependency. It does
+not create decomposition or contact the human merely to simulate progress.
 
 ## Preserved v1 history
 

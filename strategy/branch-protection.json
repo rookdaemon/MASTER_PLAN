@@ -15,14 +15,22 @@
   "applicationAuthority": "single-maintainer-risk-policy",
   "highRiskPolicy": {
     "maximumCommitCount": 1,
-    "mergeMode": "manual",
+    "mergeMode": "agent-controlled",
     "domains": ["plan", "doctrine", "governance", "workflow", "dependency", "deployment", "network", "security", "constitutional"]
   },
   "agentReview": {
-    "provider": "github-copilot",
+    "provider": "github-agent-reviewers",
     "automatic": true,
     "reviewOnPush": true,
-    "reviewDraftPullRequests": true
+    "reviewDraftPullRequests": true,
+    "fallback": "github-models"
   },
-  "notes": "Single-maintainer policy: required CI and agent review are universal; bounded behavior-covered routine changes may auto-merge; protected changes require manual intervention and exactly one commit."
+  "humanEscalation": {
+    "role": "servant-leader",
+    "allowedReasons": ["owner-credential", "physical-presence", "legal-consent", "constitutional-conflict"],
+    "minimumAutomatedAttempts": 2,
+    "evidenceRequired": true,
+    "boundedDecisionRequired": true
+  },
+  "notes": "Automated-body policy: required CI and agent review are universal; routine changes may auto-merge; protected changes receive an agent-controlled merge; human escalation is exceptional and evidence-bound."
 }

@@ -1,25 +1,15 @@
 import { Controller } from './controller.js';
-import type { ControllerConfig, StrategyState, Timestamp } from './types.js';
-
-export interface ShadowCycleRecord {
-  cycle: number;
-  observedAt: Timestamp;
-  rankedFrontier: string[];
-  selectedPacketId: string | null;
-  executed: false;
-  merged: false;
-  stateMutated: false;
-}
+import type { ControllerConfig, ShadowCycleRecord, StrategyState, Timestamp } from './types.js';
 
 export interface ShadowSimulationReport {
   cycles: ShadowCycleRecord[];
   summary: {
     cyclesGenerated: number;
-    cyclesHumanReviewed: number;
+    cyclesReviewed: number;
     anyExecution: boolean;
     anyMerge: boolean;
     stableFrontier: boolean;
-    humanReviewPending: boolean;
+    automatedReviewPending: boolean;
   };
 }
 
@@ -50,11 +40,11 @@ export function simulateShadowCycles(
     cycles,
     summary: {
       cyclesGenerated: cycles.length,
-      cyclesHumanReviewed: state.governance.shadowCyclesReviewed,
+      cyclesReviewed: state.governance.shadowCyclesReviewed,
       anyExecution: cycles.some((cycle) => cycle.executed),
       anyMerge: cycles.some((cycle) => cycle.merged),
       stableFrontier: frontierSignatures.size <= 1,
-      humanReviewPending: state.governance.shadowCyclesReviewed < cycles.length,
+      automatedReviewPending: state.governance.shadowCyclesReviewed < cycles.length,
     },
   };
 }

@@ -57,7 +57,7 @@ export function evaluateActivationGates(
         const approval = state.approvals.find(
           (candidate) => candidate.id === gate.approvalId && isValidHumanApproval(candidate, node.id, now),
         );
-        if (!approval) failures.push(`Human approval is missing: ${gate.approvalId}`);
+        if (!approval) failures.push(`Qualified servant-leader escalation approval is missing: ${gate.approvalId}`);
         break;
       }
       case 'node-verified':

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Controller } from '../controller.js';
-import { CONFIG, makeEvidence, makeNode, makePacket, makeState, NOW, RESULT_PORTFOLIO_EFFORT } from './fixtures.js';
+import { CONFIG, makeEscalation, makeEscalationEvidence, makeEvidence, makeNode, makePacket, makeState, NOW, RESULT_PORTFOLIO_EFFORT } from './fixtures.js';
 
 describe('Controller.evaluate', () => {
   it('gives credible G1 extinction-prevention work lexical priority over expansion', () => {
@@ -88,6 +88,71 @@ describe('Controller.evaluate', () => {
     });
     expect(new Controller(state, CONFIG).evaluate(state, NOW).ranked[0].packet.id).toBe('epistemics');
   });
+
+  it('binds a servant-leader approval to the qualified escalation record and packet', () => {
+    const packet = makePacket({ authorityClass: 'human-escalation', escalationId: 'escalation-1' });
+    const escalation = makeEscalation({ packetId: packet.id });
+    const approval = {
+      id: 'approval-1', scope: packet.id, approvedBy: 'servant-leader', approverRole: 'human' as const,
+      approvedAt: NOW, escalationId: 'wrong-escalation',
+    };
+    const wrong = makeState({
+      packets: [packet], evidence: makeEscalationEvidence(), escalations: [escalation], approvals: [approval],
+    });
+    expect(new Controller(wrong, CONFIG).evaluate(wrong, NOW).ranked).toHaveLength(0);
+    const bound = { ...wrong, approvals: [{ ...approval, escalationId: escalation.id }] };
+    expect(new Controller(bound, CONFIG).evaluate(bound, NOW).ranked[0].packet.id).toBe(packet.id);
+  });
+
+  it('rejects an escalation assessment with an invalid timestamp', () => {
+    const packet = makePacket({ authorityClass: 'human-escalation', escalationId: 'escalation-1' });
+    const state = makeState({
+      packets: [packet],
+      approvals: [{
+        id: 'approval-1', scope: packet.id, approvedBy: 'servant-leader', approverRole: 'human',
+        approvedAt: NOW, escalationId: 'escalation-1',
+      }],
+      evidence: makeEscalationEvidence(),
+      escalations: [makeEscalation({ packetId: packet.id, assessedAt: 'not-a-timestamp' })],
+    });
+
+    expect(new Controller(state, CONFIG).evaluate(state, NOW).ranked).toHaveLength(0);
+  });
+
+  it('rejects a servant-leader decision recorded before its escalation assessment', () => {
+    const packet = makePacket({ authorityClass: 'human-escalation', escalationId: 'escalation-1' });
+    const state = makeState({
+      packets: [packet], evidence: makeEscalationEvidence(),
+      escalations: [makeEscalation({ packetId: packet.id })],
+      approvals: [{
+        id: 'approval-early', scope: packet.id, approvedBy: 'servant-leader', approverRole: 'human',
+        approvedAt: '2026-08-03T11:59:59.000Z', escalationId: 'escalation-1',
+      }],
+    });
+
+    expect(new Controller(state, CONFIG).evaluate(state, NOW).ranked).toHaveLength(0);
+  });
+
+  it('does not count one failure record twice through its id and source aliases', () => {
+    const packet = makePacket({ authorityClass: 'human-escalation', escalationId: 'escalation-1' });
+    const evidence = makeEscalationEvidence()[0];
+    const escalation = makeEscalation({
+      packetId: packet.id,
+      automatedAttempts: [
+        { description: 'primary automation', outcome: 'failed', attemptedAt: '2026-08-03T10:00:00.000Z', evidenceReference: evidence.id },
+        { description: 'fallback automation', outcome: 'failed', attemptedAt: '2026-08-03T11:00:00.000Z', evidenceReference: evidence.source },
+      ],
+    });
+    const state = makeState({
+      packets: [packet], evidence: [evidence], escalations: [escalation],
+      approvals: [{
+        id: 'approval-1', scope: packet.id, approvedBy: 'servant-leader', approverRole: 'human',
+        approvedAt: NOW, escalationId: escalation.id,
+      }],
+    });
+
+    expect(new Controller(state, CONFIG).evaluate(state, NOW).ranked).toHaveLength(0);
+  });
 });
 
 describe('Controller.advance', () => {
@@ -158,8 +223,12 @@ describe('Controller.advance', () => {
   });
 
   it('keeps high-impact results in verifying until a qualified approval exists', () => {
-    const packet = makePacket({ lifecycle: 'active', authorityClass: 'explicit-authorization' });
-    const state = makeState({ packets: [packet], activePacketId: packet.id });
+    const packet = makePacket({ lifecycle: 'active', authorityClass: 'human-escalation', escalationId: 'escalation-1' });
+    const state = makeState({
+      packets: [packet], activePacketId: packet.id,
+      evidence: makeEscalationEvidence(),
+      escalations: [makeEscalation({ packetId: packet.id })],
+    });
     const advanced = new Controller(state, CONFIG).advance(
       packet,
       {

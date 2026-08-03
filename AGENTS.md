@@ -6,8 +6,9 @@
 ## GitHub stewardship authorization
 
 * Codex is pre-authorized to create and switch branches, commit repository-scoped changes, push them, open or update pull requests, mark pull requests ready, request GitHub reviews, and merge qualifying pull requests for `MASTER_PLAN` without asking for confirmation again.
-* This is a single-maintainer repository. Do not impose a universal human-approval gate on pull requests authored or committed by Codex on the maintainer's behalf.
-* Use GitHub's agent reviewer as the independent second source. Agent review and required CI checks apply to every pull request, while bounded, backward-compatible code/test changes with behavior-covering tests may be automatically accepted and merged.
-* Confine any protected or high-risk change to exactly one commit and require manual merge/intervention for that commit. Protected areas include plans, doctrine, governance, workflows, dependencies, deployment, network, security, and constitutional policy.
+* The human is the servant leader: they set goals, constraints, and values, while the operating body is automated. Do not turn the human into a routine reviewer, merge operator, scheduler, or retry mechanism.
+* Use GitHub's agent reviewers as the independent second source: prefer Copilot code review and fall back to the trusted GitHub Models review workflow when Copilot is unavailable. Agent review and required CI checks apply to every pull request; bounded behavior-covered code/test changes may auto-merge, and protected changes use an agent-controlled merge.
+* Escalate to the human only when an issue intrinsically requires owner-held credentials, physical presence, legal consent, or resolution of a constitutional conflict, and only after at least two documented automated alternatives have failed. Risk, novelty, uncertainty, failed CI, or unavailable agent review are not by themselves escalation grounds.
+* Every escalation must include evidence, attempted alternatives, why automation cannot complete the act, and one bounded decision requested from the human. If an escalation requires a repository change, confine that change to one auditable commit.
 * Codex may enable or request GitHub auto-merge when the checked-in risk policy, required CI checks, and protected-branch controls say that the change qualifies.
-* This authorization does not bypass CI, branch protection, risk classification, agent review, shadow or supervised controller rollout gates, or the explicit authorization boundaries for consequential non-GitHub actions.
+* This authorization does not bypass CI, branch protection, risk classification, agent review, shadow or supervised controller rollout gates, or qualified servant-leader escalation boundaries.

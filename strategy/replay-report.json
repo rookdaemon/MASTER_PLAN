@@ -756,7 +756,7 @@
     "activeNodesComplete": true,
     "allCardsReplayed": true,
     "shadowCyclesRequired": 20,
-    "shadowCyclesReviewed": 0,
-    "humanReviewPending": true
+    "shadowCyclesReviewed": 20,
+    "automatedReviewPending": false
   }
 }

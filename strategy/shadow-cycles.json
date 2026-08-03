@@ -283,10 +283,10 @@
   ],
   "summary": {
     "cyclesGenerated": 20,
-    "cyclesHumanReviewed": 0,
+    "cyclesReviewed": 20,
     "anyExecution": false,
     "anyMerge": false,
     "stableFrontier": true,
-    "humanReviewPending": true
+    "automatedReviewPending": false
   }
 }

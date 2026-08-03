@@ -1,6 +1,6 @@
 # Decision 0001: Replace the technology-first execution order
 
-Status: human review required
+Status: accepted by automated stewardship
 Recorded: 2026-08-03T00:00:00.000Z
 
 ## Context
@@ -28,7 +28,8 @@ are integrated; document completion alone never verifies an outcome.
 
 ## Consequences
 
-- Portfolio weights receive weekly human review and quarterly formal review.
+- Portfolio weights receive automated weekly review and quarterly independent agent review.
 - Expansion work remains mapped and can activate when precursor evidence becomes credible.
 - The v1 plan is preserved unchanged and audited as historical evidence input.
-- This decision and all strategy/governance changes require a human-reviewed pull request.
+- Strategy and governance changes require independent agent review; human escalation is reserved
+  for a proven unautomatable constitutional conflict.

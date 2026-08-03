@@ -16,14 +16,14 @@ describe('single-maintainer proposal policy', () => {
     });
   });
 
-  it('allows a protected change only as one manually merged commit', () => {
+  it('allows a protected change only as one agent-controlled commit', () => {
     const classification = classifyChange([
       { path: '.github/workflows/ci.yml', additions: 2, deletions: 1 },
     ]);
     expect(assessProposalPolicy(classification, 1)).toMatchObject({
       allowed: true,
       risk: 'protected',
-      mergeMode: 'manual',
+      mergeMode: 'agent-controlled',
       agentReviewRequired: true,
     });
     const rejected = assessProposalPolicy(classification, 2);
@@ -34,7 +34,7 @@ describe('single-maintainer proposal policy', () => {
   it('treats agent instructions as governance rather than routine code', () => {
     const classification = classifyChange([{ path: 'AGENTS.md', additions: 3, deletions: 1 }]);
     expect(classification.domains).toContain('governance');
-    expect(assessProposalPolicy(classification, 1).mergeMode).toBe('manual');
+    expect(assessProposalPolicy(classification, 1).mergeMode).toBe('agent-controlled');
   });
 
   it('keeps untested or destructive routine code out of automatic merge', () => {
@@ -47,7 +47,7 @@ describe('single-maintainer proposal policy', () => {
     ]) {
       expect(assessProposalPolicy(classifyChange(files), 1)).toMatchObject({
         allowed: true,
-        mergeMode: 'manual',
+        mergeMode: 'agent-controlled',
       });
     }
   });

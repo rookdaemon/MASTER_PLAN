@@ -1,0 +1,44 @@
+name: Agent review request and retry
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, ready_for_review, reopened, synchronize]
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  request-agent-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request or re-request the configured GitHub agent reviewer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if test -n "${EVENT_PR}"; then
+            pr_numbers="${EVENT_PR}"
+          else
+            pr_numbers="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number --jq '.[].number')"
+          fi
+          for pr_number in $pr_numbers; do
+            head_sha="$(gh pr view "$pr_number" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+            reviewed="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/reviews" \
+              | jq -s -r --arg head "$head_sha" \
+                'add | any(.[]; .user.login == "copilot-pull-request-reviewer[bot]" and .commit_id == $head)')"
+            if test "$reviewed" != true; then
+              if ! gh api --method POST "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/requested_reviewers" \
+                --input - <<< '{"reviewers":["copilot-pull-request-reviewer[bot]"]}'; then
+                echo "Copilot review request unavailable; dispatching GitHub Models fallback"
+              fi
+            fi
+            gh workflow run agent-review.yml --repo "$GITHUB_REPOSITORY" --ref main \
+              -f pr_number="$pr_number" -f head_sha="$head_sha"
+          done

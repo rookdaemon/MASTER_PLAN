@@ -11,9 +11,10 @@ preserved as v1 history.
 - `legacy-audit.json` re-audits every v1 plan card without interpreting `[DONE]` as a real-world result.
 - `ROADMAP.md` is a generated human-readable view and is not evidence.
 - `shadow-cycles.json` contains generated proposals; `shadow-reviews.json` contains separate,
-  auditable human review records and starts empty.
+  auditable independent agent review records.
+- `escalations.json` contains evidence-bound requests for the rare decisions automation cannot make.
 - `decisions/` contains traceable strategy decisions.
 
-The repository starts in shadow mode. No checked-in artifact authorizes external execution,
-publication, outreach, spending, deployment, hardware operation, self-replication, or creation
-of a potentially conscious system.
+The repository uses an automated operating body under servant-leader goals and constitutional
+constraints. External actions remain bounded by evidence and verification; the human is contacted
+only through the documented exceptional escalation process.

@@ -7,7 +7,7 @@ import {
   InMemoryReviewer,
   InMemoryStateStore,
 } from '../testing/in-memory-adapters.js';
-import { CONFIG, makeEvidence, makeNode, makePacket, makeState, NOW, RESULT_PORTFOLIO_EFFORT } from './fixtures.js';
+import { CONFIG, makeEscalation, makeEscalationEvidence, makeEvidence, makeNode, makePacket, makeState, NOW, RESULT_PORTFOLIO_EFFORT } from './fixtures.js';
 
 function makeRunner(
   store: InMemoryStateStore,
@@ -155,16 +155,18 @@ describe('CycleRunner end-to-end with injected ports', () => {
     expect(externalData.observationTimes).toEqual([NOW]);
   });
 
-  it('does not execute work requiring explicit authorization while approval is pending', async () => {
-    const packet = makePacket({ authorityClass: 'explicit-authorization' });
+  it('does not execute work with a qualified human escalation while its bounded decision is pending', async () => {
+    const packet = makePacket({ authorityClass: 'human-escalation', escalationId: 'escalation-1' });
     const store = new InMemoryStateStore(makeState({
       packets: [packet],
+      evidence: makeEscalationEvidence(),
+      escalations: [makeEscalation({ packetId: packet.id })],
       governance: { mode: 'supervised', shadowCyclesReviewed: 20, supervisedResultsReviewed: 0, safeAutoMergeEnabled: false },
     }));
     const executor = new InMemoryPacketExecutor();
     const result = await makeRunner(store, executor).runCycle(NOW);
     expect(result.status).toBe('waiting');
-    expect(result.rejections[0].reasons.join(' ')).toMatch(/authorization|approval/i);
+    expect(result.rejections[0].reasons.join(' ')).toMatch(/servant-leader decision/i);
     expect(executor.requests).toHaveLength(0);
   });
 
