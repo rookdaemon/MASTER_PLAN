@@ -60,6 +60,7 @@ export function renderRoadmap(bundle: RepositoryStrategyBundle): string {
     '',
     `- Mode: **${bundle.state.governance.mode}**.`,
     `- Agent-reviewed shadow cycles: ${bundle.state.governance.shadowCyclesReviewed}/20.`,
+    `- Supervised results independently reviewed: ${bundle.state.governance.supervisedResultsReviewed}.`,
     `- Safe auto-merge enabled: ${bundle.state.governance.safeAutoMergeEnabled ? 'yes' : 'no'}.`,
     '- Supervised execution requires every result to receive fresh review.',
     '- Weekly portfolio review and quarterly evidence, weight, and constitutional-risk review are automated with independent agent review.',

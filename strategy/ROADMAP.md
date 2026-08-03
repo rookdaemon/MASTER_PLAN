@@ -31,6 +31,7 @@ over expansion. Positive, negative, and null evidence are integrated without for
 
 - Mode: **supervised**.
 - Agent-reviewed shadow cycles: 20/20.
+- Supervised results independently reviewed: 1.
 - Safe auto-merge enabled: no.
 - Supervised execution requires every result to receive fresh review.
 - Weekly portfolio review and quarterly evidence, weight, and constitutional-risk review are automated with independent agent review.
