@@ -521,6 +521,127 @@ describe('consciousness prediction registry artifact', () => {
   });
 });
 
+describe('institutional dependency map artifact', () => {
+  it('separates artifacts, evidence, readiness, and outcomes across capture, schism, succession, and funding risks', async () => {
+    const fileSystem = new NodeFileSystem('.');
+    const map = JSON.parse(await fileSystem.readText(
+      'strategy/results/institutional-dependency-map-v1.json',
+    )) as {
+      packetId: string;
+      assessedAt: string;
+      scope: { performsOutreach: boolean; changesGovernance: boolean; claimsExternalContinuity: boolean };
+      humanRole: string;
+      sources: Array<{ id: string; url: string; accessedAt: string; limitations: string[] }>;
+      dependencies: Array<{
+        id: string; category: string; sourceIds: string[];
+        repositoryArtifact: { status: string; references: string[]; limitations: string[] };
+        evidence: { strength: string; basis: string; limitations: string[] };
+        readiness: { status: string; prerequisites: string[]; gaps: string[] };
+        externalOutcome: { status: string; statement: string };
+      }>;
+      edges: Array<{ from: string; to: string; failurePropagation: string }>;
+      scenarios: Array<{
+        id: string; triggers: string[]; affectedDependencyIds: string[];
+        candidateAutomatedControls: Array<{
+          description: string; status: 'present' | 'planned'; evidenceReferences: string[];
+        }>;
+        residualGap: string; humanEscalation: string;
+      }>;
+    };
+
+    expect(map.packetId).toBe('packet-institutional-dependency-map');
+    expect(Number.isNaN(Date.parse(map.assessedAt))).toBe(false);
+    expect(map.scope).toEqual({
+      performsOutreach: false,
+      changesGovernance: false,
+      claimsExternalContinuity: false,
+    });
+    expect(map.humanRole).toMatch(/credential|legal|physical/i);
+    const sourceIds = new Set(map.sources.map((source) => source.id));
+    const expectedSourceUrls = new Map([
+      ['source-repository', 'https://github.com/rookdaemon/MASTER_PLAN'],
+      ['source-github-ownership-continuity', 'https://docs.github.com/en/organizations/managing-peoples-access-to-your-organization-with-roles/maintaining-ownership-continuity-for-your-organization'],
+      ['source-github-protected-branches', 'https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches'],
+      ['source-github-transfer', 'https://docs.github.com/en/repositories/creating-and-managing-repositories/transferring-a-repository'],
+      ['source-github-codeowners', 'https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners'],
+      ['source-github-actions-billing', 'https://docs.github.com/en/billing/concepts/product-billing/github-actions'],
+      ['source-nist-contingency-planning', 'https://nvlpubs.nist.gov/nistpubs/legacy/sp/nistspecialpublication800-34r1.pdf'],
+      ['source-cisa-iam-practices', 'https://www.cisa.gov/sites/default/files/2023-12/ESF%20IDENTITY%20AND%20ACCESS%20MANAGEMENT%20RECOMMENDED%20BEST%20PRACTICES%20FOR%20ADMINISTRATORS%20PP-23-0248_508C.pdf'],
+      ['source-cisa-succession', 'https://www.cisa.gov/sites/default/files/publications/emergency-services-sector-continuity-planning-suite-worksheet-2-orders-of-succession-022018-508.pdf'],
+      ['source-openssf-scorecard', 'https://openssf.org/scorecard/'],
+    ]);
+    expect(new Map(map.sources.map((source) => [source.id, source.url]))).toEqual(expectedSourceUrls);
+    expect(sourceIds).toEqual(new Set(expectedSourceUrls.keys()));
+    expect(sourceIds.size).toBe(map.sources.length);
+    expect(map.sources.every((source) =>
+      source.url.startsWith('https://') &&
+      !Number.isNaN(Date.parse(source.accessedAt)) &&
+      Date.parse(source.accessedAt) <= Date.parse(map.assessedAt) &&
+      source.limitations.length > 0 &&
+      source.limitations.every((limitation) => limitation.trim().length > 0))).toBe(true);
+
+    const repositoryFiles = new Set([
+      ...(await fileSystem.listFiles('strategy')),
+      ...(await fileSystem.listFiles('.github')),
+      'AGENTS.md',
+      'STATUS.md',
+      'package.json',
+    ]);
+
+    expect(map.dependencies.length).toBeGreaterThanOrEqual(6);
+    const dependencyIds = new Set(map.dependencies.map((dependency) => dependency.id));
+    expect(dependencyIds.size).toBe(map.dependencies.length);
+    for (const dependency of map.dependencies) {
+      expect(dependency.category.trim()).not.toBe('');
+      expect(dependency.sourceIds.length).toBeGreaterThan(0);
+      expect(dependency.sourceIds.every((id) => sourceIds.has(id))).toBe(true);
+      expect(dependency.repositoryArtifact.references.length).toBeGreaterThan(0);
+      expect(dependency.repositoryArtifact.references.every((reference) =>
+        reference.startsWith('https://') || repositoryFiles.has(reference))).toBe(true);
+      expect(dependency.repositoryArtifact.limitations.length).toBeGreaterThan(0);
+      expect(dependency.repositoryArtifact.limitations.every((limitation) => limitation.trim().length > 0)).toBe(true);
+      expect(['weak', 'moderate', 'strong']).toContain(dependency.evidence.strength);
+      expect(dependency.evidence.basis.trim()).not.toBe('');
+      expect(dependency.evidence.limitations.length).toBeGreaterThan(0);
+      expect(dependency.evidence.limitations.every((limitation) => limitation.trim().length > 0)).toBe(true);
+      expect(['not-ready', 'partial', 'ready']).toContain(dependency.readiness.status);
+      expect(dependency.readiness.prerequisites.length).toBeGreaterThan(0);
+      expect(dependency.readiness.gaps.length).toBeGreaterThan(0);
+      expect([...dependency.readiness.prerequisites, ...dependency.readiness.gaps]
+        .every((entry) => entry.trim().length > 0)).toBe(true);
+      expect(dependency.externalOutcome.status).toBe('not-verified');
+      expect(dependency.externalOutcome.statement.trim()).not.toBe('');
+    }
+    expect(map.edges.length).toBeGreaterThanOrEqual(map.dependencies.length);
+    expect(map.edges.every((edge) =>
+      dependencyIds.has(edge.from) && dependencyIds.has(edge.to) && edge.failurePropagation.trim().length > 0)).toBe(true);
+
+    expect(new Set(map.scenarios.map((scenario) => scenario.id))).toEqual(new Set([
+      'capture', 'schism', 'succession', 'funding',
+    ]));
+    for (const scenario of map.scenarios) {
+      expect(scenario.triggers.length).toBeGreaterThan(0);
+      expect(scenario.affectedDependencyIds.every((id) => dependencyIds.has(id))).toBe(true);
+      expect(scenario.candidateAutomatedControls.length).toBeGreaterThanOrEqual(2);
+      for (const control of scenario.candidateAutomatedControls) {
+        expect(control.description.trim()).not.toBe('');
+        expect(['present', 'planned']).toContain(control.status);
+        expect(control.evidenceReferences.length).toBeGreaterThan(0);
+        expect(control.evidenceReferences.every((reference) =>
+          sourceIds.has(reference) || repositoryFiles.has(reference))).toBe(true);
+        if (control.status === 'present') {
+          expect(control.evidenceReferences.some((reference) => repositoryFiles.has(reference))).toBe(true);
+        }
+      }
+      expect(scenario.residualGap.trim()).not.toBe('');
+      expect(scenario.humanEscalation).toMatch(/only if/i);
+      expect(scenario.humanEscalation).toMatch(/truly unautomatable/i);
+      expect(scenario.humanEscalation).toMatch(/credential|legal consent|physical|constitutional conflict/i);
+      expect(scenario.humanEscalation).toMatch(/two|at least two/i);
+    }
+  });
+});
+
 describe('continuous loop', () => {
   it('repeats bounded cycles after the configured cooldown using injected time and scheduling', async () => {
     const clock = new InMemoryClock(NOW);
