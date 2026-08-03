@@ -361,6 +361,124 @@ describe('supervised preservation risk-register artifact', () => {
   });
 });
 
+describe('consciousness prediction registry artifact', () => {
+  it('is preregistration-ready, theory-neutral, source-limited, and gated before subject research', async () => {
+    const fileSystem = new NodeFileSystem('.');
+    const registry = JSON.parse(await fileSystem.readText(
+      'strategy/results/consciousness-prediction-registry-v1.json',
+    )) as {
+      packetId: string;
+      preparedAt: string;
+      scope: { claimsCurrentAiConsciousness: boolean; executesHumanSubjectsResearch: boolean };
+      registrationGate: {
+        status: string; requiredBeforeExecution: string[]; humanRole: string;
+      };
+      blinding: {
+        analystPackageExcludes: string[]; mappingCustodian: string; unblindingTrigger: string;
+      };
+      theoryFamilies: Array<{ id: string; name: string; sourceIds: string[]; limitations: string[] }>;
+      sources: Array<{
+        id: string; title: string; url: string; publicationKind: string; publishedAt: string; accessedAt: string;
+        limitations: string[];
+      }>;
+      predictions: Array<{
+        id: string; blindedLabel: string; title: string; sourceIds: string[];
+        measurement: {
+          population: string; design: string; modalities: string[]; primaryVariables: string[];
+          analysisPlan: string[]; sampleSizeJustification: string; manipulation?: string;
+        };
+        criteria: { pass: string; fail: string; inconclusive: string; thresholdPolicy: string };
+        confounders: Array<{ confounder: string; control: string }>;
+        interpretations: Array<{
+          theoryId: string; expectedResult: string; consequence: string;
+          proponentPosition: string; sourceIds: string[];
+        }>;
+        neutrality: { rivalExplanations: string[]; forbiddenInference: string };
+      }>;
+    };
+
+    expect(registry.packetId).toBe('packet-consciousness-prediction-registry');
+    expect(Number.isNaN(Date.parse(registry.preparedAt))).toBe(false);
+    expect(registry.scope).toMatchObject({
+      claimsCurrentAiConsciousness: false,
+      executesHumanSubjectsResearch: false,
+    });
+    expect(registry.registrationGate.status).toBe('not-authorized-for-execution');
+    expect(registry.registrationGate.requiredBeforeExecution).toEqual(expect.arrayContaining([
+      'independent theory-neutral review',
+      'theory-proponent interpretation adjudication',
+      'institutional ethics approval and informed consent',
+    ]));
+    expect(registry.registrationGate.humanRole).toMatch(/legal consent|ethics/i);
+    expect(registry.blinding.analystPackageExcludes).toEqual(expect.arrayContaining([
+      'theory-family names',
+      'interpretation mappings',
+    ]));
+    expect(registry.blinding.mappingCustodian).toMatch(/automated|access-separated/i);
+    expect(registry.blinding.unblindingTrigger).toMatch(/locked|signed|complete/i);
+
+    const theoryIds = new Set(registry.theoryFamilies.map((theory) => theory.id));
+    expect(theoryIds).toEqual(new Set(['iit', 'gnwt', 'rpt', 'hot']));
+    expect(registry.theoryFamilies.every((theory) =>
+      theory.sourceIds.length > 0 && theory.limitations.length > 0)).toBe(true);
+    const sourceIds = new Set(registry.sources.map((source) => source.id));
+    expect(sourceIds.size).toBe(registry.sources.length);
+    expect(registry.sources.every((source) =>
+      source.url.startsWith('https://') &&
+      source.publicationKind.trim().length > 0 &&
+      !Number.isNaN(Date.parse(source.publishedAt)) &&
+      !Number.isNaN(Date.parse(source.accessedAt)) &&
+      source.limitations.length > 0)).toBe(true);
+    expect(registry.sources.find((source) => source.id === 'hot-pfc-dispute-2024')).toMatchObject({
+      title: 'An embarrassment of richnesses: the PFC isn’t the content NCC',
+      publishedAt: '2024-05-18T00:00:00.000Z',
+    });
+    expect(registry.sources.find((source) => source.id === 'ai-indicators-2023')).toMatchObject({
+      publishedAt: '2023-08-17T00:00:00.000Z',
+    });
+
+    expect(registry.predictions.length).toBeGreaterThanOrEqual(6);
+    expect(new Set(registry.predictions.map((prediction) => prediction.id)).size)
+      .toBe(registry.predictions.length);
+    expect(new Set(registry.predictions.map((prediction) => prediction.blindedLabel)).size)
+      .toBe(registry.predictions.length);
+    for (const prediction of registry.predictions) {
+      expect(prediction.title.trim()).not.toBe('');
+      expect(prediction.sourceIds.length).toBeGreaterThan(0);
+      expect(prediction.sourceIds.every((id) => sourceIds.has(id))).toBe(true);
+      expect(prediction.measurement.population.trim()).not.toBe('');
+      expect(prediction.measurement.design.trim()).not.toBe('');
+      expect(prediction.measurement.modalities.length).toBeGreaterThan(0);
+      expect(prediction.measurement.primaryVariables.length).toBeGreaterThan(0);
+      expect(prediction.measurement.analysisPlan.length).toBeGreaterThan(0);
+      expect(prediction.measurement.sampleSizeJustification).toMatch(/power|precision|simulation/i);
+      expect(prediction.criteria.pass.trim()).not.toBe('');
+      expect(prediction.criteria.fail.trim()).not.toBe('');
+      expect(prediction.criteria.inconclusive.trim()).not.toBe('');
+      expect(prediction.criteria.thresholdPolicy).toMatch(/before|preregister/i);
+      expect(prediction.confounders.length).toBeGreaterThanOrEqual(2);
+      expect(prediction.confounders.every((item) =>
+        item.confounder.trim().length > 0 && item.control.trim().length > 0)).toBe(true);
+      expect(new Set(prediction.interpretations.map((item) => item.theoryId)).size)
+        .toBe(prediction.interpretations.length);
+      expect(prediction.interpretations.length).toBeGreaterThanOrEqual(2);
+      for (const interpretation of prediction.interpretations) {
+        expect(theoryIds.has(interpretation.theoryId)).toBe(true);
+        expect(interpretation.expectedResult.trim()).not.toBe('');
+        expect(interpretation.consequence.trim()).not.toBe('');
+        expect(interpretation.proponentPosition).toMatch(/preapproved|source-authored|published-dispute/);
+        expect(interpretation.sourceIds.every((id) => sourceIds.has(id))).toBe(true);
+      }
+      expect(prediction.neutrality.rivalExplanations.length).toBeGreaterThan(0);
+      expect(prediction.neutrality.forbiddenInference).toMatch(/consciousness|theory/i);
+    }
+    const metacognitivePrediction = registry.predictions.find((prediction) =>
+      prediction.id === 'prediction-metacognitive-dissociation');
+    expect(metacognitivePrediction?.measurement.manipulation).toMatch(/random|post-decision evidence/i);
+    expect(metacognitivePrediction?.measurement.analysisPlan.join(' ')).toMatch(/manipulation-strength/i);
+  });
+});
+
 describe('continuous loop', () => {
   it('repeats bounded cycles after the configured cooldown using injected time and scheduling', async () => {
     const clock = new InMemoryClock(NOW);
