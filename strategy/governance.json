@@ -1,6 +1,6 @@
 {
   "mode": "supervised",
   "shadowCyclesReviewed": 20,
-  "supervisedResultsReviewed": 1,
+  "supervisedResultsReviewed": 2,
   "safeAutoMergeEnabled": false
 }
