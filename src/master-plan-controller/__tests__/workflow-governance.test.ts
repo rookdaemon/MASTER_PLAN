@@ -88,6 +88,8 @@ describe('blocking CI and governed workflows', () => {
       expect(mergeRequest).toContain(protectedPattern);
     }
     expect(agentReview).toContain("name='agent-review'");
+    expect(agentReview).toContain('group: agent-review-${{ github.event.pull_request.number || inputs.pr_number }}-${{ github.event.pull_request.head.sha || inputs.head_sha }}');
+    expect(agentReview).toContain('cancel-in-progress: false');
     expect(agentReview).toContain('pull_request_target:');
     expect(agentReview).toContain('workflow_dispatch:');
     expect(agentReview).toContain('external_id');
@@ -95,6 +97,8 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain('commit_id');
     expect(agentReview).toContain('checks: write');
     expect(agentReview).toContain('/check-runs');
+    expect(agentReview).toContain('Exact-head agent review is already successful; skipping duplicate run');
+    expect(agentReview.indexOf('existing_success=')).toBeLessThan(agentReview.indexOf('check_id='));
     expect(agentReview).toContain('head.sha');
     expect(agentReview).toContain('llama-b10242-bin-ubuntu-x64.tar.gz');
     expect(agentReview).toContain('fb13c9fa97a605c6bba16a99b2f54eff6874d58bdbe5b94ece6e358eaa270088');
@@ -126,6 +130,10 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReviewRequest).toContain('if ! gh api --method POST');
     expect(agentReviewRequest).toContain('gh workflow run agent-review.yml');
     expect(agentReviewRequest).toContain('GitHub-hosted pinned local-model fallback');
+    expect(agentReviewRequest).toContain('Direct pull-request event already launches the fallback');
+    expect(agentReviewRequest).toContain('commits/${head_sha}/check-runs?check_name=agent-review');
+    expect(agentReviewRequest).toContain('.status == "in_progress" or .conclusion == "success"');
+    expect(agentReviewRequest).toContain('Exact-head agent review is already running or successful; skipping fallback dispatch');
     expect(mergeRequest).toContain('workflow_dispatch:');
     expect(agentReviewRequest).not.toContain('actions/checkout');
     expect(agentReviewRequest).not.toContain('npm ci');
