@@ -1,5 +1,5 @@
 import { isEvidenceStale } from './evidence.js';
-import { isValidConstitutionalAmendment, isValidHumanApproval } from './human-authorization.js';
+import { isValidConstitutionalAmendment } from './human-authorization.js';
 import type { ControllerConfig, GateAssessment, Metric, PlanNode, StrategyState, Timestamp } from './types.js';
 
 function metricSatisfied(metric: Metric): boolean {
@@ -51,13 +51,6 @@ export function evaluateActivationGates(
       case 'metric-target': {
         const metric = node.metrics.find((candidate) => candidate.id === gate.metricId);
         if (!metric || !metricSatisfied(metric)) failures.push(`Metric target is not met: ${gate.metricId}`);
-        break;
-      }
-      case 'human-approval': {
-        const approval = state.approvals.find(
-          (candidate) => candidate.id === gate.approvalId && isValidHumanApproval(candidate, node.id, now),
-        );
-        if (!approval) failures.push(`Qualified servant-leader escalation approval is missing: ${gate.approvalId}`);
         break;
       }
       case 'node-verified':

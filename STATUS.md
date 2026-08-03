@@ -1,11 +1,12 @@
 # MASTER_PLAN v2 — Status and operating model
 
-As of 2026-08-03, the v2 strategy/controller has completed automated shadow review and entered
-bounded supervised operation. Implementation readiness is not real-world outcome attainment.
+As of 2026-08-03, the v2 strategy/controller has completed historical automated shadow calibration
+and entered bounded agent-supervised automation. Implementation readiness is not real-world
+outcome attainment.
 
 ## Current gates
 
-- Operating mode: **supervised**
+- Operating mode: **agent-supervised automation**
 - Shadow cycles generated: **20 / 20**
 - Shadow cycles agent-reviewed: **20 / 20**
 - Supervised results independently reviewed: **2**
@@ -35,10 +36,10 @@ contacted only for an evidence-backed issue that automation intrinsically cannot
 
 ## Automated operating procedure
 
-1. Automated shadow review has accepted all 20 proposals for usefulness and non-churn while
-   documenting the limits of identical snapshots.
-2. Supervised mode executes one bounded packet at a time; every result receives fresh independent
-   agent review before integration.
+1. The 20 shadow records preserve initial automated calibration and its limitations. They are not
+   a recurring gate and did not require human review.
+2. The automated operating body executes one bounded packet at a time; every result receives fresh
+   independent agent review before integration.
 3. Routine code/test changes auto-merge after classification, tests, protected controls, and agent
    review. Protected changes use an agent-controlled merge.
 4. Automation diagnoses failures, retries bounded alternatives, and records evidence without

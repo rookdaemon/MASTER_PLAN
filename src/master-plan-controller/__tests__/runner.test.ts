@@ -31,7 +31,20 @@ describe('CycleRunner end-to-end with injected ports', () => {
   });
 
   it('executes and verifies one supervised packet', async () => {
-    const state = makeState({ governance: { mode: 'supervised', shadowCyclesReviewed: 20, supervisedResultsReviewed: 0, safeAutoMergeEnabled: false } });
+    const historicalShadowCycle = {
+      cycle: 1,
+      observedAt: '2026-08-03T00:00:00.000Z',
+      rankedFrontier: ['packet-1'],
+      selectedPacketId: 'packet-1',
+      executed: false as const,
+      merged: false as const,
+      stateMutated: false as const,
+    };
+    const state = makeState({
+      approvals: [],
+      shadowCycles: [historicalShadowCycle],
+      governance: { mode: 'supervised', shadowCyclesReviewed: 20, supervisedResultsReviewed: 0, safeAutoMergeEnabled: false },
+    });
     const store = new InMemoryStateStore(state);
     const executor = new InMemoryPacketExecutor([
       {
@@ -51,6 +64,8 @@ describe('CycleRunner end-to-end with injected ports', () => {
     expect(reviewer.requests).toHaveLength(1);
     expect((await store.load()).packets[0].lifecycle).toBe('verified');
     expect((await store.load()).governance.supervisedResultsReviewed).toBe(1);
+    expect((await store.load()).shadowCycles).toEqual([historicalShadowCycle]);
+    expect((await store.load()).approvals).toEqual([]);
   });
 
   it('integrates a reviewed null result without manufacturing success', async () => {

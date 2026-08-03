@@ -49,6 +49,24 @@ describe('blocking CI and governed workflows', () => {
     });
   });
 
+  it('defines humans as exceptional servant-leader escalation, never the operating body', async () => {
+    const agents = await fileSystem.readText('AGENTS.md');
+    const authority = await fileSystem.readText('strategy/AUTHORITY.md');
+    const roadmap = await fileSystem.readText('strategy/ROADMAP.md');
+    for (const policy of [agents, authority]) {
+      expect(policy).toMatch(/automated (?:process|agents).*operating body/is);
+      expect(policy).toMatch(/human.*servant leader/is);
+      expect(policy).toMatch(/owner-held credentials|owner-credential/is);
+      expect(policy).toMatch(/physical presence|physical-presence/is);
+      expect(policy).toMatch(/legal consent|legal-consent/is);
+      expect(policy).toMatch(/constitutional conflict|constitutional-conflict/is);
+      expect(policy).toMatch(/at least two.*automated alternatives/is);
+    }
+    expect(agents).toMatch(/shadow cycles.*historical.*not.*human.*gate/is);
+    expect(roadmap).toContain('Mode: **agent-supervised automation**');
+    expect(roadmap).toMatch(/historical calibration records.*not a recurring or human-approval gate/i);
+  });
+
   it('makes repository entry points describe v2 while retaining v1 as history', async () => {
     const readme = await fileSystem.readText('README.md');
     const status = await fileSystem.readText('STATUS.md');

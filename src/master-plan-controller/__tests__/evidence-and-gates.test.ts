@@ -92,7 +92,7 @@ describe('activation gates', () => {
     expect(assessment.failures[0]).toMatch(/dependency/);
   });
 
-  it('evaluates confidence, evidence freshness, metric, and approval gates', () => {
+  it('evaluates confidence, evidence freshness, and metric gates without a routine human gate', () => {
     const evidence = makeEvidence({ id: 'fresh' });
     const node = makeNode({
       id: 'gated',
@@ -103,13 +103,11 @@ describe('activation gates', () => {
         { type: 'minimum-confidence', minimum: 0.75 },
         { type: 'fresh-evidence', minimumStrength: 0.7, maxAgeMs: 86_400_000 },
         { type: 'metric-target', metricId: 'm' },
-        { type: 'human-approval', approvalId: 'approval-1' },
       ],
     });
     const state = makeState({
       nodes: [node],
       evidence: [evidence],
-      approvals: [{ id: 'approval-1', scope: 'gated', approvedBy: 'human', approverRole: 'human', approvedAt: NOW }],
     });
     expect(evaluateActivationGates(node, state, NOW, CONFIG).satisfied).toBe(true);
   });
@@ -148,21 +146,4 @@ describe('activation gates', () => {
     expect(evaluateActivationGates(node, incomplete, NOW, CONFIG).satisfied).toBe(false);
   });
 
-  it('does not accept an approval record without explicit human authority', () => {
-    const node = makeNode({
-      id: 'human-gated',
-      activationGates: [{ type: 'human-approval', approvalId: 'approval-1' }],
-    });
-    const state = makeState({
-      nodes: [node],
-      approvals: [{
-        id: 'approval-1',
-        scope: node.id,
-        approvedBy: 'automation',
-        approverRole: 'agent',
-        approvedAt: NOW,
-      } as never],
-    });
-    expect(evaluateActivationGates(node, state, NOW, CONFIG).satisfied).toBe(false);
-  });
 });

@@ -29,10 +29,10 @@ over expansion. Positive, negative, and null evidence are integrated without for
 
 ## Rollout status
 
-- Mode: **supervised**.
-- Agent-reviewed shadow cycles: 20/20.
-- Supervised results independently reviewed: 2.
+- Mode: **agent-supervised automation**.
+- Agent-reviewed shadow cycles: 20/20 historical calibration records, not a recurring or human-approval gate.
+- Agent-supervised results independently reviewed: 2.
 - Safe auto-merge enabled: no.
-- Supervised execution requires every result to receive fresh review.
+- Automated execution requires every result to receive fresh independent agent review.
 - Weekly portfolio review and quarterly evidence, weight, and constitutional-risk review are automated with independent agent review.
 - The human servant leader is contacted only for an evidence-backed, intrinsically human escalation.

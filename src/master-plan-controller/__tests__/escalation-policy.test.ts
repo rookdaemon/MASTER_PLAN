@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { assessHumanEscalation } from '../escalation-policy.js';
+import { strategyContractErrors } from '../strategy-validation.js';
+import { CONFIG, makeEscalation, makeEscalationEvidence, makePacket, makeState, NOW } from './fixtures.js';
 
 const ASSESSED_AT = '2026-08-03T12:00:00.000Z';
 const EVIDENCE = new Map([
@@ -73,5 +75,26 @@ describe('human servant-leader escalation policy', () => {
       ],
       decisionRequested: { operation: 'record-legal-consent', scope: 'packet-1', expectedOutput: 'Consent artifact.' },
     }, ASSESSED_AT, evidence).escalate).toBe(false);
+  });
+
+  it('rejects an approval whose scope differs from its qualified escalation packet', () => {
+    const packet = makePacket({ id: 'packet-escalated' });
+    const escalation = makeEscalation({ packetId: packet.id });
+    const state = makeState({
+      packets: [packet],
+      evidence: makeEscalationEvidence(),
+      escalations: [escalation],
+      approvals: [{
+        id: 'approval-wrong-scope',
+        scope: 'another-packet',
+        approvedBy: 'servant-leader',
+        approverRole: 'human',
+        approvedAt: NOW,
+        escalationId: escalation.id,
+      }],
+    });
+
+    expect(strategyContractErrors(state, CONFIG, NOW).join('\n'))
+      .toMatch(/invalid servant-leader escalation approval/i);
   });
 });
