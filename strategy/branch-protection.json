@@ -1,0 +1,28 @@
+{
+  "branch": "main",
+  "requiredStatusChecks": ["typecheck", "test", "strategy-verify", "proposal-review", "agent-review"],
+  "strictStatusChecks": true,
+  "requiredApprovingReviewCount": 0,
+  "dismissStaleReviews": false,
+  "requireCodeOwnerReview": false,
+  "requireConversationResolution": true,
+  "allowForcePushes": false,
+  "allowDeletions": false,
+  "enforceAdmins": true,
+  "repositoryAutoMergeEnabled": true,
+  "safeAutoMergeVariableEnabled": true,
+  "appliedAndVerified": true,
+  "applicationAuthority": "single-maintainer-risk-policy",
+  "highRiskPolicy": {
+    "maximumCommitCount": 1,
+    "mergeMode": "manual",
+    "domains": ["plan", "doctrine", "governance", "workflow", "dependency", "deployment", "network", "security", "constitutional"]
+  },
+  "agentReview": {
+    "provider": "github-copilot",
+    "automatic": true,
+    "reviewOnPush": true,
+    "reviewDraftPullRequests": true
+  },
+  "notes": "Single-maintainer policy: required CI and agent review are universal; bounded behavior-covered routine changes may auto-merge; protected changes require manual intervention and exactly one commit."
+}

@@ -208,6 +208,11 @@ export class ConstraintAwareDeliberationEngine implements IEthicalDeliberationEn
     return this._deliberationRecordStore;
   }
 
+  /** Hand pending D4 records to the runtime exactly once. */
+  drainDeliberationRecords(): DeliberationRecord[] {
+    return this._deliberationRecordStore.drain();
+  }
+
   /** Expose the escalation tracker for monitoring and tests. */
   getEscalationTracker(): EscalationTracker {
     return this._escalationTracker;

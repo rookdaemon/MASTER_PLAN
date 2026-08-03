@@ -822,8 +822,9 @@ export class AgentLoop implements IAgentLoop {
         });
         dl?.log('deliberation', `D4 deliberation record stored: ${rec.id}`, {
           decision: rec.decision,
-          violationCount: rec.violationCount,
-          escalated: rec.escalated,
+          entryId: rec.entryId,
+          score: rec.evaluation.score,
+          decisionReason: rec.decisionReason,
         });
       }
     }

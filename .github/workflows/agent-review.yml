@@ -1,0 +1,27 @@
+name: Agent review
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, ready_for_review, reopened, synchronize]
+  pull_request_review:
+    branches: [main]
+    types: [submitted]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  agent-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require GitHub Copilot review of the current head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
+            | jq -s -e --arg head "$HEAD_SHA" \
+              'add | any(.[]; .user.login == "copilot-pull-request-reviewer[bot]" and .commit_id == $head)'

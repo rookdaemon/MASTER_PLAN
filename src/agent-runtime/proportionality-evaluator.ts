@@ -302,6 +302,11 @@ export class DeliberationRecordStore {
   getLast(): DeliberationRecord | undefined {
     return this._records[this._records.length - 1];
   }
+
+  /** Return all pending records and clear the store for exactly-once handoff. */
+  drain(): DeliberationRecord[] {
+    return this._records.splice(0, this._records.length);
+  }
 }
 
 // ── EscalationTracker ────────────────────────────────────────

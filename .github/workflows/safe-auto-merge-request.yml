@@ -1,0 +1,54 @@
+name: Trusted safe auto-merge request
+
+on:
+  workflow_run:
+    workflows: [Agent review, Safe code auto-merge]
+    types: [completed]
+
+permissions:
+  actions: read
+  checks: read
+  contents: write
+  pull-requests: write
+
+jobs:
+  request-auto-merge:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      vars.MASTER_PLAN_SAFE_AUTOMERGE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Re-verify the immutable head and request auto-merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}")"
+          pr_number="$(jq -er '.pull_requests[0].number' <<<"$run_json")"
+          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}")"
+          test "$(jq -r '.head.sha' <<<"$pr_json")" = "$HEAD_SHA"
+
+          files_json="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/files?per_page=100" | jq -s 'add')"
+          jq -e '
+            length > 0 and
+            (map(.additions + .deletions) | add) <= 100 and
+            all(.[];
+              .deletions == 0 and
+              (.filename | test("^src/(?!master-plan-controller/|plan-guardian/).+\\.tsx?$")) and
+              (.filename | test("network|security|deploy") | not)
+            ) and
+            any(.[]; (.filename | test("\\.(test|spec)\\.[cm]?[jt]sx?$|/__tests__/"))) and
+            any(.[]; (.filename | test("\\.(test|spec)\\.[cm]?[jt]sx?$|/__tests__/") | not))
+          ' <<<"$files_json"
+
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/reviews" \
+            | jq -s -e --arg head "$HEAD_SHA" \
+              'add | any(.[]; .user.login == "copilot-pull-request-reviewer[bot]" and .commit_id == $head)'
+
+          checks_json="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?per_page=100" | jq -s '[.[].check_runs[]]')"
+          for required in typecheck test strategy-verify proposal-review agent-review safe-auto-merge; do
+            jq -e --arg required "$required" 'any(.[]; .name == $required and .conclusion == "success")' <<<"$checks_json"
+          done
+          gh pr merge "$pr_number" --repo "$GITHUB_REPOSITORY" --auto --squash
