@@ -31,7 +31,7 @@ over expansion. Positive, negative, and null evidence are integrated without for
 
 - Mode: **automated stewardship**.
 - Historical calibration: 20 agent-reviewed shadow records retained as evidence, never an operating prerequisite.
-- Automated results independently agent-reviewed: 5.
+- Automated results independently agent-reviewed: 6.
 - Safe auto-merge enabled: yes.
 - Scheduled cycles integrate deduplicated external observations before diagnosis.
 - Only fresh, matching adjudicated evidence can trigger recurring work.

@@ -100,5 +100,21 @@
       "source": "diagnosis",
       "portfolio": "near-term-preservation"
     }
+  },
+  {
+    "id": "audit:packet-preservation-mitigation-tabletop-v1:packet-verified:2026-08-04T19:15:21.000Z",
+    "type": "packet-verified",
+    "packetId": "packet-preservation-mitigation-tabletop-v1",
+    "occurredAt": "2026-08-04T19:15:21.000Z",
+    "details": {
+      "outcome": "null",
+      "artifactReferences": [
+        "strategy/results/preservation-mitigation-tabletop-v1.json",
+        "strategy/results/preservation-risk-register-v1.json"
+      ],
+      "verifier": "github-hosted-agent-review:run:30941624014:head:ac3e3865940de74a656fb2ba0a2770dff80625b9",
+      "externalMetricChanged": false,
+      "metricUpdates": []
+    }
   }
 ]
