@@ -27,11 +27,11 @@ over expansion. Positive, negative, and null evidence are integrated without for
 - Self-replicating conscious infrastructure: **proposed**; activation gates: program-space-settlement, capability-welfare-precautions, dependencies-verified.
 - Cosmological engineering and longevity: **proposed**; activation gates: program-self-replication.
 
-## Rollout status
+## Operating status
 
-- Mode: **agent-supervised automation**.
-- Agent-reviewed shadow cycles: 20/20 historical calibration records, not a recurring or human-approval gate.
-- Agent-supervised results independently reviewed: 4.
+- Mode: **automated stewardship**.
+- Historical calibration: 20 agent-reviewed shadow records retained as evidence, never an operating prerequisite.
+- Automated results independently agent-reviewed: 4.
 - Safe auto-merge enabled: no.
 - Automated execution requires every result to receive fresh independent agent review.
 - Weekly portfolio review and quarterly evidence, weight, and constitutional-risk review are automated with independent agent review.

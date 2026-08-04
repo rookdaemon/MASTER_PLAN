@@ -30,6 +30,12 @@ describe('blocking CI and governed workflows', () => {
       workflowPullRequestCreationEnabled: boolean;
       highRiskPolicy: { maximumCommitCount: number; mergeMode: string };
       agentReview: { provider: string; automatic: boolean; reviewOnPush: boolean; fallback: string };
+      humanEscalation: {
+        role: string;
+        routineApprovalGate: boolean;
+        operatingBody: boolean;
+        minimumAutomatedAttempts: number;
+      };
     };
     expect(controls).toMatchObject({
       branch: 'main',
@@ -48,6 +54,10 @@ describe('blocking CI and governed workflows', () => {
         provider: 'github-agent-reviewers', automatic: true, reviewOnPush: true,
         fallback: 'github-hosted-pinned-local-model',
       },
+      humanEscalation: {
+        role: 'servant-leader', routineApprovalGate: false, operatingBody: false,
+        minimumAutomatedAttempts: 2,
+      },
     });
   });
 
@@ -64,9 +74,9 @@ describe('blocking CI and governed workflows', () => {
       expect(policy).toMatch(/constitutional conflict|constitutional-conflict/is);
       expect(policy).toMatch(/at least two.*automated alternatives/is);
     }
-    expect(agents).toMatch(/shadow cycles.*historical.*not.*human.*gate/is);
-    expect(roadmap).toContain('Mode: **agent-supervised automation**');
-    expect(roadmap).toMatch(/historical calibration records.*not a recurring or human-approval gate/i);
+    expect(agents).toMatch(/historical shadow records.*no cycle count, human review, or human approval.*operating prerequisite/is);
+    expect(roadmap).toContain('Mode: **automated stewardship**');
+    expect(roadmap).toMatch(/historical calibration.*records retained as evidence, never an operating prerequisite/i);
   });
 
   it('makes repository entry points describe v2 while retaining v1 as history', async () => {
@@ -74,7 +84,7 @@ describe('blocking CI and governed workflows', () => {
     const status = await fileSystem.readText('STATUS.md');
     expect(readme).toContain('strategy/ROADMAP.md');
     expect(readme).toMatch(/v1.*histor/i);
-    expect(status).toContain('Shadow cycles agent-reviewed: **20 / 20**');
+    expect(status).toContain('Historical calibration retained: **20 automated shadow records with agent reviews; no operating gate**');
     expect(status).toContain('Human role: **servant leader for exceptional escalation**');
     expect(status).toContain('Branch protection applied and verified: **yes**');
     expect(status).toContain('Safe auto-merge: **enabled for routine code/test changes**');

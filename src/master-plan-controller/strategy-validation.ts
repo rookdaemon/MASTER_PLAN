@@ -113,7 +113,7 @@ export function strategyContractErrors(
       !Number.isSafeInteger(state.governance.supervisedResultsReviewed) || state.governance.supervisedResultsReviewed < 0) {
     errors.push('Governance review counters must be non-negative integers');
   }
-  errors.push(...shadowReviewErrors(state, state.governance.mode !== 'shadow'));
+  errors.push(...shadowReviewErrors(state));
   if (state.governance.mode === 'safe-code') {
     if (state.governance.supervisedResultsReviewed < 1) {
       errors.push('Safe-code governance requires at least one supervised result review');

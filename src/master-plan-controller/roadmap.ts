@@ -56,11 +56,11 @@ export function renderRoadmap(bundle: RepositoryStrategyBundle): string {
   }
   lines.push(
     '',
-    '## Rollout status',
+    '## Operating status',
     '',
-    `- Mode: **${bundle.state.governance.mode === 'supervised' ? 'agent-supervised automation' : bundle.state.governance.mode}**.`,
-    `- Agent-reviewed shadow cycles: ${bundle.state.governance.shadowCyclesReviewed}/20 historical calibration records, not a recurring or human-approval gate.`,
-    `- Agent-supervised results independently reviewed: ${bundle.state.governance.supervisedResultsReviewed}.`,
+    `- Mode: **${bundle.state.governance.mode === 'supervised' ? 'automated stewardship' : bundle.state.governance.mode}**.`,
+    `- Historical calibration: ${bundle.state.governance.shadowCyclesReviewed} agent-reviewed shadow records retained as evidence, never an operating prerequisite.`,
+    `- Automated results independently agent-reviewed: ${bundle.state.governance.supervisedResultsReviewed}.`,
     `- Safe auto-merge enabled: ${bundle.state.governance.safeAutoMergeEnabled ? 'yes' : 'no'}.`,
     '- Automated execution requires every result to receive fresh independent agent review.',
     '- Weekly portfolio review and quarterly evidence, weight, and constitutional-risk review are automated with independent agent review.',

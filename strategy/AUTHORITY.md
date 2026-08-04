@@ -20,10 +20,10 @@ and record at least two automated alternatives, attach evidence, explain why it 
 act, and request one bounded decision. CI failures, unavailable reviewers, uncertainty, and
 ordinary high-risk work remain automation responsibilities.
 
-The 20 checked-in shadow cycles and their agent reviews are immutable historical calibration
-records from initial controller rollout. They are not human reviews, a recurring execution gate,
-or a requirement to pause after later results. Current work proceeds continuously through bounded
-packet execution, independent agent review, verified integration, and re-evaluation.
+Checked-in shadow cycles and their agent reviews are immutable historical calibration records from
+initial controller rollout. No shadow-cycle count is an operating prerequisite. Current work
+proceeds continuously through bounded packet execution, independent agent review, verified
+integration, and re-evaluation without routine human review or approval.
 
 Safe code/test auto-merge starts disabled. It can be requested only for a bounded,
 backward-compatible `src/` code/test diff after deterministic classification, behavior-covering

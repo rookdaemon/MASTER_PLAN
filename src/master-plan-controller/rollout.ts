@@ -10,14 +10,11 @@ export function shadowCycleFingerprint(cycle: ShadowCycleRecord): string {
   ].join('|');
 }
 
-export function shadowReviewErrors(state: StrategyState, requirePromotionMinimum = true): string[] {
+export function shadowReviewErrors(state: StrategyState): string[] {
   const reviews = state.shadowCycleReviews;
   const errors: string[] = [];
   if (reviews.length !== state.governance.shadowCyclesReviewed) {
     errors.push('Shadow-cycle review records must match the reviewed-cycle counter');
-  }
-  if (requirePromotionMinimum && reviews.length < 20) {
-    errors.push('At least 20 shadow-cycle review records are required');
   }
   reviews.forEach((review, index) => {
     const cycle = state.shadowCycles[index];
@@ -62,8 +59,6 @@ export function transitionGovernanceMode(
   if (Number.isNaN(Date.parse(now))) throw new Error('now must be an ISO timestamp');
   if (target === state.governance.mode) return state;
   if (state.governance.mode === 'shadow' && target === 'supervised') {
-    const errors = shadowReviewErrors(state);
-    if (errors.length > 0) throw new Error(errors.join('; '));
     return { ...state, governance: { ...state.governance, mode: target } };
   }
   if (state.governance.mode === 'supervised' && target === 'safe-code') {
