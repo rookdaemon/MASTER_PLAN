@@ -15,7 +15,7 @@ import {
 } from '../testing/in-memory-adapters.js';
 import { CONFIG, makeEscalation, makeEscalationEvidence, NOW } from './fixtures.js';
 
-const STRATEGY_NOW = '2026-08-03T22:53:00.000Z';
+const STRATEGY_NOW = '2026-08-03T23:58:00.000Z';
 
 function acceptedShadowReviews(cycles: readonly ShadowCycleRecord[]) {
   return cycles.map((cycle, index) => ({
@@ -194,7 +194,7 @@ describe('checked-in strategy v2 bundle', () => {
 
   it('uses explicit source limitations and does not declare current AI systems conscious', async () => {
     const bundle = await loadRepositoryStrategy(new NodeFileSystem('.'));
-    expect(bundle.state.evidence).toHaveLength(5);
+    expect(bundle.state.evidence).toHaveLength(6);
     expect(bundle.state.evidence.every((record) => record.limitations.length > 0)).toBe(true);
     expect(bundle.state.evidence.find((record) =>
       record.id === 'evidence-preservation-risk-register-v1-reviewed')?.limitations.join(' '))
@@ -358,7 +358,7 @@ describe('supervised preservation risk-register artifact', () => {
       .toEqual(result.evidence[0]);
     expect(bundle.state.packets.find((packet) =>
       packet.id === 'packet-preservation-risk-register')?.lifecycle).toBe('verified');
-    expect(bundle.state.governance.supervisedResultsReviewed).toBe(2);
+    expect(bundle.state.governance.supervisedResultsReviewed).toBe(3);
   });
 });
 
@@ -517,7 +517,7 @@ describe('consciousness prediction registry artifact', () => {
       .toEqual(result.evidence[0]);
     expect(bundle.state.packets.find((packet) =>
       packet.id === 'packet-consciousness-prediction-registry')?.lifecycle).toBe('verified');
-    expect(bundle.state.governance.supervisedResultsReviewed).toBe(2);
+    expect(bundle.state.governance.supervisedResultsReviewed).toBe(3);
   });
 });
 
@@ -639,6 +639,37 @@ describe('institutional dependency map artifact', () => {
       expect(scenario.humanEscalation).toMatch(/credential|legal consent|physical|constitutional conflict/i);
       expect(scenario.humanEscalation).toMatch(/two|at least two/i);
     }
+  });
+
+  it('retains exact review provenance without claiming institutional continuity', async () => {
+    const fileSystem = new NodeFileSystem('.');
+    const bundle = await loadRepositoryStrategy(fileSystem);
+    const result = JSON.parse(await fileSystem.readText(
+      'strategy/results/institutional-dependency-map-v1.result.json',
+    )) as {
+      artifactReferences: string[];
+      evidence: Array<{ id: string; limitations: string[] }>;
+      verification: { status: string; verifier: string; reviewedAt: string };
+    };
+
+    expect(result.verification).toEqual({
+      status: 'passed',
+      verifier: 'independent-agent-review:4849377990+github-run:30863160408',
+      reviewedAt: '2026-08-03T23:55:52.000Z',
+    });
+    expect(result.artifactReferences).toEqual(expect.arrayContaining([
+      'https://github.com/rookdaemon/MASTER_PLAN/pull/122',
+      'https://github.com/rookdaemon/MASTER_PLAN/pull/122#pullrequestreview-4849377990',
+      'https://github.com/rookdaemon/MASTER_PLAN/actions/runs/30863160408',
+      'git:bf330e89aa4922db1eda611538f1f3f2704e185c',
+    ]));
+    expect(result.evidence[0].limitations.join(' ')).toMatch(/does not verify institutional continuity/i);
+    expect(result.evidence[0].limitations.join(' ')).toMatch(/comment.*owner account/i);
+    expect(bundle.state.evidence.find((record) => record.id === result.evidence[0].id))
+      .toEqual(result.evidence[0]);
+    expect(bundle.state.packets.find((packet) =>
+      packet.id === 'packet-institutional-dependency-map')?.lifecycle).toBe('verified');
+    expect(bundle.state.governance.supervisedResultsReviewed).toBe(3);
   });
 });
 
