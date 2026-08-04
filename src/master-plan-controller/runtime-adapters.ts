@@ -12,6 +12,7 @@ import type {
   ProcessPort,
   ProcessRequest,
   ProcessResult,
+  SchedulerPort,
 } from './ports.js';
 import type { Timestamp } from './types.js';
 
@@ -88,6 +89,12 @@ export class FetchNetwork implements NetworkPort {
 export class NodeSha256Fingerprint implements ContentFingerprintPort {
   digest(content: string): string {
     return createHash('sha256').update(content, 'utf8').digest('hex');
+  }
+}
+
+export class NodeScheduler implements SchedulerPort {
+  async wait(milliseconds: number): Promise<void> {
+    await new Promise<void>((resolveWait) => setTimeout(resolveWait, milliseconds));
   }
 }
 

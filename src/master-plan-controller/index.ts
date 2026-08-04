@@ -1,5 +1,6 @@
 export * from './authority.js';
 export * from './auto-merge-service.js';
+export * from './await-pr-merge.js';
 export * from './change-classifier.js';
 export * from './continuous-loop.js';
 export * from './controller.js';

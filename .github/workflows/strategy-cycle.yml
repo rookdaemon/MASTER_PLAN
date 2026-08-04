@@ -12,12 +12,13 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: strategy-candidate-cycle
+  group: strategy-state-writer
   cancel-in-progress: false
 
 jobs:
   generate-candidates:
     runs-on: ubuntu-latest
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
         with:
@@ -79,3 +80,4 @@ jobs:
           gh workflow run agent-review.yml --repo "$GITHUB_REPOSITORY" --ref main \
             -f pr_number="$pr_number" -f head_sha="$head_sha"
           gh pr merge "$pr_url" --auto --squash
+          npm run strategy:await-pr-merge -- "$pr_url" "$GITHUB_REPOSITORY" 360 10000

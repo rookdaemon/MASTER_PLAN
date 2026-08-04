@@ -19,7 +19,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: strategy-reviewed-integration-${{ inputs.pr_number }}-${{ inputs.head_sha }}
+  group: strategy-state-writer
   cancel-in-progress: false
 
 jobs:
@@ -27,22 +27,29 @@ jobs:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
       - name: Redispatch merged execution results for idempotent integration
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           gh pr list --repo "$GITHUB_REPOSITORY" --state merged --limit 100 \
-            --json number,body,headRefOid \
-            --jq '.[] | select((.body // "") | contains("strategy-execution:packet:")) | [.number, .headRefOid] | @tsv' \
-            | while IFS=$'\t' read -r pr_number head_sha; do
+            --json number,body,headRefOid,mergedAt \
+            --jq 'sort_by(.mergedAt)[] | select((.body // "") | contains("strategy-execution:packet:")) | [.number, .headRefOid, ((.body | split("strategy-execution:packet:")[1]) | split(":result:")[0])] | @tsv' \
+            | while IFS=$'\t' read -r pr_number head_sha packet_id; do
+                lifecycle="$(jq -er --arg packet "$packet_id" '.[] | select(.id == $packet) | .lifecycle' strategy/work-packets.json)"
+                if test "$lifecycle" != verified; then
                 gh workflow run strategy-integrate-reviewed.yml --repo "$GITHUB_REPOSITORY" --ref main \
                   -f pr_number="$pr_number" -f head_sha="$head_sha"
+                  break
+                fi
               done
   integrate-reviewed-result:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 75
     steps:
       - name: Bind the execution marker and exact agent review
         id: attestation
@@ -171,3 +178,4 @@ jobs:
           gh workflow run agent-review.yml --repo "$GITHUB_REPOSITORY" --ref main \
             -f pr_number="$pr_number" -f head_sha="$head_sha"
           gh pr merge "$pr_url" --auto --squash
+          npm run strategy:await-pr-merge -- "$pr_url" "$GITHUB_REPOSITORY" 360 10000
