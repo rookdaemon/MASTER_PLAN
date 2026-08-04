@@ -31,7 +31,7 @@ over expansion. Positive, negative, and null evidence are integrated without for
 
 - Mode: **agent-supervised automation**.
 - Agent-reviewed shadow cycles: 20/20 historical calibration records, not a recurring or human-approval gate.
-- Agent-supervised results independently reviewed: 3.
+- Agent-supervised results independently reviewed: 4.
 - Safe auto-merge enabled: no.
 - Automated execution requires every result to receive fresh independent agent review.
 - Weekly portfolio review and quarterly evidence, weight, and constitutional-risk review are automated with independent agent review.

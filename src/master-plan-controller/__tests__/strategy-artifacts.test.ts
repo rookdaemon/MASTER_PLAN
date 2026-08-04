@@ -15,7 +15,7 @@ import {
 } from '../testing/in-memory-adapters.js';
 import { CONFIG, makeEscalation, makeEscalationEvidence, NOW } from './fixtures.js';
 
-const STRATEGY_NOW = '2026-08-03T23:58:00.000Z';
+const STRATEGY_NOW = '2026-08-04T00:30:00.000Z';
 
 function acceptedShadowReviews(cycles: readonly ShadowCycleRecord[]) {
   return cycles.map((cycle, index) => ({
@@ -79,7 +79,7 @@ describe('checked-in strategy v2 bundle', () => {
     const bundle = structuredClone(await loadRepositoryStrategy(fileSystem));
     bundle.state.evidence[0] = {
       ...bundle.state.evidence[0],
-      observedAt: '2026-08-04T00:00:00.000Z',
+      observedAt: '2026-08-04T01:00:00.000Z',
       limitations: [],
       supportedHypotheses: ['missing-hypothesis'],
     };
@@ -194,7 +194,7 @@ describe('checked-in strategy v2 bundle', () => {
 
   it('uses explicit source limitations and does not declare current AI systems conscious', async () => {
     const bundle = await loadRepositoryStrategy(new NodeFileSystem('.'));
-    expect(bundle.state.evidence).toHaveLength(6);
+    expect(bundle.state.evidence).toHaveLength(7);
     expect(bundle.state.evidence.every((record) => record.limitations.length > 0)).toBe(true);
     expect(bundle.state.evidence.find((record) =>
       record.id === 'evidence-preservation-risk-register-v1-reviewed')?.limitations.join(' '))
@@ -358,7 +358,7 @@ describe('supervised preservation risk-register artifact', () => {
       .toEqual(result.evidence[0]);
     expect(bundle.state.packets.find((packet) =>
       packet.id === 'packet-preservation-risk-register')?.lifecycle).toBe('verified');
-    expect(bundle.state.governance.supervisedResultsReviewed).toBe(3);
+    expect(bundle.state.governance.supervisedResultsReviewed).toBe(4);
   });
 });
 
@@ -517,7 +517,7 @@ describe('consciousness prediction registry artifact', () => {
       .toEqual(result.evidence[0]);
     expect(bundle.state.packets.find((packet) =>
       packet.id === 'packet-consciousness-prediction-registry')?.lifecycle).toBe('verified');
-    expect(bundle.state.governance.supervisedResultsReviewed).toBe(3);
+    expect(bundle.state.governance.supervisedResultsReviewed).toBe(4);
   });
 });
 
@@ -669,7 +669,46 @@ describe('institutional dependency map artifact', () => {
       .toEqual(result.evidence[0]);
     expect(bundle.state.packets.find((packet) =>
       packet.id === 'packet-institutional-dependency-map')?.lifecycle).toBe('verified');
-    expect(bundle.state.governance.supervisedResultsReviewed).toBe(3);
+    expect(bundle.state.governance.supervisedResultsReviewed).toBe(4);
+  });
+});
+
+describe('durable compute fault-model result integration', () => {
+  it('retains exact replay-review provenance without claiming physical durability', async () => {
+    const fileSystem = new NodeFileSystem('.');
+    const bundle = await loadRepositoryStrategy(fileSystem);
+    const result = JSON.parse(await fileSystem.readText(
+      'strategy/results/durable-compute-fault-model-v1.result.json',
+    )) as {
+      outcome: string;
+      artifactReferences: string[];
+      evidence: Array<{ id: string; method: string; limitations: string[] }>;
+      verification: { status: string; verifier: string; reviewedAt: string };
+    };
+
+    expect(result).toMatchObject({
+      outcome: 'positive',
+      verification: {
+        status: 'passed',
+        verifier: 'independent-agent-review:4849533096+github-run:30865111083',
+        reviewedAt: '2026-08-04T00:28:00.000Z',
+      },
+    });
+    expect(result.artifactReferences).toEqual(expect.arrayContaining([
+      'https://github.com/rookdaemon/MASTER_PLAN/pull/124',
+      'https://github.com/rookdaemon/MASTER_PLAN/pull/124#pullrequestreview-4849533096',
+      'https://github.com/rookdaemon/MASTER_PLAN/actions/runs/30865111083',
+      'git:d7e8097da10f5b25301f87f518d33c55d50de059',
+    ]));
+    expect(result.evidence[0].method).toMatch(/hosted GitHub agent-review run 30865111083/i);
+    expect(result.evidence[0].method).not.toMatch(/pinned local-model/i);
+    expect(result.evidence[0].limitations.join(' ')).toMatch(/not.*physical durability/i);
+    expect(result.evidence[0].limitations.join(' ')).toMatch(/model inputs.*not.*measurements/i);
+    expect(bundle.state.evidence.find((record) => record.id === result.evidence[0].id))
+      .toEqual(result.evidence[0]);
+    expect(bundle.state.packets.find((packet) =>
+      packet.id === 'packet-durable-compute-fault-model')?.lifecycle).toBe('verified');
+    expect(bundle.state.governance.supervisedResultsReviewed).toBe(4);
   });
 });
 
