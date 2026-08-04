@@ -94,5 +94,68 @@
     "retrySignature": "institutional-map-v1",
     "priority": {"impact": 0.5, "urgency": 0.5, "tractability": 0.8, "informationValue": 0.7, "reversibility": 1, "cost": 0.2, "downsideRisk": 0.1},
     "reviewedAt": "2026-08-03T00:00:00.000Z"
+  },
+  {
+    "id": "packet-indicator-framework-comparison-v1",
+    "nodeId": "hypothesis-indicator-framework",
+    "title": "Compare candidate consciousness indicators against discriminating predictions",
+    "portfolio": "consciousness-epistemics",
+    "supportedDirectives": [
+      "G1",
+      "G2"
+    ],
+    "expectedDirectiveDelta": {
+      "G1": 0.05,
+      "G2": 0.1,
+      "G3": 0
+    },
+    "credibleExtinctionPrevention": false,
+    "scope": {
+      "included": [
+        "public evidence synthesis",
+        "indicator comparison matrix",
+        "explicit uncertainty and confounders"
+      ],
+      "excluded": [
+        "sentience declaration",
+        "human-subject research",
+        "model deployment",
+        "external publication"
+      ]
+    },
+    "budget": {
+      "unit": "person-hours",
+      "limit": 16
+    },
+    "deliverables": [
+      "artifact://epistemics/indicator-framework-comparison-v1"
+    ],
+    "testsOrPreregistration": [
+      "schema validation",
+      "blind consistency review against the prediction registry"
+    ],
+    "acceptanceCriteria": [
+      "Every indicator is linked to discriminating predictions, counterexamples, uncertainty, and a stated falsification condition."
+    ],
+    "verificationMethod": "An independent agent checks source traceability, theory neutrality, and every claimed prediction linkage on the exact artifact.",
+    "rollback": "Retain the previous prediction registry and retire the comparison artifact with an audit event.",
+    "authorityClass": "agent-reviewed",
+    "authorityReasons": [
+      "bounded public-information analysis with no external action or welfare-status declaration"
+    ],
+    "owner": "epistemics-analyst",
+    "retrySignature": "indicator-framework-comparison-v1",
+    "priority": {
+      "impact": 0.75,
+      "urgency": 0.65,
+      "tractability": 0.8,
+      "informationValue": 1,
+      "reversibility": 1,
+      "cost": 0.2,
+      "downsideRisk": 0.1
+    },
+    "lifecycle": "eligible",
+    "attempt": 0,
+    "reviewedAt": "2026-08-04T02:38:58.000Z"
   }
 ]

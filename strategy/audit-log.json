@@ -66,5 +66,15 @@
       ],
       "verifier": "independent-agent-review:4849533096+github-run:30865111083"
     }
+  },
+  {
+    "id": "audit:packet-indicator-framework-comparison-v1:packet-generated:2026-08-04T02:38:58.000Z",
+    "type": "packet-generated",
+    "packetId": "packet-indicator-framework-comparison-v1",
+    "occurredAt": "2026-08-04T02:38:58.000Z",
+    "details": {
+      "source": "diagnosis",
+      "portfolio": "consciousness-epistemics"
+    }
   }
 ]
