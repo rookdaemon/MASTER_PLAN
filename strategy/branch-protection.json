@@ -1,6 +1,12 @@
 {
   "branch": "main",
-  "requiredStatusChecks": ["typecheck", "test", "strategy-verify", "proposal-review", "agent-review"],
+  "requiredStatusChecks": [
+    "typecheck",
+    "test",
+    "strategy-verify",
+    "proposal-review",
+    "merge-policy"
+  ],
   "strictStatusChecks": true,
   "requiredApprovingReviewCount": 0,
   "dismissStaleReviews": false,
@@ -17,7 +23,17 @@
   "highRiskPolicy": {
     "maximumCommitCount": 1,
     "mergeMode": "agent-controlled",
-    "domains": ["plan", "doctrine", "governance", "workflow", "dependency", "deployment", "network", "security", "constitutional"]
+    "domains": [
+      "plan",
+      "doctrine",
+      "governance",
+      "workflow",
+      "dependency",
+      "deployment",
+      "network",
+      "security",
+      "constitutional"
+    ]
   },
   "agentReview": {
     "provider": "github-agent-reviewers",
@@ -30,10 +46,15 @@
     "role": "servant-leader",
     "routineApprovalGate": false,
     "operatingBody": false,
-    "allowedReasons": ["owner-credential", "physical-presence", "legal-consent", "constitutional-conflict"],
+    "allowedReasons": [
+      "owner-credential",
+      "physical-presence",
+      "legal-consent",
+      "constitutional-conflict"
+    ],
     "minimumAutomatedAttempts": 2,
     "evidenceRequired": true,
     "boundedDecisionRequired": true
   },
-  "notes": "Automated-body policy: required CI and agent review are universal; routine changes may auto-merge; protected changes receive an agent-controlled merge; human escalation is exceptional and evidence-bound."
+  "notes": "Automated-body policy: deterministic CI gates every change; bounded routine changes auto-merge without agent review; protected or otherwise non-routine changes require an independent agent review and one-commit agent-controlled merge; human escalation is exceptional and evidence-bound."
 }

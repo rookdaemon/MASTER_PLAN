@@ -2,7 +2,14 @@ name: Trusted safe auto-merge request
 
 on:
   workflow_run:
-    workflows: [CI, Proposal review, Agent review, Safe code auto-merge]
+    workflows:
+      [
+        CI,
+        Proposal review,
+        Agent review,
+        Safe code auto-merge,
+        Conditional merge policy,
+      ]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -59,26 +66,46 @@ jobs:
             any(.[]; (.filename | test("\\.(test|spec)\\.[cm]?[jt]sx?$|/__tests__/"))) and
             any(.[]; (.filename | test("\\.(test|spec)\\.[cm]?[jt]sx?$|/__tests__/") | not))
           ' <<<"$files_json")"
+          routine_evidence_candidate="$(jq -r '
+            length > 0 and
+            (map(.additions + .deletions) | add) <= 250 and
+            all(.[]; .filename == "strategy/evidence.json" and .deletions == 0)
+          ' <<<"$files_json")"
           agent_controlled_candidate=false
-          if test "$commit_count" -eq 1; then agent_controlled_candidate=true; fi
-          test "$routine_candidate" = true || test "$agent_controlled_candidate" = true
+          if test "$routine_candidate" != true && test "$routine_evidence_candidate" != true && test "$commit_count" -eq 1; then
+            agent_controlled_candidate=true
+          fi
+          test "$routine_candidate" = true || test "$routine_evidence_candidate" = true || test "$agent_controlled_candidate" = true
 
           checks_json="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?per_page=100" | jq -s '[.[].check_runs[]]')"
-          for required in typecheck test strategy-verify proposal-review agent-review safe-auto-merge; do
+          for required in typecheck test strategy-verify proposal-review merge-policy safe-auto-merge; do
             jq -e --arg required "$required" 'any(.[]; .name == $required and .conclusion == "success")' <<<"$checks_json"
           done
-          agent_check="$(jq -ec '
-            [.[] | select(.name == "agent-review" and .conclusion == "success")]
+          merge_policy_check="$(jq -ec '
+            [.[] | select(.name == "merge-policy" and .conclusion == "success")]
             | max_by(.completed_at)
           ' <<<"$checks_json")"
-          agent_external_id="$(jq -r '.external_id' <<<"$agent_check")"
-          agent_run_id="$(sed -nE 's#^agent-review:pr:[0-9]+:head:[0-9a-f]+:run:([0-9]+)$#\1#p' <<<"$agent_external_id")"
-          test -n "$agent_run_id"
-          test "$agent_external_id" = "agent-review:pr:${pr_number}:head:${HEAD_SHA}:run:${agent_run_id}"
-          agent_run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${agent_run_id}")"
-          test "$(jq -r '.path' <<<"$agent_run")" = '.github/workflows/agent-review.yml'
-          test "$(jq -r '.display_title' <<<"$agent_run")" = "Agent review PR #${pr_number} @ ${HEAD_SHA}"
-          jq -e '.event == "pull_request_target" or .event == "pull_request_review" or .event == "workflow_dispatch"' <<<"$agent_run"
+          merge_policy_external_id="$(jq -r '.external_id' <<<"$merge_policy_check")"
+          merge_policy_run_id="$(sed -nE 's#^merge-policy:pr:[0-9]+:head:[0-9a-f]+:run:([0-9]+)$#\1#p' <<<"$merge_policy_external_id")"
+          test -n "$merge_policy_run_id"
+          test "$merge_policy_external_id" = "merge-policy:pr:${pr_number}:head:${HEAD_SHA}:run:${merge_policy_run_id}"
+          merge_policy_run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${merge_policy_run_id}")"
+          test "$(jq -r '.path' <<<"$merge_policy_run")" = '.github/workflows/merge-policy.yml'
+          test "$(jq -r '.display_title' <<<"$merge_policy_run")" = "Merge policy PR #${pr_number} @ ${HEAD_SHA}"
+          if test "$agent_controlled_candidate" = true; then
+            agent_check="$(jq -ec '
+              [.[] | select(.name == "agent-review" and .conclusion == "success")]
+              | max_by(.completed_at)
+            ' <<<"$checks_json")"
+            agent_external_id="$(jq -r '.external_id' <<<"$agent_check")"
+            agent_run_id="$(sed -nE 's#^agent-review:pr:[0-9]+:head:[0-9a-f]+:run:([0-9]+)$#\1#p' <<<"$agent_external_id")"
+            test -n "$agent_run_id"
+            test "$agent_external_id" = "agent-review:pr:${pr_number}:head:${HEAD_SHA}:run:${agent_run_id}"
+            agent_run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${agent_run_id}")"
+            test "$(jq -r '.path' <<<"$agent_run")" = '.github/workflows/agent-review.yml'
+            test "$(jq -r '.display_title' <<<"$agent_run")" = "Agent review PR #${pr_number} @ ${HEAD_SHA}"
+            jq -e '.event == "pull_request_target" or .event == "pull_request_review" or .event == "workflow_dispatch"' <<<"$agent_run"
+          fi
           pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}")"
           test "$(jq -r '.head.sha' <<<"$pr_json")" = "$HEAD_SHA"
           gh pr merge "$pr_number" --repo "$GITHUB_REPOSITORY" --auto --squash

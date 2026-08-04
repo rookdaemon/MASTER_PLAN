@@ -14,9 +14,10 @@ Implementation readiness is not real-world outcome attainment.
 - Safe auto-merge: **enabled for routine code/test changes**
 
 The checked-in [branch-protection policy](strategy/branch-protection.json) defines the controls for
-`main`. Routine, bounded, backward-compatible code/test changes with behavior-covering tests can
-auto-merge after required CI and GitHub agent review. Protected proposals receive independent
-agent review and an agent-controlled merge. The human is not a routine approval gate and is
+`main`. Routine, bounded, backward-compatible code/test changes with behavior-covering tests, plus
+bounded machine-generated evidence-only updates, auto-merge after deterministic CI without an
+agent-review gate. Protected or otherwise non-routine proposals receive independent agent review
+and an agent-controlled merge. The human is not a routine approval gate and is
 contacted only for an evidence-backed issue that automation intrinsically cannot perform.
 
 ## What exists

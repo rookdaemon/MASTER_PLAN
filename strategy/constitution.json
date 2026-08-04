@@ -12,8 +12,13 @@
     {
       "id": "servant-leader-automated-body",
       "rationale": "The single human leader sets goals and constraints but cannot be the routine operating, review, retry, or merge body.",
-      "objections": ["Automation can amplify errors if review independence and escalation criteria are weak."],
-      "consequences": ["Independent agent review becomes routine.", "Human escalation is evidence-bound and limited to intrinsically human acts."],
+      "objections": [
+        "Automation can amplify errors if review independence and escalation criteria are weak."
+      ],
+      "consequences": [
+        "Independent agent review gates protected and consequential work while deterministic CI accepts bounded routine work.",
+        "Human escalation is evidence-bound and limited to intrinsically human acts."
+      ],
       "approvedBy": "repository-owner",
       "approverRole": "human",
       "approvedAt": "2026-08-03T16:34:00.000Z",
