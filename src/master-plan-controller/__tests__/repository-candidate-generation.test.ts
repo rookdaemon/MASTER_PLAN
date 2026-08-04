@@ -12,15 +12,21 @@ async function repositorySnapshot(): Promise<Record<string, string>> {
     ...(await source.listFiles('plan/')),
   ];
   const snapshot = Object.fromEntries(await Promise.all(paths.map(async (path) => [path, await source.readText(path)])));
+  // Reconstruct the state immediately before the two candidates under test. The repository snapshot
+  // may already contain them after a successful live cycle; unrelated historical work stays intact.
+  const generatedPacketIds = new Set([
+    'packet-indicator-framework-comparison-v1',
+    'packet-preservation-mitigation-tabletop-v1',
+  ]);
   snapshot['strategy/work-packets.json'] = `${JSON.stringify(
     (JSON.parse(snapshot['strategy/work-packets.json']) as Array<{ id: string }>).filter((packet) =>
-      packet.id !== 'packet-indicator-framework-comparison-v1'),
+      !generatedPacketIds.has(packet.id)),
     null,
     2,
   )}\n`;
   snapshot['strategy/audit-log.json'] = `${JSON.stringify(
     (JSON.parse(snapshot['strategy/audit-log.json']) as Array<{ packetId?: string }>).filter((event) =>
-      event.packetId !== 'packet-indicator-framework-comparison-v1'),
+      !event.packetId || !generatedPacketIds.has(event.packetId)),
     null,
     2,
   )}\n`;
