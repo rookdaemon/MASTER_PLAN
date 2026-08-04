@@ -76,5 +76,19 @@
       "source": "diagnosis",
       "portfolio": "consciousness-epistemics"
     }
+  },
+  {
+    "id": "audit:packet-indicator-framework-comparison-v1:packet-verified:2026-08-04T04:08:43.000Z",
+    "type": "packet-verified",
+    "packetId": "packet-indicator-framework-comparison-v1",
+    "occurredAt": "2026-08-04T04:08:43.000Z",
+    "details": {
+      "outcome": "positive",
+      "artifactReferences": [
+        "strategy/results/indicator-framework-comparison-v1.json",
+        "strategy/results/consciousness-prediction-registry-v1.json"
+      ],
+      "verifier": "github-hosted-agent-review:run:30874685030:head:365b5e4dbdaa960da3dbf22f8bc94d2be555fd46"
+    }
   }
 ]
