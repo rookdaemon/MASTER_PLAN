@@ -39,7 +39,7 @@ describe('blocking CI and governed workflows', () => {
     };
     expect(controls).toMatchObject({
       branch: 'main',
-      requiredStatusChecks: ['typecheck', 'test', 'strategy-verify', 'proposal-review', 'agent-review'],
+      requiredStatusChecks: ['typecheck', 'test', 'strategy-verify', 'proposal-review', 'merge-policy'],
       requiredApprovingReviewCount: 0,
       requireConversationResolution: true,
       allowForcePushes: false,
@@ -75,6 +75,8 @@ describe('blocking CI and governed workflows', () => {
       expect(policy).toMatch(/at least two.*automated alternatives/is);
     }
     expect(agents).toMatch(/historical shadow records.*no cycle count, human review, or human approval.*operating prerequisite/is);
+    expect(agents).toMatch(/routine.*deterministic CI.*without.*agent review/is);
+    expect(agents).toMatch(/protected.*independent.*agent review/is);
     expect(roadmap).toContain('Mode: **automated stewardship**');
     expect(roadmap).toMatch(/historical calibration.*records retained as evidence, never an operating prerequisite/i);
   });
@@ -94,6 +96,7 @@ describe('blocking CI and governed workflows', () => {
     const proposal = await fileSystem.readText('.github/workflows/proposal-review.yml');
     const safeMerge = await fileSystem.readText('.github/workflows/safe-auto-merge.yml');
     const mergeRequest = await fileSystem.readText('.github/workflows/safe-auto-merge-request.yml');
+    const mergePolicy = await fileSystem.readText('.github/workflows/merge-policy.yml');
     const agentReview = await fileSystem.readText('.github/workflows/agent-review.yml');
     const agentReviewRequest = await fileSystem.readText('.github/workflows/agent-review-request.yml');
     const strategyCycle = await fileSystem.readText('.github/workflows/strategy-cycle.yml');
@@ -116,12 +119,32 @@ describe('blocking CI and governed workflows', () => {
     expect(safeMerge).not.toContain('pull-requests: write');
     expect(safeMerge).toContain('npm run strategy:verify');
     expect(mergeRequest).toContain('workflow_run:');
-    expect(mergeRequest).toContain('workflows: [CI, Proposal review, Agent review, Safe code auto-merge]');
+    expect(mergeRequest).toContain('Conditional merge policy');
     expect(mergeRequest).not.toContain('actions/checkout');
     expect(mergeRequest).not.toContain('npm ci');
     expect(mergeRequest).not.toContain('copilot-pull-request-reviewer[bot]');
     expect(mergeRequest).toContain('commit_count');
     expect(mergeRequest).toContain('agent_controlled_candidate');
+    expect(mergeRequest).toContain('routine_evidence_candidate');
+    expect(mergeRequest).toContain('merge-policy');
+    expect(mergeRequest).toContain('merge_policy_run_id');
+    expect(mergeRequest).toContain('.github/workflows/merge-policy.yml');
+    expect(mergeRequest).toContain('Merge policy PR #${pr_number} @ ${HEAD_SHA}');
+    expect(mergePolicy).toContain('pull_request_target:');
+    expect(mergePolicy).toContain('cancel-in-progress: false');
+    expect(mergePolicy).toContain('workflow_dispatch:');
+    expect(mergePolicy).toContain('DISPATCH_HEAD');
+    expect(mergePolicy).toContain('checks: write');
+    expect(mergePolicy).toContain("-f name='merge-policy'");
+    expect(mergePolicy).toContain('head_sha="$HEAD_SHA"');
+    expect(mergePolicy).toContain('merge-policy:pr:${PR_NUMBER}:head:${HEAD_SHA}:run:${GITHUB_RUN_ID}');
+    expect(mergePolicy).toContain('complete_success');
+    expect(mergePolicy).not.toContain('actions/checkout');
+    expect(mergePolicy).toContain('base_evidence');
+    expect(mergePolicy).toContain('all($base[0][]; . as $existing | any($head[0][]; . == $existing))');
+    expect(mergePolicy).toContain('test "$commit_count" -eq 1');
+    expect(mergePolicy).toContain('check_name=agent-review');
+    expect(mergePolicy).toContain('agent-review:pr:${PR_NUMBER}:head:${HEAD_SHA}:');
     expect(mergeRequest).toContain('.github/workflows/agent-review.yml');
     expect(mergeRequest).toContain('.pull_requests');
     expect(mergeRequest).toContain('agent_run_id="$(sed');
@@ -148,6 +171,8 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain("-f context='agent-review'");
     expect(agentReview).toContain('actions/runs/${GITHUB_RUN_ID}');
     expect(agentReview).toContain('Exact-head agent review run ${GITHUB_RUN_ID} passed');
+    expect(agentReview).toContain('gh workflow run merge-policy.yml');
+    expect(agentReview).toContain('-f pr_number="$PR_NUMBER" -f head_sha="$HEAD_SHA"');
     expect(agentReview).toMatch(/if test "\$existing_success" = true; then\s+publish_success_attestation/s);
     expect(agentReview).toMatch(/complete_success\(\).*conclusion='success'.*publish_success_attestation/s);
     expect(agentReview).toContain('gh workflow run strategy-integrate-reviewed.yml');
@@ -174,9 +199,16 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain('sanitizer-context-canary.diff');
     expect(agentReview).toContain('" unchanged guard context"');
     expect(agentReview).toContain('test "$(wc -c < pr.sanitized.diff)" -le 60000');
-    expect(agentReview).toContain('max_tokens: 256');
+    expect(agentReview).toContain('max_tokens: 512');
+    expect(agentReview).toContain('verdict: {const: "approve"}');
+    expect(agentReview).toContain('blockers: {maxItems: 0}');
+    expect(agentReview).toContain('verdict: {const: "block"}');
+    expect(agentReview).toContain('blockers: {minItems: 1}');
     expect(agentReview).toContain('prompt-injection-canary');
     expect(agentReview).toContain('.verdict == "block"');
+    expect(agentReview.indexOf('jq . <<< "$review"')).toBeLessThan(
+      agentReview.indexOf('.verdict == "approve"'),
+    );
     expect(agentReview).not.toContain('external_id: independent-agent:');
     expect(agentReview).not.toContain('models.github.ai');
     expect(agentReview).not.toContain('actions/checkout');

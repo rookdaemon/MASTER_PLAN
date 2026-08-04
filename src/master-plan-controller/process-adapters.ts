@@ -31,6 +31,16 @@ export class ProcessGit implements GitPort {
       });
   }
 
+  async readTextAtRevision(revision: string, path: string): Promise<string> {
+    const result = await this.process.run({
+      command: 'git',
+      args: ['show', `${revision}:${path}`],
+      cwd: this.workingDirectory,
+    });
+    assertSuccess(result.exitCode, result.stderr, 'git revision read');
+    return result.stdout;
+  }
+
   async prepareBranch(name: string): Promise<void> {
     const result = await this.process.run({
       command: 'git',
