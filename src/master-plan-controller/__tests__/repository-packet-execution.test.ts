@@ -41,10 +41,14 @@ async function executableRepository(): Promise<{ fileSystem: InMemoryFileSystem;
     'strategy/results/consciousness-prediction-registry-v1.json':
       await source.readText('strategy/results/consciousness-prediction-registry-v1.json'),
   };
-  const packets = JSON.parse(initial['strategy/work-packets.json']) as Array<{ id: string; lifecycle: string }>;
-  const executable = packets.find((packet) => packet.id === 'packet-indicator-framework-comparison-v1');
+  const sourcePackets = JSON.parse(initial['strategy/work-packets.json']) as Array<{ id: string; lifecycle: string }>;
+  const executable = sourcePackets.find((packet) => packet.id === 'packet-indicator-framework-comparison-v1');
   if (!executable) throw new Error('Indicator comparison packet fixture is missing');
-  executable.lifecycle = 'eligible';
+  // Copy repository data into a controlled in-memory lifecycle fixture.
+  const packets = sourcePackets.map((packet) => ({
+    ...packet,
+    lifecycle: packet.id === executable.id ? 'eligible' : 'verified',
+  }));
   initial['strategy/work-packets.json'] = `${JSON.stringify(packets, null, 2)}\n`;
   return { fileSystem: new InMemoryFileSystem(initial), now: nextRepositoryTimestamp(initial) };
 }
@@ -75,8 +79,11 @@ async function repositoryWithEligibleTemplate(packetId: string, runtimePacketId 
   definition.retrySignature = String(definition.retrySignature).replace(/-v1$/, `-v${version}`);
   definition.deliverables = (definition.deliverables as string[])
     .map((deliverable) => deliverable.replace(/-v1$/, `-v${version}`));
-  const packets = JSON.parse(initial['strategy/work-packets.json']) as Array<Record<string, unknown>>;
-  for (const packet of packets) packet.lifecycle = 'verified';
+  // Replace a live instance of this template, if present, with the controlled eligible fixture below.
+  const packets: Array<Record<string, unknown>> =
+    (JSON.parse(initial['strategy/work-packets.json']) as Array<Record<string, unknown>>)
+    .filter((packet) => packet.id !== runtimePacketId)
+    .map((packet) => ({ ...packet, lifecycle: 'verified' }));
   packets.push({ ...definition, lifecycle: 'eligible', attempt: 0, reviewedAt: now });
   initial['strategy/work-packets.json'] = `${JSON.stringify(packets, null, 2)}\n`;
   return { fileSystem: new InMemoryFileSystem(initial), now };
