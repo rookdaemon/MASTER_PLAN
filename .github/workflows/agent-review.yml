@@ -80,6 +80,13 @@ jobs:
             check_finished=true
             gh workflow run safe-auto-merge-request.yml --repo "$GITHUB_REPOSITORY" --ref main \
               -f pr_number="$PR_NUMBER" -f head_sha="$HEAD_SHA"
+            if gh api "repos/${GITHUB_REPOSITORY}/contents/.github/workflows/strategy-integrate-reviewed.yml?ref=main" \
+              >/dev/null 2>&1; then
+              gh workflow run strategy-integrate-reviewed.yml --repo "$GITHUB_REPOSITORY" --ref main \
+                -f pr_number="$PR_NUMBER" -f head_sha="$HEAD_SHA"
+            else
+              echo "Reviewed-result integration is not installed on main yet"
+            fi
           }
           trap finish_check EXIT
 
