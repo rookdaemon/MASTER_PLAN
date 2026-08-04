@@ -364,9 +364,84 @@
     ],
     "externallyDemonstrated": false
   },
-  {"id":"hypothesis-material-consciousness-update","title":"Material consciousness research update signal","kind":"hypothesis","supportedDirectives":["G1","G2"],"portfolio":"consciousness-epistemics","dependencies":[],"confidence":0.5,"evidenceReferences":[],"metrics":[{"id":"material-consciousness-update-signals","description":"Guarded material-update signals","current":0,"target":1,"direction":"at-least"}],"activationGates":[],"owner":"automated-evidence-adjudicator","lifecycle":"eligible","reviewedAt":"2026-08-04T00:00:00.000Z"},
-  {"id":"hypothesis-material-preservation-update","title":"Material preservation-risk update signal","kind":"hypothesis","supportedDirectives":["G1","G3"],"portfolio":"near-term-preservation","dependencies":[],"confidence":0.5,"evidenceReferences":[],"metrics":[{"id":"material-preservation-update-signals","description":"Guarded material-update signals","current":0,"target":1,"direction":"at-least"}],"activationGates":[],"owner":"automated-evidence-adjudicator","lifecycle":"eligible","reviewedAt":"2026-08-04T00:00:00.000Z"},
-  {"id":"hypothesis-material-durable-compute-update","title":"Material durable-compute failure update signal","kind":"hypothesis","supportedDirectives":["G1","G2"],"portfolio":"enabling-capabilities","dependencies":[],"confidence":0.5,"evidenceReferences":[],"metrics":[{"id":"material-durable-compute-update-signals","description":"Guarded material-update signals","current":0,"target":1,"direction":"at-least"}],"activationGates":[],"owner":"automated-evidence-adjudicator","lifecycle":"eligible","reviewedAt":"2026-08-04T00:00:00.000Z"},
+  {
+    "id": "hypothesis-material-consciousness-update",
+    "title": "Material consciousness research update signal",
+    "kind": "hypothesis",
+    "supportedDirectives": [
+      "G1",
+      "G2"
+    ],
+    "portfolio": "consciousness-epistemics",
+    "dependencies": [],
+    "confidence": 0.5,
+    "evidenceReferences": [],
+    "metrics": [
+      {
+        "id": "material-consciousness-update-signals",
+        "description": "Guarded material-update signals",
+        "current": 0,
+        "target": 1,
+        "direction": "at-least"
+      }
+    ],
+    "activationGates": [],
+    "owner": "automated-evidence-adjudicator",
+    "lifecycle": "eligible",
+    "reviewedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "id": "hypothesis-material-preservation-update",
+    "title": "Material preservation-risk update signal",
+    "kind": "hypothesis",
+    "supportedDirectives": [
+      "G1",
+      "G3"
+    ],
+    "portfolio": "near-term-preservation",
+    "dependencies": [],
+    "confidence": 0.5,
+    "evidenceReferences": [],
+    "metrics": [
+      {
+        "id": "material-preservation-update-signals",
+        "description": "Guarded material-update signals",
+        "current": 0,
+        "target": 1,
+        "direction": "at-least"
+      }
+    ],
+    "activationGates": [],
+    "owner": "automated-evidence-adjudicator",
+    "lifecycle": "eligible",
+    "reviewedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "id": "hypothesis-material-durable-compute-update",
+    "title": "Material durable-compute failure update signal",
+    "kind": "hypothesis",
+    "supportedDirectives": [
+      "G1",
+      "G2"
+    ],
+    "portfolio": "enabling-capabilities",
+    "dependencies": [],
+    "confidence": 0.5,
+    "evidenceReferences": [],
+    "metrics": [
+      {
+        "id": "material-durable-compute-update-signals",
+        "description": "Guarded material-update signals",
+        "current": 0,
+        "target": 1,
+        "direction": "at-least"
+      }
+    ],
+    "activationGates": [],
+    "owner": "automated-evidence-adjudicator",
+    "lifecycle": "eligible",
+    "reviewedAt": "2026-08-04T00:00:00.000Z"
+  },
   {
     "id": "capability-near-term-preservation",
     "title": "Current-life, civilization, knowledge, and option-value risk observation",
