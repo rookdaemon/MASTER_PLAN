@@ -44,6 +44,13 @@ export interface RepositoryStrategyBundle {
   config: ControllerConfig;
   legacyAudit: LegacyAuditRecord[];
   packetTemplates: DiagnosticPacketTemplate[];
+  observationSources: RepositoryObservationSource[];
+}
+
+export interface RepositoryObservationSource {
+  kind: 'github-repository-controls';
+  branch: string;
+  hypothesisId: string;
 }
 
 async function json<T>(fileSystem: FileSystemPort, path: string): Promise<T> {
@@ -66,6 +73,7 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
     shadowCycleReviews,
     legacyAudit,
     packetTemplates,
+    observationSourcesFile,
   ] = await Promise.all([
     json<Constitution>(fileSystem, 'strategy/constitution.json'),
     json<unknown>(fileSystem, 'strategy/graph.json'),
@@ -81,6 +89,7 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
     json<ShadowCycleReview[]>(fileSystem, 'strategy/shadow-reviews.json'),
     json<LegacyAuditRecord[]>(fileSystem, 'strategy/legacy-audit.json'),
     json<DiagnosticPacketTemplate[]>(fileSystem, 'strategy/packet-templates.json'),
+    json<{ sources: RepositoryObservationSource[] }>(fileSystem, 'strategy/observation-sources.json'),
   ]);
   const nodes = parsePlanNodes(graphInput);
   const state: StrategyState = {
@@ -102,6 +111,7 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
     state,
     legacyAudit,
     packetTemplates,
+    observationSources: observationSourcesFile.sources,
     config: {
       portfolioWeights: portfolio.weights,
       scoreWeights: portfolio.scoreWeights,
@@ -170,6 +180,22 @@ export async function verifyRepositoryStrategy(
     }
   }
   const nodeIds = new Set(bundle.state.nodes.map((node) => node.id));
+  if (!Array.isArray(bundle.observationSources) || bundle.observationSources.length === 0) {
+    errors.push('At least one external observation source is required');
+  } else {
+    const sourceKeys = new Set<string>();
+    for (const source of bundle.observationSources) {
+      const key = `${source.kind}:${source.branch}:${source.hypothesisId}`;
+      if (sourceKeys.has(key)) errors.push(`Duplicate observation source: ${key}`);
+      sourceKeys.add(key);
+      const hypothesis = bundle.state.nodes.find((node) => node.id === source.hypothesisId);
+      if (source.kind !== 'github-repository-controls' || !source.branch?.trim()) {
+        errors.push(`Observation source ${key} is malformed`);
+      }
+      if (!hypothesis) errors.push(`Observation source ${key} references a missing hypothesis`);
+      else if (hypothesis.kind !== 'hypothesis') errors.push(`Observation source ${key} does not target a hypothesis`);
+    }
+  }
   for (const packet of bundle.state.packets) {
     if (!nodeIds.has(packet.nodeId)) errors.push(`Packet ${packet.id} targets missing node ${packet.nodeId}`);
     if (packet.deliverables.length === 0) errors.push(`Packet ${packet.id} has no deliverable`);

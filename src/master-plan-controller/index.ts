@@ -16,6 +16,7 @@ export * from './ports.js';
 export * from './process-adapters.js';
 export * from './proposal-policy.js';
 export * from './repository-strategy.js';
+export * from './repository-observation.js';
 export * from './roadmap.js';
 export * from './rollout.js';
 export * from './runtime-adapters.js';

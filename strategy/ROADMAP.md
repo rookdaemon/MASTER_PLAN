@@ -33,6 +33,7 @@ over expansion. Positive, negative, and null evidence are integrated without for
 - Historical calibration: 20 agent-reviewed shadow records retained as evidence, never an operating prerequisite.
 - Automated results independently agent-reviewed: 5.
 - Safe auto-merge enabled: no.
+- Scheduled cycles integrate deduplicated external observations before diagnosis.
 - Automated execution requires every result to receive fresh independent agent review.
 - Weekly portfolio review and quarterly evidence, weight, and constitutional-risk review are automated with independent agent review.
 - The human servant leader is contacted only for an evidence-backed, intrinsically human escalation.

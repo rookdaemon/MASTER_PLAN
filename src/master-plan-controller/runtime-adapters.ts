@@ -1,7 +1,16 @@
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { dirname, relative, resolve } from 'node:path';
-import type { ClockPort, FileSystemPort, ProcessPort, ProcessRequest, ProcessResult } from './ports.js';
+import type {
+  ClockPort,
+  FileSystemPort,
+  NetworkPort,
+  NetworkRequest,
+  NetworkResponse,
+  ProcessPort,
+  ProcessRequest,
+  ProcessResult,
+} from './ports.js';
 import type { Timestamp } from './types.js';
 
 function assertInsideRoot(root: string, candidate: string): void {
@@ -52,6 +61,25 @@ export class NodeFileSystem implements FileSystemPort {
 export class SystemClock implements ClockPort {
   now(): Timestamp {
     return new Date().toISOString();
+  }
+}
+
+export type FetchPort = (input: string, init: RequestInit) => Promise<Response>;
+
+export class FetchNetwork implements NetworkPort {
+  constructor(private readonly fetchRequest: FetchPort = globalThis.fetch) {}
+
+  async request(request: NetworkRequest): Promise<NetworkResponse> {
+    const response = await this.fetchRequest(request.url, {
+      method: request.method,
+      headers: request.headers,
+      body: request.body,
+    });
+    return {
+      status: response.status,
+      body: await response.text(),
+      headers: Object.fromEntries(response.headers.entries()),
+    };
   }
 }
 

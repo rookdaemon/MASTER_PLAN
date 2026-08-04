@@ -135,5 +135,23 @@
     "verifier": "github-hosted-agent-review:run:30874685030:head:365b5e4dbdaa960da3dbf22f8bc94d2be555fd46",
     "observedAt": "2026-08-04T03:24:10.000Z",
     "outcome": "positive"
+  },
+  {
+    "id": "evidence-live-repository-controls-8ed7132f4c054ff5",
+    "claim": "Publicly observable live rookdaemon/MASTER_PLAN/main controls match the corresponding checked-in stewardship policy fields.",
+    "method": "Deterministic GitHub API comparison observed {\"branchProtected\":true,\"requiredStatusChecks\":[\"agent-review\",\"proposal-review\",\"strategy-verify\",\"test\",\"typecheck\"],\"enforceAdmins\":true}; no mismatches.",
+    "source": "https://api.github.com/repos/rookdaemon/MASTER_PLAN/branches/main",
+    "strength": 0.55,
+    "limitations": [
+      "This is a point-in-time GitHub control-plane snapshot, not proof that controls cannot change afterward.",
+      "The public branch response does not expose strict update requirements, review count, conversation resolution, force-push, or deletion controls; those fields remain covered by protected workflow checks and privileged audits."
+    ],
+    "supportedHypotheses": [
+      "hypothesis-live-stewardship-controls-aligned"
+    ],
+    "falsifiedHypotheses": [],
+    "verifier": "deterministic-live-repository-control-observer:v1",
+    "observedAt": "2026-08-04T04:53:33.000Z",
+    "outcome": "positive"
   }
 ]

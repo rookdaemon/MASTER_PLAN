@@ -1,6 +1,6 @@
 # MASTER_PLAN v2 — Status and operating model
 
-As of 2026-08-03, the v2 strategy/controller operates through continuous automated stewardship.
+As of 2026-08-04, the v2 strategy/controller operates through continuous automated stewardship.
 Implementation readiness is not real-world outcome attainment.
 
 ## Current controls
@@ -27,26 +27,29 @@ contacted only for an evidence-backed issue that automation intrinsically cannot
 - `src/master-plan-controller/`: pure graph/evidence/gate evaluation, lexical G1 ranking, bounded
   decomposition, lifecycle/audit integration, crash recovery, authority classification, rollout
   gates, verify-before-integrate evidence handling, configurable review freshness, strict public
-  contract validation, and injected environment ports with in-memory implementations.
+  contract validation, credential-independent live-control observation, and injected environment
+  ports with in-memory implementations.
 - `.github/workflows/`: blocking typecheck/test/strategy checks, proposal review, and a narrowly
   scoped routine-code workflow and an agent-controlled protected-change path.
 - `src/simulation/`, `src/simulation-ui/`, and the cognitive stack: candidate reusable components.
 
 ## Automated operating procedure
 
-1. Historical shadow records preserve initial automated calibration and its limitations. No record
+1. Scheduled cycles observe configured external state, deduplicate snapshots, integrate evidence,
+   and update affected hypotheses before diagnosis.
+2. Historical shadow records preserve initial automated calibration and its limitations. No record
    count or human approval is required to operate.
-2. The automated operating body executes one bounded packet at a time; every result receives fresh
+3. The automated operating body executes one bounded packet at a time; every result receives fresh
    independent agent review before integration.
-3. Routine code/test changes auto-merge after classification, tests, protected controls, and agent
+4. Routine code/test changes auto-merge after classification, tests, protected controls, and agent
    review. Protected changes use an agent-controlled merge.
-4. Automation diagnoses failures, retries bounded alternatives, and records evidence without
+5. Automation diagnoses failures, retries bounded alternatives, and records evidence without
    transferring routine work to the human.
-5. Escalation is permitted only for owner-held credentials, physical presence, legal consent, or
+6. Escalation is permitted only for owner-held credentials, physical presence, legal consent, or
    unresolved constitutional conflict after at least two documented automated attempts.
-6. The escalation request contains evidence and asks the servant leader for exactly one bounded
+7. The escalation request contains evidence and asks the servant leader for exactly one bounded
    decision. A required repository change is isolated to one auditable commit.
-7. Portfolio review runs weekly; weights, evidence standards, and constitutional risks receive
+8. Portfolio review runs weekly; weights, evidence standards, and constitutional risks receive
    quarterly independent agent review.
 
 When no packet is eligible, the controller waits for evidence or an automated dependency. It does

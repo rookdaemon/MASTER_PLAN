@@ -10,6 +10,7 @@
     "build": "tsc",
     "lint": "tsc --noEmit",
     "strategy:verify": "tsx src/master-plan-controller/cli/verify-strategy.ts",
+    "strategy:observe": "tsx src/master-plan-controller/cli/observe-repository-main.ts",
     "strategy:generate": "tsx src/master-plan-controller/cli/generate-candidates-main.ts",
     "strategy:execute": "tsx src/master-plan-controller/cli/execute-packet-main.ts",
     "strategy:integrate-reviewed-execution": "tsx src/master-plan-controller/cli/integrate-reviewed-execution-main.ts",
