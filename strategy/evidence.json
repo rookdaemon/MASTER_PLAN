@@ -153,5 +153,56 @@
     "verifier": "deterministic-live-repository-control-observer:v1",
     "observedAt": "2026-08-04T04:53:33.000Z",
     "outcome": "positive"
+  },
+  {
+    "id": "evidence-public-source-crossref-consciousness-metadata-980fef0d1d8f9c98d5c2f57797a2eb9776eb913d5caa7886c7a54c69e01b090a",
+    "claim": "A bounded public metadata snapshot was observed for the consciousness-epistemics portfolio; its semantic implications have not been evaluated.",
+    "method": "Deterministic metadata-only snapshot recorded 20 canonical records and fingerprint 980fef0d1d8f9c98d5c2f57797a2eb9776eb913d5caa7886c7a54c69e01b090a; response size was checked against the configured bound.",
+    "source": "https://api.crossref.org/works?query=consciousness&rows=20&sort=indexed&order=desc",
+    "strength": 0.35,
+    "limitations": [
+      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
+      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
+      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
+    ],
+    "supportedHypotheses": [],
+    "falsifiedHypotheses": [],
+    "verifier": "deterministic-public-source-snapshot-observer:v1",
+    "observedAt": "2026-08-04T07:36:38.000Z",
+    "outcome": "null"
+  },
+  {
+    "id": "evidence-public-source-who-disease-outbreak-news-84748b9af93c7d95c03ef5634a37adecd248fe1caf73e8cf9bc4ab8744f10e2b",
+    "claim": "A bounded public metadata snapshot was observed for the near-term-preservation portfolio; its semantic implications have not been evaluated.",
+    "method": "Deterministic metadata-only snapshot recorded 1 canonical records and fingerprint 84748b9af93c7d95c03ef5634a37adecd248fe1caf73e8cf9bc4ab8744f10e2b; response size was checked against the configured bound.",
+    "source": "https://www.who.int/emergencies/disease-outbreak-news",
+    "strength": 0.35,
+    "limitations": [
+      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
+      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
+      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
+    ],
+    "supportedHypotheses": [],
+    "falsifiedHypotheses": [],
+    "verifier": "deterministic-public-source-snapshot-observer:v1",
+    "observedAt": "2026-08-04T07:36:38.000Z",
+    "outcome": "null"
+  },
+  {
+    "id": "evidence-public-source-nvd-vulnerability-changes-041397632b912ecbc27247d56330b0823f27fb8b9502705101fd213172b4626b",
+    "claim": "A bounded public metadata snapshot was observed for the enabling-capabilities portfolio; its semantic implications have not been evaluated.",
+    "method": "Deterministic metadata-only snapshot recorded 20 canonical records and fingerprint 041397632b912ecbc27247d56330b0823f27fb8b9502705101fd213172b4626b; response size was checked against the configured bound.",
+    "source": "https://services.nvd.nist.gov/rest/json/cves/2.0?lastModStartDate={windowStart}&lastModEndDate={now}&resultsPerPage=20",
+    "strength": 0.35,
+    "limitations": [
+      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
+      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
+      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
+    ],
+    "supportedHypotheses": [],
+    "falsifiedHypotheses": [],
+    "verifier": "deterministic-public-source-snapshot-observer:v1",
+    "observedAt": "2026-08-04T07:36:38.000Z",
+    "outcome": "null"
   }
 ]
