@@ -49,5 +49,22 @@
       ],
       "verifier": "independent-agent-review:4849377990+github-run:30863160408"
     }
+  },
+  {
+    "id": "audit:packet-durable-compute-fault-model:packet-verified:2026-08-04T00:29:00.000Z",
+    "type": "packet-verified",
+    "packetId": "packet-durable-compute-fault-model",
+    "occurredAt": "2026-08-04T00:29:00.000Z",
+    "details": {
+      "outcome": "positive",
+      "artifactReferences": [
+        "strategy/results/durable-compute-fault-model-v1.json",
+        "https://github.com/rookdaemon/MASTER_PLAN/pull/124",
+        "https://github.com/rookdaemon/MASTER_PLAN/pull/124#pullrequestreview-4849533096",
+        "https://github.com/rookdaemon/MASTER_PLAN/actions/runs/30865111083",
+        "git:d7e8097da10f5b25301f87f518d33c55d50de059"
+      ],
+      "verifier": "independent-agent-review:4849533096+github-run:30865111083"
+    }
   }
 ]

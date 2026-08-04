@@ -65,7 +65,7 @@
     "authorityClass": "autonomous",
     "authorityReasons": ["local simulation with no hardware or deployment"],
     "owner": "capabilities-engineer",
-    "lifecycle": "eligible",
+    "lifecycle": "verified",
     "attempt": 0,
     "retrySignature": "fault-model-v1",
     "priority": {"impact": 0.5, "urgency": 0.4, "tractability": 0.9, "informationValue": 0.6, "reversibility": 1, "cost": 0.15, "downsideRisk": 0.05},
