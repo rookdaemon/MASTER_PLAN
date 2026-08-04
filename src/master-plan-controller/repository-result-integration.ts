@@ -45,12 +45,12 @@ function withPacketLifecycle(
 }
 
 function statusWithReviewedCount(status: string, count: number): string {
-  const pattern = /Supervised results independently reviewed: \*\*\d+\*\*/g;
+  const pattern = /Automated results independently agent-reviewed: \*\*\d+\*\*/g;
   const matches = status.match(pattern) ?? [];
   if (matches.length !== 1) {
-    throw new Error('STATUS.md must contain exactly one supervised-results counter');
+    throw new Error('STATUS.md must contain exactly one automated-results counter');
   }
-  return status.replace(pattern, `Supervised results independently reviewed: **${count}**`);
+  return status.replace(pattern, `Automated results independently agent-reviewed: **${count}**`);
 }
 
 export async function integrateRepositoryPacketResult(

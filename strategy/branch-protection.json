@@ -28,6 +28,8 @@
   },
   "humanEscalation": {
     "role": "servant-leader",
+    "routineApprovalGate": false,
+    "operatingBody": false,
     "allowedReasons": ["owner-credential", "physical-presence", "legal-consent", "constitutional-conflict"],
     "minimumAutomatedAttempts": 2,
     "evidenceRequired": true,

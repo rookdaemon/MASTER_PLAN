@@ -58,12 +58,12 @@ async function eligibleRepositorySnapshot(source: FileSystemPort): Promise<Recor
     2,
   )}\n`;
   snapshot['strategy/ROADMAP.md'] = snapshot['strategy/ROADMAP.md'].replace(
-    /Supervised results independently reviewed: \d+\./,
-    'Supervised results independently reviewed: 0.',
+    /Automated results independently agent-reviewed: \d+\./,
+    'Automated results independently agent-reviewed: 0.',
   );
   snapshot['STATUS.md'] = snapshot['STATUS.md'].replace(
-    /Supervised results independently reviewed: \*\*\d+\*\*/,
-    'Supervised results independently reviewed: **0**',
+    /Automated results independently agent-reviewed: \*\*\d+\*\*/,
+    'Automated results independently agent-reviewed: **0**',
   );
   return snapshot;
 }
@@ -135,8 +135,8 @@ describe('repository packet-result integration', () => {
     const originalPackets = initial['strategy/work-packets.json'];
     expect((await fileSystem.readText('strategy/work-packets.json')).replace('"lifecycle": "verified"', '"lifecycle": "eligible"'))
       .toBe(originalPackets);
-    expect(await fileSystem.readText('strategy/ROADMAP.md')).toContain('Agent-supervised results independently reviewed: 1.');
-    expect(await fileSystem.readText('STATUS.md')).toContain('Supervised results independently reviewed: **1**');
+    expect(await fileSystem.readText('strategy/ROADMAP.md')).toContain('Automated results independently agent-reviewed: 1.');
+    expect(await fileSystem.readText('STATUS.md')).toContain('Automated results independently agent-reviewed: **1**');
   });
 
   it('fails closed without writing when controller verification does not pass', async () => {

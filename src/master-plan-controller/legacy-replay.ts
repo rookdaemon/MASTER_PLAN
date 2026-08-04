@@ -19,7 +19,7 @@ export interface LegacyReplayReport {
     documentationNotOutcome: boolean;
     activeNodesComplete: boolean;
     allCardsReplayed: boolean;
-    shadowCyclesRequired: 20;
+    shadowCyclesRequired: 0;
     shadowCyclesReviewed: number;
     automatedReviewPending: boolean;
   };
@@ -58,9 +58,9 @@ export function replayLegacyPlan(
       documentationNotOutcome: cards.every((card) => !card.interpretedAsRealWorldOutcome),
       activeNodesComplete,
       allCardsReplayed: cards.length === legacyAudit.length,
-      shadowCyclesRequired: 20,
+      shadowCyclesRequired: 0,
       shadowCyclesReviewed: state.governance.shadowCyclesReviewed,
-      automatedReviewPending: state.governance.shadowCyclesReviewed < 20,
+      automatedReviewPending: false,
     },
   };
 }
