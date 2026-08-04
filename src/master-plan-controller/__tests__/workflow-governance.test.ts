@@ -110,6 +110,7 @@ describe('blocking CI and governed workflows', () => {
       expect(mergeRequest).toContain(protectedPattern);
     }
     expect(agentReview).toContain("name='agent-review'");
+    expect(agentReview).toContain('run-name: "Agent review PR #${{ github.event.pull_request.number || inputs.pr_number }} @ ${{ github.event.pull_request.head.sha || inputs.head_sha }}"');
     expect(agentReview).toContain('group: agent-review-${{ github.event.pull_request.number || inputs.pr_number }}-${{ github.event.pull_request.head.sha || inputs.head_sha }}');
     expect(agentReview).toContain('cancel-in-progress: false');
     expect(agentReview).toContain('pull_request_target:');
