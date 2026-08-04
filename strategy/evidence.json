@@ -309,6 +309,23 @@
     "outcome": "null"
   },
   {
+    "id": "evidence-public-source-crossref-consciousness-metadata-c19f30433ae59521971961a5f4b193e96f0b5d088b27e5bc69a003ce337680c7",
+    "claim": "A bounded public metadata snapshot was observed for the consciousness-epistemics portfolio; its semantic implications have not been evaluated.",
+    "method": "Deterministic metadata-only snapshot recorded 20 canonical records and fingerprint c19f30433ae59521971961a5f4b193e96f0b5d088b27e5bc69a003ce337680c7; response size was checked against the configured bound.",
+    "source": "https://api.crossref.org/works?query=consciousness&rows=20&sort=indexed&order=desc",
+    "strength": 0.35,
+    "limitations": [
+      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
+      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
+      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
+    ],
+    "supportedHypotheses": [],
+    "falsifiedHypotheses": [],
+    "verifier": "deterministic-public-source-snapshot-observer:v1",
+    "observedAt": "2026-08-04T14:40:07.000Z",
+    "outcome": "null"
+  },
+  {
     "id": "evidence-preservation-mitigation-tabletop-v1-executed",
     "claim": "A deterministic tabletop specified a measurable trigger and reversible response for ranked risk risk-nuclear-escalation.",
     "method": "Deterministic transformation of checked-in, independently reviewed repository evidence.",
