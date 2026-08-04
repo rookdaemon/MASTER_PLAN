@@ -194,6 +194,9 @@ describe('blocking CI and governed workflows', () => {
     expect(executionCycle).toContain('npm run --silent strategy:execute');
     expect(executionCycle).toContain("jq -er '.artifactPath'");
     expect(executionCycle).toContain("jq -er '.resultPath'");
+    expect(executionCycle).toContain('git status --short');
+    expect(executionCycle).toContain("sed -nE 's/^\\?\\? //p'");
+    expect(executionCycle).not.toContain('changed_paths="$(git diff --name-only | sort)"');
     expect(executionCycle).toContain('git rev-list --count origin/main..HEAD');
     expect(executionCycle).toContain('PR_COMMIT_COUNT="$commit_count"');
     expect(executionCycle).toContain('npm run lint');
