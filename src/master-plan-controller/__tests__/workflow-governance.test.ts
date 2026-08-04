@@ -134,7 +134,15 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain('actions: write');
     expect(agentReview).toContain('commit_id');
     expect(agentReview).toContain('checks: write');
+    expect(agentReview).toContain('statuses: write');
     expect(agentReview).toContain('/check-runs');
+    expect(agentReview).toContain('repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}');
+    expect(agentReview).toContain("-f state='success'");
+    expect(agentReview).toContain("-f context='agent-review'");
+    expect(agentReview).toContain('actions/runs/${GITHUB_RUN_ID}');
+    expect(agentReview).toContain('Exact-head agent review run ${GITHUB_RUN_ID} passed');
+    expect(agentReview).toMatch(/if test "\$existing_success" = true; then\s+publish_success_attestation/s);
+    expect(agentReview).toMatch(/complete_success\(\).*conclusion='success'.*publish_success_attestation/s);
     expect(agentReview).toContain('gh workflow run strategy-integrate-reviewed.yml');
     expect(agentReview).toContain('contents/.github/workflows/strategy-integrate-reviewed.yml?ref=main');
     expect(agentReview).toContain('Exact-head agent review is already successful; skipping duplicate run');
