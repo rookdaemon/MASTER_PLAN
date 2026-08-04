@@ -1,6 +1,6 @@
 {
-  "mode": "supervised",
+  "mode": "safe-code",
   "shadowCyclesReviewed": 20,
   "supervisedResultsReviewed": 5,
-  "safeAutoMergeEnabled": false
+  "safeAutoMergeEnabled": true
 }
