@@ -90,5 +90,15 @@
       ],
       "verifier": "github-hosted-agent-review:run:30874685030:head:365b5e4dbdaa960da3dbf22f8bc94d2be555fd46"
     }
+  },
+  {
+    "id": "audit:packet-preservation-mitigation-tabletop-v1:packet-generated:2026-08-04T18:44:27.000Z",
+    "type": "packet-generated",
+    "packetId": "packet-preservation-mitigation-tabletop-v1",
+    "occurredAt": "2026-08-04T18:44:27.000Z",
+    "details": {
+      "source": "diagnosis",
+      "portfolio": "near-term-preservation"
+    }
   }
 ]
