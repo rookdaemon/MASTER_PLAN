@@ -71,9 +71,8 @@ jobs:
             [.[] | select(.name == "agent-review" and .conclusion == "success")]
             | max_by(.completed_at)
           ' <<<"$checks_json")"
-          agent_details_url="$(jq -r '.details_url' <<<"$agent_check")"
           agent_external_id="$(jq -r '.external_id' <<<"$agent_check")"
-          agent_run_id="$(sed -nE 's#^.*/actions/runs/([0-9]+).*$#\1#p' <<<"$agent_details_url")"
+          agent_run_id="$(sed -nE 's#^agent-review:pr:[0-9]+:head:[0-9a-f]+:run:([0-9]+)$#\1#p' <<<"$agent_external_id")"
           test -n "$agent_run_id"
           test "$agent_external_id" = "agent-review:pr:${pr_number}:head:${HEAD_SHA}:run:${agent_run_id}"
           agent_run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${agent_run_id}")"
