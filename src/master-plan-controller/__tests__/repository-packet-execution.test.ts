@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { runRepositoryCandidateGeneration } from '../repository-candidate-generation.js';
 import { executeRepositoryPacket, integrateReviewedRepositoryExecution } from '../repository-packet-execution.js';
 import { runPacketExecutionCli } from '../cli/execute-packet.js';
 import { runReviewedExecutionIntegrationCli } from '../cli/integrate-reviewed-execution.js';
 import { NodeFileSystem } from '../runtime-adapters.js';
 import { InMemoryFileSystem } from '../testing/in-memory-adapters.js';
 import type { FileSystemPort } from '../ports.js';
-
-const NOW = '2026-08-04T03:00:00.000Z';
+import { advanceTimestamp, nextRepositoryTimestamp } from './repository-test-time.js';
 const STRATEGY_FILES = [
   'strategy/constitution.json',
   'strategy/graph.json',
@@ -33,22 +31,26 @@ async function snapshot(source: FileSystemPort): Promise<Record<string, string>>
   return Object.fromEntries(files);
 }
 
-async function executableRepository(): Promise<InMemoryFileSystem> {
+async function executableRepository(): Promise<{ fileSystem: InMemoryFileSystem; now: string }> {
   const source = new NodeFileSystem('.');
-  const fileSystem = new InMemoryFileSystem({
+  const initial: Record<string, string> = {
     ...await snapshot(source),
     'strategy/results/consciousness-prediction-registry-v1.json':
       await source.readText('strategy/results/consciousness-prediction-registry-v1.json'),
-  });
-  await runRepositoryCandidateGeneration(fileSystem, NOW);
-  return fileSystem;
+  };
+  const packets = JSON.parse(initial['strategy/work-packets.json']) as Array<{ id: string; lifecycle: string }>;
+  const executable = packets.find((packet) => packet.id === 'packet-indicator-framework-comparison-v1');
+  if (!executable) throw new Error('Indicator comparison packet fixture is missing');
+  executable.lifecycle = 'eligible';
+  initial['strategy/work-packets.json'] = `${JSON.stringify(packets, null, 2)}\n`;
+  return { fileSystem: new InMemoryFileSystem(initial), now: nextRepositoryTimestamp(initial) };
 }
 
 describe('repository packet execution', () => {
   it('deterministically executes the selected indicator-comparison packet at the supplied timestamp', async () => {
-    const fileSystem = await executableRepository();
+    const { fileSystem, now } = await executableRepository();
 
-    const result = await executeRepositoryPacket(fileSystem, NOW);
+    const result = await executeRepositoryPacket(fileSystem, now);
 
     expect(result).toEqual({
       status: 'executed',
@@ -68,7 +70,7 @@ describe('repository packet execution', () => {
         sourceIds: string[];
       }>;
     };
-    expect(artifact.preparedAt).toBe(NOW);
+    expect(artifact.preparedAt).toBe(now);
     expect(artifact.sourceRegistry).toBe('strategy/results/consciousness-prediction-registry-v1.json');
     expect(artifact.indicators.length).toBeGreaterThan(0);
     for (const indicator of artifact.indicators) {
@@ -86,17 +88,17 @@ describe('repository packet execution', () => {
     };
     expect(execution.verification).toBeUndefined();
     expect(execution.artifactReferences).toContain(result.artifactPath);
-    expect(execution.evidence[0].observedAt).toBe(NOW);
+    expect(execution.evidence[0].observedAt).toBe(now);
     expect(execution.evidence[0].limitations.join(' ')).toMatch(/independent agent review/i);
   });
 
   it('is byte-idempotent after the execution artifacts exist', async () => {
-    const fileSystem = await executableRepository();
-    const first = await executeRepositoryPacket(fileSystem, NOW);
+    const { fileSystem, now } = await executableRepository();
+    const first = await executeRepositoryPacket(fileSystem, now);
     const artifact = await fileSystem.readText(first.artifactPath!);
     const execution = await fileSystem.readText(first.resultPath!);
 
-    const second = await executeRepositoryPacket(fileSystem, '2026-08-04T03:30:00.000Z');
+    const second = await executeRepositoryPacket(fileSystem, advanceTimestamp(now));
 
     expect(second).toEqual({ status: 'already-executed', packetId: first.packetId, artifactPath: first.artifactPath, resultPath: first.resultPath });
     expect(await fileSystem.readText(first.artifactPath!)).toBe(artifact);
@@ -104,7 +106,7 @@ describe('repository packet execution', () => {
   });
 
   it('fails closed without writes when the selected packet has no registered executor', async () => {
-    const fileSystem = await executableRepository();
+    const { fileSystem, now } = await executableRepository();
     const packets = JSON.parse(await fileSystem.readText('strategy/work-packets.json')) as Array<Record<string, unknown>>;
     const selected = packets.find((packet) => packet.id === 'packet-indicator-framework-comparison-v1')!;
     selected.id = 'packet-unsupported';
@@ -112,13 +114,13 @@ describe('repository packet execution', () => {
     await fileSystem.writeText('strategy/work-packets.json', `${JSON.stringify(packets, null, 2)}\n`);
     const before = await fileSystem.listFiles('strategy/results/');
 
-    await expect(executeRepositoryPacket(fileSystem, NOW)).rejects.toThrow(/no executor.*packet-unsupported/i);
+    await expect(executeRepositoryPacket(fileSystem, now)).rejects.toThrow(/no executor.*packet-unsupported/i);
 
     expect(await fileSystem.listFiles('strategy/results/')).toEqual(before);
   });
 
   it('rejects invalid caller timestamps before writing', async () => {
-    const fileSystem = await executableRepository();
+    const { fileSystem } = await executableRepository();
     const before = await fileSystem.listFiles('strategy/results/');
 
     await expect(executeRepositoryPacket(fileSystem, 'invalid')).rejects.toThrow(/timestamp/i);
@@ -127,21 +129,21 @@ describe('repository packet execution', () => {
   });
 
   it('exposes only an explicit timestamp through the injected CLI boundary', async () => {
-    const fileSystem = await executableRepository();
+    const { fileSystem, now } = await executableRepository();
 
-    expect(JSON.parse(await runPacketExecutionCli(fileSystem, [NOW]))).toMatchObject({
+    expect(JSON.parse(await runPacketExecutionCli(fileSystem, [now]))).toMatchObject({
       status: 'executed',
       packetId: 'packet-indicator-framework-comparison-v1',
     });
     await expect(runPacketExecutionCli(fileSystem, [])).rejects.toThrow(/usage.*timestamp/i);
-    await expect(runPacketExecutionCli(fileSystem, [NOW, 'extra'])).rejects.toThrow(/usage.*timestamp/i);
+    await expect(runPacketExecutionCli(fileSystem, [now, 'extra'])).rejects.toThrow(/usage.*timestamp/i);
   });
 
   it('binds an exact-head agent attestation before integrating the reviewed result', async () => {
-    const fileSystem = await executableRepository();
-    const execution = await executeRepositoryPacket(fileSystem, NOW);
-    const reviewedAt = '2026-08-04T03:04:00.000Z';
-    const integratedAt = '2026-08-04T03:05:00.000Z';
+    const { fileSystem, now } = await executableRepository();
+    const execution = await executeRepositoryPacket(fileSystem, now);
+    const reviewedAt = advanceTimestamp(now);
+    const integratedAt = advanceTimestamp(reviewedAt);
 
     const integrated = await integrateReviewedRepositoryExecution(fileSystem, {
       packetId: execution.packetId!,
@@ -168,8 +170,8 @@ describe('repository packet execution', () => {
   });
 
   it('rejects malformed or future review attestations before integration', async () => {
-    const fileSystem = await executableRepository();
-    const execution = await executeRepositoryPacket(fileSystem, NOW);
+    const { fileSystem, now } = await executableRepository();
+    const execution = await executeRepositoryPacket(fileSystem, now);
     const resultBefore = await fileSystem.readText(execution.resultPath!);
 
     await expect(integrateReviewedRepositoryExecution(fileSystem, {
@@ -178,8 +180,8 @@ describe('repository packet execution', () => {
       reviewer: '',
       reviewRunId: 'not-a-run',
       reviewedHeadSha: 'not-a-sha',
-      reviewedAt: '2026-08-04T04:00:00.000Z',
-    }, '2026-08-04T03:05:00.000Z')).rejects.toThrow(/attestation/i);
+      reviewedAt: advanceTimestamp(now, 2),
+    }, advanceTimestamp(now))).rejects.toThrow(/attestation/i);
 
     expect(await fileSystem.readText(execution.resultPath!)).toBe(resultBefore);
     const packets = JSON.parse(await fileSystem.readText('strategy/work-packets.json')) as Array<{ id: string; lifecycle: string }>;
@@ -187,12 +189,13 @@ describe('repository packet execution', () => {
   });
 
   it('accepts explicit review provenance through the injected integration CLI', async () => {
-    const fileSystem = await executableRepository();
-    const execution = await executeRepositoryPacket(fileSystem, NOW);
+    const { fileSystem, now } = await executableRepository();
+    const execution = await executeRepositoryPacket(fileSystem, now);
+    const reviewedAt = advanceTimestamp(now);
+    const integratedAt = advanceTimestamp(reviewedAt);
     const output = await runReviewedExecutionIntegrationCli(fileSystem, [
       execution.packetId!, execution.resultPath!, 'github-hosted-agent-review', '42',
-      'abcdefabcdefabcdefabcdefabcdefabcdefabcd', '2026-08-04T03:04:00.000Z',
-      '2026-08-04T03:05:00.000Z',
+      'abcdefabcdefabcdefabcdefabcdefabcdefabcd', reviewedAt, integratedAt,
     ]);
 
     expect(output).toContain(execution.packetId!);
