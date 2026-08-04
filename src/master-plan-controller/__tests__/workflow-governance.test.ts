@@ -100,6 +100,12 @@ describe('blocking CI and governed workflows', () => {
     const executionCycle = await fileSystem.readText('.github/workflows/strategy-execution.yml');
     const reviewedIntegration = await fileSystem.readText('.github/workflows/strategy-integrate-reviewed.yml');
     const periodicReview = await fileSystem.readText('.github/workflows/strategy-periodic-review.yml');
+    for (const stateWriter of [strategyCycle, executionCycle, reviewedIntegration, periodicReview]) {
+      expect(stateWriter).toContain('group: strategy-state-writer');
+      expect(stateWriter).toContain('timeout-minutes: 75');
+      expect(stateWriter).toContain('npm run strategy:await-pr-merge');
+      expect(stateWriter.indexOf('gh pr merge')).toBeLessThan(stateWriter.indexOf('npm run strategy:await-pr-merge'));
+    }
     expect(proposal).toContain('pull_request:');
     expect(proposal).toContain('npm run governance:classify');
     expect(proposal).toContain('PR_COMMIT_COUNT');
@@ -237,6 +243,10 @@ describe('blocking CI and governed workflows', () => {
     expect(reviewedIntegration).toContain('workflow_dispatch:');
     expect(reviewedIntegration).toContain('schedule:');
     expect(reviewedIntegration).toContain('Redispatch merged execution results for idempotent integration');
+    expect(reviewedIntegration).toContain('sort_by(.mergedAt)');
+    expect(reviewedIntegration).toContain('strategy/work-packets.json');
+    expect(reviewedIntegration).toContain('if test "$lifecycle" != verified; then');
+    expect(reviewedIntegration).toMatch(/gh workflow run strategy-integrate-reviewed\.yml[\s\S]*break/);
     expect(reviewedIntegration).toContain('strategy-execution:packet:');
     expect(reviewedIntegration).toContain('Agent review PR #${PR_NUMBER} @ ${HEAD_SHA}');
     expect(reviewedIntegration).toContain('merge_commit_sha');
@@ -275,6 +285,7 @@ describe('blocking CI and governed workflows', () => {
       'strategy:generate': 'tsx src/master-plan-controller/cli/generate-candidates-main.ts',
       'strategy:execute': 'tsx src/master-plan-controller/cli/execute-packet-main.ts',
       'strategy:integrate-reviewed-execution': 'tsx src/master-plan-controller/cli/integrate-reviewed-execution-main.ts',
+      'strategy:await-pr-merge': 'tsx src/master-plan-controller/cli/await-pr-merge-main.ts',
     });
   });
 });
