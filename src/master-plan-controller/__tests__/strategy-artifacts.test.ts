@@ -18,6 +18,35 @@ import {
 import { CONFIG, makeEscalation, makeEscalationEvidence, NOW } from './fixtures.js';
 
 const STRATEGY_NOW = '2026-08-04T00:30:00.000Z';
+const GENERATED_PACKET_ID = 'packet-indicator-framework-comparison-v1';
+
+function repositoryNow(value: unknown): string {
+  const epochs: number[] = [];
+  const visit = (candidate: unknown): void => {
+    if (typeof candidate === 'string' && /^\d{4}-\d\d-\d\dT/.test(candidate)) {
+      const epoch = Date.parse(candidate);
+      if (!Number.isNaN(epoch)) epochs.push(epoch);
+    } else if (Array.isArray(candidate)) {
+      candidate.forEach(visit);
+    } else if (candidate !== null && typeof candidate === 'object') {
+      Object.values(candidate).forEach(visit);
+    }
+  };
+  visit(value);
+  return new Date(Math.max(...epochs) + 1).toISOString();
+}
+
+function withoutGeneratedIndicator<T extends { state: {
+  packets: Array<{ id: string }>;
+  auditEvents: Array<{ packetId?: string }>;
+  activePacketId: string | null;
+} }>(bundle: T): T {
+  const result = structuredClone(bundle);
+  result.state.packets = result.state.packets.filter((packet) => packet.id !== GENERATED_PACKET_ID);
+  result.state.auditEvents = result.state.auditEvents.filter((event) => event.packetId !== GENERATED_PACKET_ID);
+  if (result.state.activePacketId === GENERATED_PACKET_ID) result.state.activePacketId = null;
+  return result;
+}
 
 function acceptedShadowReviews(cycles: readonly ShadowCycleRecord[]) {
   return cycles.map((cycle, index) => ({
@@ -70,7 +99,7 @@ describe('checked-in strategy v2 bundle', () => {
   it('covers every current v1 plan card while preserving the v1 files as history', async () => {
     const fileSystem = new NodeFileSystem('.');
     const bundle = await loadRepositoryStrategy(fileSystem);
-    const report = await verifyRepositoryStrategy(fileSystem, bundle, STRATEGY_NOW, CONFIG);
+    const report = await verifyRepositoryStrategy(fileSystem, bundle, repositoryNow(bundle), CONFIG);
     expect(report.errors).toEqual([]);
     expect(report.legacyPlanFileCount).toBeGreaterThan(100);
     expect(bundle.legacyAudit).toHaveLength(report.legacyPlanFileCount);
@@ -173,29 +202,31 @@ describe('checked-in strategy v2 bundle', () => {
   });
 
   it('turns the current diagnosis into a deterministic executable frontier without environment time', async () => {
-    const bundle = await loadRepositoryStrategy(new NodeFileSystem('.'));
-    const diagnosis = new Controller(bundle.state, bundle.config).evaluate(bundle.state, STRATEGY_NOW).diagnosis;
+    const bundle = withoutGeneratedIndicator(await loadRepositoryStrategy(new NodeFileSystem('.')));
+    const now = repositoryNow(bundle);
+    const diagnosis = new Controller(bundle.state, bundle.config).evaluate(bundle.state, now).diagnosis;
     const generated = await new DiagnosticPacketGenerator(bundle.packetTemplates)
-      .generate(bundle.state, diagnosis, STRATEGY_NOW);
+      .generate(bundle.state, diagnosis, now);
     const withGenerated = { ...bundle.state, packets: [...bundle.state.packets, ...generated] };
-    const frontier = new Controller(withGenerated, bundle.config).evaluate(withGenerated, STRATEGY_NOW);
+    const frontier = new Controller(withGenerated, bundle.config).evaluate(withGenerated, now);
 
-    expect(generated.map((packet) => packet.id)).toContain('packet-indicator-framework-comparison-v1');
-    expect(generated.every((packet) => packet.reviewedAt === STRATEGY_NOW)).toBe(true);
-    expect(frontier.ranked[0]?.packet.id).toBe('packet-indicator-framework-comparison-v1');
+    expect(generated.map((packet) => packet.id)).toContain(GENERATED_PACKET_ID);
+    expect(generated.every((packet) => packet.reviewedAt === now)).toBe(true);
+    expect(frontier.ranked[0]?.packet.id).toBe(GENERATED_PACKET_ID);
   });
 
   it('accepts a matching persisted generated packet but rejects divergent identity reuse', async () => {
     const fileSystem = new NodeFileSystem('.');
-    const bundle = await loadRepositoryStrategy(fileSystem);
-    const diagnosis = new Controller(bundle.state, bundle.config).evaluate(bundle.state, STRATEGY_NOW).diagnosis;
+    const bundle = withoutGeneratedIndicator(await loadRepositoryStrategy(fileSystem));
+    const now = repositoryNow(bundle);
+    const diagnosis = new Controller(bundle.state, bundle.config).evaluate(bundle.state, now).diagnosis;
     const [generated] = await new DiagnosticPacketGenerator(bundle.packetTemplates)
-      .generate(bundle.state, diagnosis, STRATEGY_NOW);
+      .generate(bundle.state, diagnosis, now);
     bundle.state.packets.push(generated);
 
-    expect((await verifyRepositoryStrategy(fileSystem, bundle, STRATEGY_NOW)).errors).toEqual([]);
+    expect((await verifyRepositoryStrategy(fileSystem, bundle, now)).errors).toEqual([]);
     generated.retrySignature = 'divergent-definition';
-    expect((await verifyRepositoryStrategy(fileSystem, bundle, STRATEGY_NOW)).errors.join('\n'))
+    expect((await verifyRepositoryStrategy(fileSystem, bundle, now)).errors.join('\n'))
       .toMatch(/collides with a different persisted packet/i);
   });
 
@@ -206,7 +237,7 @@ describe('checked-in strategy v2 bundle', () => {
     bundle.state.governance = {
       mode: 'supervised', shadowCyclesReviewed: 20, supervisedResultsReviewed: 0, safeAutoMergeEnabled: false,
     };
-    expect((await verifyRepositoryStrategy(fileSystem, bundle, STRATEGY_NOW)).errors).toEqual([]);
+    expect((await verifyRepositoryStrategy(fileSystem, bundle, repositoryNow(bundle))).errors).toEqual([]);
   });
 
   it('allows auditable shadow reviews to accumulate before the twentieth review', async () => {
@@ -214,7 +245,7 @@ describe('checked-in strategy v2 bundle', () => {
     const bundle = structuredClone(await loadRepositoryStrategy(fileSystem));
     bundle.state.shadowCycleReviews = acceptedShadowReviews(bundle.state.shadowCycles).slice(0, 1);
     bundle.state.governance = { ...bundle.state.governance, mode: 'shadow', shadowCyclesReviewed: 1 };
-    expect((await verifyRepositoryStrategy(fileSystem, bundle, STRATEGY_NOW)).errors).toEqual([]);
+    expect((await verifyRepositoryStrategy(fileSystem, bundle, repositoryNow(bundle))).errors).toEqual([]);
   });
 
   it('keeps expansion, self-replication, and cosmological work behind scientific and capability gates', async () => {

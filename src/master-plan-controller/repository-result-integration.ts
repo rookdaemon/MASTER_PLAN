@@ -2,6 +2,11 @@ import { Controller } from './controller.js';
 import type { FileSystemPort } from './ports.js';
 import { renderRoadmap } from './roadmap.js';
 import { loadRepositoryStrategy } from './repository-strategy.js';
+import {
+  appendRepositoryJsonArrayItems,
+  formattedRepositoryJson,
+  sameRepositoryJson,
+} from './repository-json.js';
 import type { AuditEvent, PacketResult, Portfolio, Timestamp } from './types.js';
 
 interface PortfolioFile {
@@ -21,14 +26,6 @@ export interface RepositoryPacketIntegration {
   event: AuditEvent;
 }
 
-function formatted(value: unknown): string {
-  return `${JSON.stringify(value, null, 2)}\n`;
-}
-
-function sameJson(left: unknown, right: unknown): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
-}
-
 function withPacketLifecycle(
   content: string,
   packetId: string,
@@ -45,22 +42,6 @@ function withPacketLifecycle(
   const lifecycle = content.indexOf(lifecycleToken, start);
   if (lifecycle < 0 || lifecycle >= end) throw new Error(`Cannot locate lifecycle for packet ${packetId}`);
   return `${content.slice(0, lifecycle)}"lifecycle": "${nextLifecycle}"${content.slice(lifecycle + lifecycleToken.length)}`;
-}
-
-function appendJsonArrayItems<T>(content: string, previous: readonly T[], next: readonly T[]): string {
-  if (sameJson(previous, next)) return content;
-  if (next.length < previous.length || !sameJson(previous, next.slice(0, previous.length))) {
-    return formatted(next);
-  }
-  const additions = next.slice(previous.length);
-  const trimmed = content.trimEnd();
-  if (!trimmed.endsWith(']')) throw new Error('Expected a JSON array');
-  const prefix = trimmed.slice(0, -1).trimEnd();
-  const separator = previous.length === 0 ? '\n' : ',\n';
-  const serialized = additions
-    .map((item) => JSON.stringify(item, null, 2).split('\n').map((line) => `  ${line}`).join('\n'))
-    .join(',\n');
-  return `${prefix}${separator}${serialized}\n]\n`;
 }
 
 function statusWithReviewedCount(status: string, count: number): string {
@@ -115,19 +96,19 @@ export async function integrateRepositoryPacketResult(
   const previousPacket = bundle.state.packets.find((candidate) => candidate.id === packetId)!;
   const nextPacket = state.packets.find((candidate) => candidate.id === packetId)!;
   const unchangedPacketFields = { ...previousPacket, lifecycle: nextPacket.lifecycle };
-  if (!sameJson(unchangedPacketFields, nextPacket)) {
+  if (!sameRepositoryJson(unchangedPacketFields, nextPacket)) {
     throw new Error('Verified packet integration changed fields beyond lifecycle');
   }
   const writes: Array<[string, string]> = [
-    ['strategy/graph.json', sameJson(bundle.state.nodes, state.nodes) ? graphText : formatted(state.nodes)],
-    ['strategy/evidence.json', appendJsonArrayItems(evidenceText, bundle.state.evidence, state.evidence)],
-    ['strategy/assessments.json', sameJson(bundle.state.assessments, state.assessments) ? assessmentsText : formatted(state.assessments)],
+    ['strategy/graph.json', sameRepositoryJson(bundle.state.nodes, state.nodes) ? graphText : formattedRepositoryJson(state.nodes)],
+    ['strategy/evidence.json', appendRepositoryJsonArrayItems(evidenceText, bundle.state.evidence, state.evidence)],
+    ['strategy/assessments.json', sameRepositoryJson(bundle.state.assessments, state.assessments) ? assessmentsText : formattedRepositoryJson(state.assessments)],
     ['strategy/work-packets.json', withPacketLifecycle(
       packetsText, packetId, previousPacket.lifecycle, nextPacket.lifecycle,
     )],
-    ['strategy/audit-log.json', appendJsonArrayItems(auditText, bundle.state.auditEvents, state.auditEvents)],
-    ['strategy/portfolio.json', formatted({ ...portfolio, currentEffort: state.portfolioEffort })],
-    ['strategy/governance.json', formatted(state.governance)],
+    ['strategy/audit-log.json', appendRepositoryJsonArrayItems(auditText, bundle.state.auditEvents, state.auditEvents)],
+    ['strategy/portfolio.json', formattedRepositoryJson({ ...portfolio, currentEffort: state.portfolioEffort })],
+    ['strategy/governance.json', formattedRepositoryJson(state.governance)],
     ['strategy/ROADMAP.md', renderRoadmap(updatedBundle)],
     ['STATUS.md', status],
   ];

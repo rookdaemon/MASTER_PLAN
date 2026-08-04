@@ -84,6 +84,7 @@ describe('blocking CI and governed workflows', () => {
     const mergeRequest = await fileSystem.readText('.github/workflows/safe-auto-merge-request.yml');
     const agentReview = await fileSystem.readText('.github/workflows/agent-review.yml');
     const agentReviewRequest = await fileSystem.readText('.github/workflows/agent-review-request.yml');
+    const strategyCycle = await fileSystem.readText('.github/workflows/strategy-cycle.yml');
     expect(proposal).toContain('pull_request:');
     expect(proposal).toContain('npm run governance:classify');
     expect(proposal).toContain('PR_COMMIT_COUNT');
@@ -160,6 +161,27 @@ describe('blocking CI and governed workflows', () => {
     expect(mergeRequest).toContain('workflow_dispatch:');
     expect(agentReviewRequest).not.toContain('actions/checkout');
     expect(agentReviewRequest).not.toContain('npm ci');
+    expect(strategyCycle).toContain('schedule:');
+    expect(strategyCycle).toContain('concurrency:');
+    expect(strategyCycle).toContain('ref: main');
+    expect(strategyCycle).toContain('git rev-parse origin/main');
+    expect(strategyCycle).toContain('git rev-list --count origin/main..HEAD');
+    expect(strategyCycle).toContain('PR_COMMIT_COUNT="$commit_count"');
+    expect(strategyCycle).not.toContain('PR_COMMIT_COUNT=1');
+    expect(strategyCycle).toContain('npm run strategy:generate');
+    expect(strategyCycle).toContain('git diff --quiet');
+    expect(strategyCycle).toContain('gh pr create');
+    expect(strategyCycle).toContain('gh pr merge');
+    expect(strategyCycle).toContain('actions: write');
+    expect(strategyCycle).toContain('checks: write');
+    expect(strategyCycle).toContain('npm run lint');
+    expect(strategyCycle).toContain('npm test');
+    expect(strategyCycle).toContain('npm run strategy:verify');
+    expect(strategyCycle).toContain('npm run governance:classify');
+    expect(strategyCycle).toContain('/check-runs');
+    expect(strategyCycle).toContain("external_id=\"strategy-cycle:run:${GITHUB_RUN_ID}:head:${head_sha}:check:${check_name}\"");
+    expect(strategyCycle).toContain('gh workflow run agent-review.yml');
+    expect(strategyCycle).not.toMatch(/human|approval/i);
   });
 
   it('provides CLI scripts for deterministic strategy and governance checks', async () => {
@@ -168,6 +190,7 @@ describe('blocking CI and governed workflows', () => {
       'strategy:verify': 'tsx src/master-plan-controller/cli/verify-strategy.ts',
       'governance:classify': 'tsx src/master-plan-controller/cli/classify-change.ts',
       'auto-merge:evaluate': 'tsx src/master-plan-controller/cli/evaluate-auto-merge.ts',
+      'strategy:generate': 'tsx src/master-plan-controller/cli/generate-candidates-main.ts',
     });
   });
 });

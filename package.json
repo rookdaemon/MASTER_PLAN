@@ -10,6 +10,7 @@
     "build": "tsc",
     "lint": "tsc --noEmit",
     "strategy:verify": "tsx src/master-plan-controller/cli/verify-strategy.ts",
+    "strategy:generate": "tsx src/master-plan-controller/cli/generate-candidates-main.ts",
     "strategy:integrate-result": "tsx src/master-plan-controller/cli/integrate-result-main.ts",
     "governance:classify": "tsx src/master-plan-controller/cli/classify-change.ts",
     "auto-merge:evaluate": "tsx src/master-plan-controller/cli/evaluate-auto-merge.ts",
