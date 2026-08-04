@@ -149,6 +149,7 @@ describe('checked-in strategy v2 bundle', () => {
     bundle.config.maxDecompositionDepth = 5;
     bundle.config.maxChildrenPerDecomposition = 6;
     bundle.observationSources[0].hypothesisId = 'missing-observation-hypothesis';
+    bundle.periodicReviews.push({ id: 'malformed-periodic-review' } as never);
 
     const errors = (await verifyRepositoryStrategy(fileSystem, bundle, STRATEGY_NOW)).errors.join('\n');
     expect(errors).toMatch(/evidence.*future/i);
@@ -161,6 +162,7 @@ describe('checked-in strategy v2 bundle', () => {
     expect(errors).toMatch(/decomposition depth/i);
     expect(errors).toMatch(/children/i);
     expect(errors).toMatch(/observation source.*missing hypothesis/i);
+    expect(errors).toMatch(/periodic review/i);
   });
 
   it('fails closed on an escalation assessment with an invalid timestamp', async () => {

@@ -28,9 +28,11 @@ contacted only for an evidence-backed issue that automation intrinsically cannot
   decomposition, lifecycle/audit integration, crash recovery, authority classification, rollout
   gates, verify-before-integrate evidence handling, configurable review freshness, strict public
   contract validation, credential-independent live-control observation, and injected environment
-  ports with in-memory implementations.
+  ports with in-memory implementations. Caller-timestamped weekly and quarterly review logic records
+  portfolio drift, evidence quality and staleness, and constitutional risks without mutating doctrine.
 - `.github/workflows/`: blocking typecheck/test/strategy checks, proposal review, and a narrowly
-  scoped routine-code workflow and an agent-controlled protected-change path.
+  scoped routine-code workflow, scheduled periodic strategy review, and an agent-controlled
+  protected-change path.
 - `src/simulation/`, `src/simulation-ui/`, and the cognitive stack: candidate reusable components.
 
 ## Automated operating procedure
