@@ -28,15 +28,23 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Generate and publish a bounded candidate frontier
+      - name: Observe, diagnose, and publish a bounded strategy update
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           cycle_time="$(date -u +'%Y-%m-%dT%H:%M:%S.000Z')"
+          npm run strategy:observe -- "$cycle_time"
           npm run strategy:generate -- "$cycle_time"
-          if git diff --quiet -- strategy/work-packets.json strategy/audit-log.json; then
-            echo "No bounded candidate is currently available"
+          strategy_paths=(
+            strategy/evidence.json
+            strategy/graph.json
+            strategy/assessments.json
+            strategy/work-packets.json
+            strategy/audit-log.json
+          )
+          if git diff --quiet -- "${strategy_paths[@]}"; then
+            echo "No new external evidence or bounded candidate is currently available"
             exit 0
           fi
           git fetch origin main
@@ -46,8 +54,8 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git switch -c "$branch"
-          git add strategy/work-packets.json strategy/audit-log.json
-          git commit -m "Generate bounded strategy candidate"
+          git add "${strategy_paths[@]}"
+          git commit -m "Observe and generate bounded strategy update"
           head_sha="$(git rev-parse HEAD)"
           commit_count="$(git rev-list --count origin/main..HEAD)"
           test "$commit_count" -eq 1
@@ -57,8 +65,8 @@ jobs:
           BASE_SHA="$base_sha" HEAD_SHA="$head_sha" PR_COMMIT_COUNT="$commit_count" npm run governance:classify
           git push --set-upstream origin "$branch"
           pr_url="$(gh pr create --base main --head "$branch" \
-            --title "Generate bounded strategy candidate" \
-            --body "Automated diagnosis-driven candidate generation at ${cycle_time}. The change is one commit and remains subject to all required checks and independent agent review.")"
+            --title "Observe and generate bounded strategy update" \
+            --body "Automated external observation and diagnosis-driven candidate generation at ${cycle_time}. The change is one commit and remains subject to all required checks and independent agent review.")"
           pr_number="$(gh pr view "$pr_url" --json number --jq '.number')"
           for check_name in typecheck test strategy-verify proposal-review safe-auto-merge; do
             gh api --method POST "repos/${GITHUB_REPOSITORY}/check-runs" \

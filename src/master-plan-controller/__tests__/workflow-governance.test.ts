@@ -192,7 +192,14 @@ describe('blocking CI and governed workflows', () => {
     expect(strategyCycle).toContain('git rev-list --count origin/main..HEAD');
     expect(strategyCycle).toContain('PR_COMMIT_COUNT="$commit_count"');
     expect(strategyCycle).not.toContain('PR_COMMIT_COUNT=1');
+    expect(strategyCycle).toContain('npm run strategy:observe');
     expect(strategyCycle).toContain('npm run strategy:generate');
+    expect(strategyCycle.indexOf('npm run strategy:observe')).toBeLessThan(
+      strategyCycle.indexOf('npm run strategy:generate'),
+    );
+    for (const observedPath of ['strategy/evidence.json', 'strategy/graph.json', 'strategy/assessments.json']) {
+      expect(strategyCycle).toContain(observedPath);
+    }
     expect(strategyCycle).toContain('git diff --quiet');
     expect(strategyCycle).toContain('gh pr create');
     expect(strategyCycle).toContain('gh pr merge');
@@ -250,6 +257,7 @@ describe('blocking CI and governed workflows', () => {
     const packageJson = JSON.parse(await fileSystem.readText('package.json')) as { scripts: Record<string, string> };
     expect(packageJson.scripts).toMatchObject({
       'strategy:verify': 'tsx src/master-plan-controller/cli/verify-strategy.ts',
+      'strategy:observe': 'tsx src/master-plan-controller/cli/observe-repository-main.ts',
       'governance:classify': 'tsx src/master-plan-controller/cli/classify-change.ts',
       'auto-merge:evaluate': 'tsx src/master-plan-controller/cli/evaluate-auto-merge.ts',
       'strategy:generate': 'tsx src/master-plan-controller/cli/generate-candidates-main.ts',

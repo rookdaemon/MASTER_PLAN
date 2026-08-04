@@ -148,6 +148,7 @@ describe('checked-in strategy v2 bundle', () => {
     } as never);
     bundle.config.maxDecompositionDepth = 5;
     bundle.config.maxChildrenPerDecomposition = 6;
+    bundle.observationSources[0].hypothesisId = 'missing-observation-hypothesis';
 
     const errors = (await verifyRepositoryStrategy(fileSystem, bundle, STRATEGY_NOW)).errors.join('\n');
     expect(errors).toMatch(/evidence.*future/i);
@@ -159,6 +160,7 @@ describe('checked-in strategy v2 bundle', () => {
     expect(errors).toMatch(/constitutional amendment/i);
     expect(errors).toMatch(/decomposition depth/i);
     expect(errors).toMatch(/children/i);
+    expect(errors).toMatch(/observation source.*missing hypothesis/i);
   });
 
   it('fails closed on an escalation assessment with an invalid timestamp', async () => {
@@ -177,7 +179,8 @@ describe('checked-in strategy v2 bundle', () => {
   });
 
   it('contains the constitutional core, exact portfolio weights, and disabled-by-default automation', async () => {
-    const bundle = await loadRepositoryStrategy(new NodeFileSystem('.'));
+    const fileSystem = new NodeFileSystem('.');
+    const bundle = await loadRepositoryStrategy(fileSystem);
     expect(bundle.state.constitution.directives).toEqual(['G1', 'G2', 'G3']);
     expect(bundle.config.portfolioWeights).toEqual({
       'consciousness-epistemics': 0.35,
@@ -193,6 +196,18 @@ describe('checked-in strategy v2 bundle', () => {
       'enabling-capabilities',
       'institutional-continuity',
     ]));
+    expect(bundle.state.nodes.find((node) => node.id === 'hypothesis-live-stewardship-controls-aligned'))
+      .toMatchObject({ kind: 'hypothesis', portfolio: 'institutional-continuity', lifecycle: 'eligible' });
+    const observation = JSON.parse(await fileSystem.readText('strategy/observation-sources.json')) as {
+      sources: Array<{ kind: string; branch: string; hypothesisId: string }>;
+    };
+    expect(observation.sources).toEqual([{
+      kind: 'github-repository-controls',
+      branch: 'main',
+      hypothesisId: 'hypothesis-live-stewardship-controls-aligned',
+    }]);
+    expect(await fileSystem.readText('strategy/ROADMAP.md'))
+      .toContain('Scheduled cycles integrate deduplicated external observations before diagnosis.');
   });
 
   it('provides bounded automated generation coverage across every active portfolio', async () => {

@@ -1,0 +1,9 @@
+{
+  "sources": [
+    {
+      "kind": "github-repository-controls",
+      "branch": "main",
+      "hypothesisId": "hypothesis-live-stewardship-controls-aligned"
+    }
+  ]
+}

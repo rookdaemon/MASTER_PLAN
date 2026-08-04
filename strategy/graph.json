@@ -596,5 +596,42 @@
       "plan/0.6-cosmological-longevity.md",
       "plan/0.5.4-cosmological-scale-resilience.md"
     ]
+  },
+  {
+    "id": "hypothesis-live-stewardship-controls-aligned",
+    "title": "Live stewardship controls remain aligned with checked-in policy",
+    "kind": "hypothesis",
+    "supportedDirectives": [
+      "G1",
+      "G3"
+    ],
+    "portfolio": "institutional-continuity",
+    "dependencies": [],
+    "confidence": 0.56875,
+    "evidenceReferences": [
+      "evidence-live-repository-controls-8ed7132f4c054ff5"
+    ],
+    "metrics": [
+      {
+        "id": "live-repository-control-drift",
+        "description": "Observed live repository controls that differ from checked-in policy",
+        "current": 0,
+        "target": 0,
+        "direction": "exactly"
+      }
+    ],
+    "activationGates": [
+      {
+        "type": "minimum-confidence",
+        "minimum": 0.5
+      }
+    ],
+    "owner": "automated-stewardship",
+    "lifecycle": "eligible",
+    "reviewedAt": "2026-08-04T04:40:00.000Z",
+    "legacyPlanReferences": [
+      "plan/0.7.4.6-institutional-scaffolding.md"
+    ],
+    "externallyDemonstrated": false
   }
 ]
