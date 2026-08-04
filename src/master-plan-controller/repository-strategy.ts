@@ -2,6 +2,7 @@ import { validateDependencyGraph, parsePlanNodes } from './graph.js';
 import { verifyLegacyAuditCoverage } from './legacy-audit.js';
 import { strategyContractErrors } from './strategy-validation.js';
 import { workPacketValidationErrors } from './strategy-validation.js';
+import { periodicReviewValidationErrors, type PeriodicReviewRecord } from './periodic-review.js';
 import {
   DiagnosticPacketGenerator,
   sameWorkPacketDefinition,
@@ -45,6 +46,7 @@ export interface RepositoryStrategyBundle {
   legacyAudit: LegacyAuditRecord[];
   packetTemplates: DiagnosticPacketTemplate[];
   observationSources: RepositoryObservationSource[];
+  periodicReviews: PeriodicReviewRecord[];
 }
 
 export interface RepositoryObservationSource {
@@ -74,6 +76,7 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
     legacyAudit,
     packetTemplates,
     observationSourcesFile,
+    periodicReviews,
   ] = await Promise.all([
     json<Constitution>(fileSystem, 'strategy/constitution.json'),
     json<unknown>(fileSystem, 'strategy/graph.json'),
@@ -90,6 +93,7 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
     json<LegacyAuditRecord[]>(fileSystem, 'strategy/legacy-audit.json'),
     json<DiagnosticPacketTemplate[]>(fileSystem, 'strategy/packet-templates.json'),
     json<{ sources: RepositoryObservationSource[] }>(fileSystem, 'strategy/observation-sources.json'),
+    json<PeriodicReviewRecord[]>(fileSystem, 'strategy/periodic-reviews.json'),
   ]);
   const nodes = parsePlanNodes(graphInput);
   const state: StrategyState = {
@@ -112,6 +116,7 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
     legacyAudit,
     packetTemplates,
     observationSources: observationSourcesFile.sources,
+    periodicReviews,
     config: {
       portfolioWeights: portfolio.weights,
       scoreWeights: portfolio.scoreWeights,
@@ -180,6 +185,16 @@ export async function verifyRepositoryStrategy(
     }
   }
   const nodeIds = new Set(bundle.state.nodes.map((node) => node.id));
+  const periodicReviewIds = new Set<string>();
+  if (!Array.isArray(bundle.periodicReviews)) {
+    errors.push('Periodic review registry must be an array');
+  } else {
+    for (const review of bundle.periodicReviews) {
+      errors.push(...periodicReviewValidationErrors(review, now));
+      if (periodicReviewIds.has(review.id)) errors.push(`Duplicate periodic review identity: ${review.id}`);
+      periodicReviewIds.add(review.id);
+    }
+  }
   if (!Array.isArray(bundle.observationSources) || bundle.observationSources.length === 0) {
     errors.push('At least one external observation source is required');
   } else {

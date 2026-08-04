@@ -99,6 +99,7 @@ describe('blocking CI and governed workflows', () => {
     const strategyCycle = await fileSystem.readText('.github/workflows/strategy-cycle.yml');
     const executionCycle = await fileSystem.readText('.github/workflows/strategy-execution.yml');
     const reviewedIntegration = await fileSystem.readText('.github/workflows/strategy-integrate-reviewed.yml');
+    const periodicReview = await fileSystem.readText('.github/workflows/strategy-periodic-review.yml');
     expect(proposal).toContain('pull_request:');
     expect(proposal).toContain('npm run governance:classify');
     expect(proposal).toContain('PR_COMMIT_COUNT');
@@ -251,6 +252,16 @@ describe('blocking CI and governed workflows', () => {
     expect(reviewedIntegration).toContain('gh workflow run agent-review.yml');
     expect(reviewedIntegration).toContain('gh pr merge');
     expect(reviewedIntegration).not.toMatch(/human|approval/i);
+    expect(periodicReview).toContain('cron: "23 3 * * 1"');
+    expect(periodicReview).toContain('cron: "41 4 1 1,4,7,10 *"');
+    expect(periodicReview).toContain('npm run strategy:review');
+    expect(periodicReview).toContain('strategy/periodic-reviews.json');
+    expect(periodicReview).toContain('git rev-list --count origin/main..HEAD');
+    expect(periodicReview).toContain('PR_COMMIT_COUNT="$commit_count"');
+    expect(periodicReview).toContain('npm run governance:classify');
+    expect(periodicReview).toContain('gh workflow run agent-review.yml');
+    expect(periodicReview).toContain('gh pr merge');
+    expect(periodicReview).not.toMatch(/human|approval/i);
   });
 
   it('provides CLI scripts for deterministic strategy and governance checks', async () => {
@@ -258,6 +269,7 @@ describe('blocking CI and governed workflows', () => {
     expect(packageJson.scripts).toMatchObject({
       'strategy:verify': 'tsx src/master-plan-controller/cli/verify-strategy.ts',
       'strategy:observe': 'tsx src/master-plan-controller/cli/observe-repository-main.ts',
+      'strategy:review': 'tsx src/master-plan-controller/cli/periodic-review-main.ts',
       'governance:classify': 'tsx src/master-plan-controller/cli/classify-change.ts',
       'auto-merge:evaluate': 'tsx src/master-plan-controller/cli/evaluate-auto-merge.ts',
       'strategy:generate': 'tsx src/master-plan-controller/cli/generate-candidates-main.ts',

@@ -15,6 +15,7 @@ export * from './legacy-replay.js';
 export * from './ports.js';
 export * from './process-adapters.js';
 export * from './proposal-policy.js';
+export * from './periodic-review.js';
 export * from './repository-strategy.js';
 export * from './repository-observation.js';
 export * from './roadmap.js';

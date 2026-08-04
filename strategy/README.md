@@ -8,6 +8,8 @@ preserved as v1 history.
 - `evidence.json` separates claims, methods, sources, strength, limitations, and timestamps.
 - `observation-sources.json` configures credential-independent external observations that are
   deduplicated and integrated before diagnosis.
+- `periodic-reviews.json` records deterministic weekly portfolio reviews and quarterly evidence,
+  weight, and constitutional-risk reviews produced by the automated operating body.
 - `work-packets.json` contains the bounded ranked frontier.
 - `portfolio.json` contains allocation and controller configuration.
 - `legacy-audit.json` re-audits every v1 plan card without interpreting `[DONE]` as a real-world result.
@@ -16,6 +18,9 @@ preserved as v1 history.
   auditable independent agent review records.
 - `escalations.json` contains evidence-bound requests for the rare decisions automation cannot make.
 - `decisions/` contains traceable strategy decisions.
+
+The scheduled `strategy-periodic-review` workflow supplies the review timestamp, creates one
+auditable record commit, and routes it through blocking checks and independent GitHub agent review.
 
 The repository uses an automated operating body under servant-leader goals and constitutional
 constraints. External actions remain bounded by evidence and verification; the human is contacted
