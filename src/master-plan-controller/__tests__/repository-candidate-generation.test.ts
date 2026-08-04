@@ -24,6 +24,21 @@ async function repositorySnapshot(): Promise<Record<string, string>> {
     null,
     2,
   )}\n`;
+  const evidence = JSON.parse(snapshot['strategy/evidence.json']) as Array<Record<string, unknown>>;
+  evidence.push({
+    id: 'evidence-test-material-consciousness-update',
+    claim: 'A bounded metadata update requires renewed comparison.',
+    method: 'Guarded test adjudication.',
+    source: 'https://example.test/metadata',
+    strength: 0.6,
+    limitations: ['Metadata-only test signal.'],
+    supportedHypotheses: ['hypothesis-material-consciousness-update'],
+    falsifiedHypotheses: [],
+    verifier: 'test-adjudicator',
+    observedAt: '2026-08-04T09:05:46.000Z',
+    outcome: 'positive',
+  });
+  snapshot['strategy/evidence.json'] = `${JSON.stringify(evidence, null, 2)}\n`;
   return snapshot;
 }
 

@@ -65,6 +65,29 @@ export interface EvidenceRecord {
   outcome: 'positive' | 'negative' | 'null';
 }
 
+export interface EvidenceAdjudicationTarget {
+  hypothesisId: string;
+  proposition: string;
+  allowedOutcomes: Array<'positive' | 'negative' | 'null'>;
+}
+
+export interface CanonicalSourceSnapshot {
+  sourceId: string;
+  portfolio: Portfolio;
+  source: string;
+  digest: string;
+  records: string[];
+  observedAt: Timestamp;
+}
+
+export interface EvidenceAdjudication {
+  hypothesisId: string;
+  outcome: 'positive' | 'negative' | 'null';
+  claim: string;
+  strength: number;
+  limitations: string[];
+}
+
 export type AuthorityClass = 'autonomous' | 'agent-reviewed' | 'human-escalation';
 
 export type EscalationIssueKind =

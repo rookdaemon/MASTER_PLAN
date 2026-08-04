@@ -119,6 +119,58 @@ describe('DiagnosticPacketGenerator', () => {
     }), DIAGNOSIS, '2026-08-03T11:59:59.999Z')).toEqual([]);
   });
 
+  it('generates evidence-signal work only from fresh matching actionable evidence', async () => {
+    const trigger: DiagnosticTrigger = {
+      kind: 'evidence-signal',
+      nodeId: 'capability-1',
+      hypothesisId: 'hypothesis-signal',
+      outcomes: ['positive'],
+      minimumStrength: 0.5,
+      maximumAgeMs: 86_400_000,
+    };
+    const generator = new DiagnosticPacketGenerator([template('signal', trigger)]);
+    const signal = makeEvidence({
+      id: 'signal',
+      strength: 0.6,
+      outcome: 'positive',
+      supportedHypotheses: ['hypothesis-signal'],
+      observedAt: '2026-08-03T06:00:00.000Z',
+    });
+
+    expect(await generator.generate(makeState({ packets: [], evidence: [signal] }), DIAGNOSIS, NOW))
+      .toHaveLength(1);
+    for (const evidence of [
+      { ...signal, outcome: 'null' as const, supportedHypotheses: [] },
+      { ...signal, strength: 0.49 },
+      { ...signal, supportedHypotheses: ['other'] },
+      { ...signal, observedAt: '2026-08-02T11:59:59.999Z' },
+    ]) {
+      expect(await generator.generate(makeState({ packets: [], evidence: [evidence] }), DIAGNOSIS, NOW))
+        .toEqual([]);
+    }
+  });
+
+  it('requires recurring evidence signals to be newer than the previous packet', async () => {
+    const trigger: DiagnosticTrigger = {
+      kind: 'evidence-signal', nodeId: 'capability-1', hypothesisId: 'hypothesis-signal',
+      outcomes: ['positive'], minimumStrength: 0.5, maximumAgeMs: 604_800_000,
+    };
+    const definition = recurringTemplate('signal-v1', trigger);
+    const previous = makePacket({
+      id: 'signal-v1', nodeId: 'capability-1', lifecycle: 'verified',
+      reviewedAt: '2026-08-02T12:00:00.000Z', retrySignature: 'signal-v1',
+      deliverables: ['artifact://signal-v1'],
+    });
+    const unrelated = makeEvidence({ observedAt: '2026-08-03T00:00:00.000Z' });
+    const oldSignal = makeEvidence({
+      observedAt: '2026-08-02T11:59:59.000Z', outcome: 'positive', strength: 0.8,
+      supportedHypotheses: ['hypothesis-signal'],
+    });
+    expect(await new DiagnosticPacketGenerator([definition]).generate(
+      makeState({ packets: [previous], evidence: [unrelated, oldSignal] }), DIAGNOSIS, NOW,
+    )).toEqual([]);
+  });
+
   it('does not convert a blocked packet into an identical automated retry', async () => {
     const definition = recurringTemplate(
       'candidate-v1',

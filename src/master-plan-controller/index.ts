@@ -7,6 +7,7 @@ export * from './controller.js';
 export * from './decomposition.js';
 export * from './diagnosis.js';
 export * from './evidence.js';
+export * from './evidence-adjudication.js';
 export * from './escalation-policy.js';
 export * from './gates.js';
 export * from './graph.js';

@@ -11,7 +11,15 @@ export type DiagnosticTrigger =
   | { kind: 'high-value-uncertainty'; nodeId: string }
   | { kind: 'bottleneck'; nodeId: string }
   | { kind: 'neglected-portfolio'; portfolio: Portfolio }
-  | { kind: 'failure-mode'; nodeId: string };
+  | { kind: 'failure-mode'; nodeId: string }
+  | {
+    kind: 'evidence-signal';
+    nodeId: string;
+    hypothesisId: string;
+    outcomes: Array<'positive' | 'negative'>;
+    minimumStrength: number;
+    maximumAgeMs: number;
+  };
 
 export type DiagnosticPacketTemplate = Omit<WorkPacket, 'lifecycle' | 'attempt' | 'reviewedAt'> & {
   trigger: DiagnosticTrigger;
@@ -49,7 +57,27 @@ export function sameWorkPacketDefinition(left: WorkPacket, right: WorkPacket): b
     JSON.stringify(normalized(withoutRuntimeState(right)));
 }
 
-function matches(trigger: DiagnosticTrigger, diagnosis: GraphDiagnosis): boolean {
+function matchingEvidence(
+  trigger: Extract<DiagnosticTrigger, { kind: 'evidence-signal' }>,
+  state: StrategyState,
+  now: Timestamp,
+  after?: Timestamp,
+): boolean {
+  const nowEpoch = Date.parse(now);
+  const afterEpoch = after === undefined ? Number.NEGATIVE_INFINITY : Date.parse(after);
+  return state.evidence.some((evidence) => {
+    const observedEpoch = Date.parse(evidence.observedAt);
+    const linked = evidence.outcome === 'positive'
+      ? evidence.supportedHypotheses.includes(trigger.hypothesisId)
+      : evidence.outcome === 'negative' && evidence.falsifiedHypotheses.includes(trigger.hypothesisId);
+    return linked && trigger.outcomes.includes(evidence.outcome as 'positive' | 'negative') &&
+      evidence.strength >= trigger.minimumStrength && !Number.isNaN(observedEpoch) &&
+      observedEpoch > afterEpoch && observedEpoch <= nowEpoch &&
+      nowEpoch - observedEpoch <= trigger.maximumAgeMs;
+  });
+}
+
+function matches(trigger: DiagnosticTrigger, diagnosis: GraphDiagnosis, state: StrategyState, now: Timestamp): boolean {
   switch (trigger.kind) {
     case 'high-value-uncertainty':
       return diagnosis.highValueUncertainties.some((item) => item.nodeId === trigger.nodeId);
@@ -59,6 +87,8 @@ function matches(trigger: DiagnosticTrigger, diagnosis: GraphDiagnosis): boolean
       return diagnosis.neglectedPortfolios.some((item) => item.portfolio === trigger.portfolio);
     case 'failure-mode':
       return diagnosis.failureModes.some((item) => item.nodeId === trigger.nodeId);
+    case 'evidence-signal':
+      return matchingEvidence(trigger, state, now);
   }
 }
 
@@ -96,6 +126,20 @@ function validateTemplate(template: DiagnosticPacketTemplate): void {
     case 'failure-mode':
       if (typeof candidate.nodeId !== 'string' || !candidate.nodeId.trim() || candidate.nodeId !== template.nodeId) {
         throw new Error(`Packet template ${template.id} trigger must match its target node`);
+      }
+      return;
+    case 'evidence-signal':
+      if (typeof candidate.nodeId !== 'string' || !candidate.nodeId.trim() || candidate.nodeId !== template.nodeId ||
+        typeof candidate.hypothesisId !== 'string' || !candidate.hypothesisId.trim()) {
+        throw new Error(`Packet template ${template.id} evidence trigger is malformed`);
+      }
+      if (!Array.isArray(candidate.outcomes) || candidate.outcomes.length === 0 ||
+        !(candidate.outcomes as unknown[]).every((outcome) => ['positive', 'negative'].includes(String(outcome)))) {
+        throw new Error(`Packet template ${template.id} evidence trigger outcomes are invalid`);
+      }
+      if (typeof candidate.minimumStrength !== 'number' || candidate.minimumStrength < 0 || candidate.minimumStrength > 1 ||
+        !Number.isSafeInteger(candidate.maximumAgeMs) || (candidate.maximumAgeMs as number) <= 0) {
+        throw new Error(`Packet template ${template.id} evidence trigger bounds are invalid`);
       }
       return;
     case 'neglected-portfolio':
@@ -151,7 +195,9 @@ function versionedPacket(
       throw new Error('Versioned packet recurrence requires valid caller-supplied timestamps');
     }
     if (nowEpoch - latestEpoch < template.recurrence!.minimumIntervalMs) return null;
-    if (template.recurrence!.requiresNewEvidence && !state.evidence.some((evidence) => {
+    if (template.recurrence!.requiresNewEvidence && template.trigger.kind === 'evidence-signal') {
+      if (!matchingEvidence(template.trigger, state, now, latest.reviewedAt)) return null;
+    } else if (template.recurrence!.requiresNewEvidence && !state.evidence.some((evidence) => {
       const observedEpoch = Date.parse(evidence.observedAt);
       return !Number.isNaN(observedEpoch) && observedEpoch > latestEpoch && observedEpoch <= nowEpoch;
     })) return null;
@@ -195,7 +241,7 @@ export class DiagnosticPacketGenerator implements PacketGeneratorPort {
     now: Timestamp,
   ): Promise<WorkPacket[]> {
     return this.templates
-      .filter((template) => matches(template.trigger, diagnosis))
+      .filter((template) => matches(template.trigger, diagnosis, state, now))
       .sort((left, right) => left.id.localeCompare(right.id))
       .map((template) => {
         if (template.recurrence?.kind === 'versioned') return versionedPacket(template, state, now);

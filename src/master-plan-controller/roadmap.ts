@@ -63,6 +63,7 @@ export function renderRoadmap(bundle: RepositoryStrategyBundle): string {
     `- Automated results independently agent-reviewed: ${bundle.state.governance.supervisedResultsReviewed}.`,
     `- Safe auto-merge enabled: ${bundle.state.governance.safeAutoMergeEnabled ? 'yes' : 'no'}.`,
     '- Scheduled cycles integrate deduplicated external observations before diagnosis.',
+    '- Only fresh, matching adjudicated evidence can trigger recurring work.',
     '- Automated execution requires every result to receive fresh independent agent review.',
     '- Weekly portfolio review and quarterly evidence, weight, and constitutional-risk review are automated with independent agent review.',
     '- The human servant leader is contacted only for an evidence-backed, intrinsically human escalation.',
