@@ -210,7 +210,10 @@ describe('checked-in strategy v2 bundle', () => {
     expect(bundle.state.nodes.find((node) => node.id === 'hypothesis-live-stewardship-controls-aligned'))
       .toMatchObject({ kind: 'hypothesis', portfolio: 'institutional-continuity', lifecycle: 'eligible' });
     const observation = JSON.parse(await fileSystem.readText('strategy/observation-sources.json')) as {
-      sources: Array<{ kind: string; portfolio: string; branch?: string; hypothesisId?: string; id?: string }>;
+      sources: Array<{
+        kind: string; portfolio: string; branch?: string; hypothesisId?: string; id?: string;
+        adjudication?: { targets?: unknown[] };
+      }>;
     };
     expect(observation.sources.find((source) => source.kind === 'github-repository-controls')).toMatchObject({
       kind: 'github-repository-controls',
@@ -219,6 +222,9 @@ describe('checked-in strategy v2 bundle', () => {
       portfolio: 'institutional-continuity',
     });
     expect(observation.sources.filter((source) => source.kind === 'public-source-snapshot')).toHaveLength(3);
+    expect(observation.sources.filter((source) => source.kind === 'public-source-snapshot')
+      .every((source) =>
+        Array.isArray(source.adjudication?.targets) && source.adjudication.targets.length > 0)).toBe(true);
     expect(new Set(observation.sources.map((source) => source.portfolio))).toEqual(new Set([
       'consciousness-epistemics',
       'near-term-preservation',
@@ -227,6 +233,8 @@ describe('checked-in strategy v2 bundle', () => {
     ]));
     expect(await fileSystem.readText('strategy/ROADMAP.md'))
       .toContain('Scheduled cycles integrate deduplicated external observations before diagnosis.');
+    expect(await fileSystem.readText('strategy/ROADMAP.md'))
+      .toContain('Only fresh, matching adjudicated evidence can trigger recurring work.');
     expect(await fileSystem.readText('strategy/ROADMAP.md')).toContain('Safe auto-merge enabled: yes.');
   });
 
@@ -245,11 +253,25 @@ describe('checked-in strategy v2 bundle', () => {
       template.deliverables.length > 0 &&
       template.acceptanceCriteria.length > 0 &&
       template.testsOrPreregistration.length > 0)).toBe(true);
+    expect(bundle.packetTemplates.every((template) => template.trigger.kind === 'evidence-signal')).toBe(true);
   });
 
   it('turns the current diagnosis into a deterministic executable frontier without environment time', async () => {
     const bundle = withoutGeneratedIndicator(await loadRepositoryStrategy(new NodeFileSystem('.')));
     const now = repositoryNow(bundle);
+    bundle.state.evidence.push({
+      id: 'evidence-test-material-consciousness-update',
+      claim: 'A bounded metadata update requires renewed comparison.',
+      method: 'Guarded test adjudication.',
+      source: 'https://example.test/metadata',
+      strength: 0.6,
+      limitations: ['Metadata-only test signal.'],
+      supportedHypotheses: ['hypothesis-material-consciousness-update'],
+      falsifiedHypotheses: [],
+      verifier: 'test-adjudicator',
+      observedAt: now,
+      outcome: 'positive',
+    });
     const diagnosis = new Controller(bundle.state, bundle.config).evaluate(bundle.state, now).diagnosis;
     const generated = await new DiagnosticPacketGenerator(bundle.packetTemplates)
       .generate(bundle.state, diagnosis, now);
@@ -265,6 +287,12 @@ describe('checked-in strategy v2 bundle', () => {
     const fileSystem = new NodeFileSystem('.');
     const bundle = withoutGeneratedIndicator(await loadRepositoryStrategy(fileSystem));
     const now = repositoryNow(bundle);
+    bundle.state.evidence.push({
+      id: 'evidence-test-material-consciousness-update', claim: 'A bounded update requires renewed comparison.',
+      method: 'Guarded test adjudication.', source: 'https://example.test/metadata', strength: 0.6,
+      limitations: ['Metadata-only test signal.'], supportedHypotheses: ['hypothesis-material-consciousness-update'],
+      falsifiedHypotheses: [], verifier: 'test-adjudicator', observedAt: now, outcome: 'positive',
+    });
     const diagnosis = new Controller(bundle.state, bundle.config).evaluate(bundle.state, now).diagnosis;
     const [generated] = await new DiagnosticPacketGenerator(bundle.packetTemplates)
       .generate(bundle.state, diagnosis, now);

@@ -172,6 +172,14 @@ export async function verifyRepositoryStrategy(
     const { trigger: _trigger, recurrence: _recurrence, ...definition } = template;
     const packet: WorkPacket = { ...definition, lifecycle: 'eligible', attempt: 0, reviewedAt: now };
     errors.push(...workPacketValidationErrors(packet, bundle.state, now));
+    if (template.trigger.kind === 'evidence-signal') {
+      const hypothesisId = template.trigger.hypothesisId;
+      const hypothesis = bundle.state.nodes.find((node) => node.id === hypothesisId);
+      if (!hypothesis) errors.push(`Packet template ${template.id} evidence trigger references a missing hypothesis`);
+      else if (hypothesis.kind !== 'hypothesis') {
+        errors.push(`Packet template ${template.id} evidence trigger does not reference a hypothesis`);
+      }
+    }
     const persisted = bundle.state.packets.find((candidate) => candidate.id === template.id);
     if (persisted && !sameWorkPacketDefinition(packet, persisted)) {
       errors.push(`Packet template ${template.id} collides with a different persisted packet`);
@@ -219,6 +227,15 @@ export async function verifyRepositoryStrategy(
       } else {
         errors.push(...publicSourceSnapshotConfigErrors(source)
           .map((error) => `Observation source ${key} is malformed: ${error}`));
+        for (const target of source.adjudication?.targets ?? []) {
+          const hypothesis = bundle.state.nodes.find((node) => node.id === target.hypothesisId);
+          if (!hypothesis) errors.push(`Observation source ${key} references a missing hypothesis`);
+          else if (hypothesis.kind !== 'hypothesis') {
+            errors.push(`Observation source ${key} adjudication target is not a hypothesis`);
+          } else if (hypothesis.portfolio !== source.portfolio) {
+            errors.push(`Observation source ${key} adjudication target crosses portfolios`);
+          }
+        }
       }
     }
   }

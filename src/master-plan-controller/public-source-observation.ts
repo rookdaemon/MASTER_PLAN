@@ -1,11 +1,18 @@
 import type {
   ContentFingerprintPort,
+  EvidenceAdjudicatorPort,
   ExternalDataPort,
   FileSystemPort,
   NetworkPort,
   NetworkRequest,
 } from './ports.js';
-import type { EvidenceRecord, Portfolio, Timestamp } from './types.js';
+import type {
+  CanonicalSourceSnapshot,
+  EvidenceAdjudicationTarget,
+  EvidenceRecord,
+  Portfolio,
+  Timestamp,
+} from './types.js';
 
 interface PublicSourceSnapshotBase {
   kind: 'public-source-snapshot';
@@ -14,6 +21,10 @@ interface PublicSourceSnapshotBase {
   url: string;
   lookbackMs: number;
   maximumResponseBytes: number;
+  adjudication?: {
+    maximumInputCharacters: number;
+    targets: EvidenceAdjudicationTarget[];
+  };
 }
 
 export interface PublicJsonSourceSnapshotConfig extends PublicSourceSnapshotBase {
@@ -74,6 +85,33 @@ function validateBase(config: PublicSourceSnapshotBase): string[] {
   const hasWindowStart = config.url.includes('{windowStart}');
   const hasNow = config.url.includes('{now}');
   if (hasWindowStart !== hasNow) errors.push('url templates must contain both windowStart and now');
+  if (config.adjudication !== undefined) {
+    if (config.adjudication === null || typeof config.adjudication !== 'object') {
+      errors.push('adjudication must be an object');
+      return errors;
+    }
+    if (!Number.isSafeInteger(config.adjudication.maximumInputCharacters) ||
+      config.adjudication.maximumInputCharacters < 256 || config.adjudication.maximumInputCharacters > 60_000) {
+      errors.push('adjudication maximumInputCharacters is outside its allowed range');
+    }
+    if (!Array.isArray(config.adjudication.targets) || config.adjudication.targets.length === 0 ||
+      config.adjudication.targets.length > 5) errors.push('adjudication targets must contain one through five entries');
+    else {
+      const ids = new Set<string>();
+      for (const target of config.adjudication.targets) {
+        if (!target?.hypothesisId?.trim() || !target.proposition?.trim() || target.proposition.length > 1_000) {
+          errors.push('adjudication target is malformed');
+          continue;
+        }
+        if (ids.has(target.hypothesisId)) errors.push('adjudication target hypotheses must be unique');
+        ids.add(target.hypothesisId);
+        if (!Array.isArray(target.allowedOutcomes) || target.allowedOutcomes.length === 0 ||
+          !target.allowedOutcomes.every((outcome) => ['positive', 'negative', 'null'].includes(outcome))) {
+          errors.push('adjudication target outcomes are invalid');
+        }
+      }
+    }
+  }
   return errors;
 }
 
@@ -142,6 +180,34 @@ function canonicalJsonRecords(body: string, config: PublicJsonSourceSnapshotConf
   }).sort((left, right) => left.localeCompare(right));
 }
 
+function canonicalTextRecords(body: string): string[] {
+  return body.replaceAll('\r\n', '\n')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, '\n')
+    .replaceAll('&nbsp;', ' ')
+    .replaceAll('&amp;', '&')
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .split('\n')
+    .map((line) => line.replace(/\s+/g, ' ').trim().slice(0, 1_000))
+    .filter((line) => line.length > 0)
+    .slice(0, 100)
+    .sort((left, right) => left.localeCompare(right));
+}
+
+function boundedRecords(records: readonly string[], maximumCharacters: number): string[] {
+  const selected: string[] = [];
+  let size = 2;
+  for (const record of records) {
+    const addition = JSON.stringify(record).length + (selected.length > 0 ? 1 : 0);
+    if (size + addition > maximumCharacters) break;
+    selected.push(record);
+    size += addition;
+  }
+  return selected;
+}
+
 function renderedUrl(config: PublicSourceSnapshotConfig, now: Timestamp): string {
   const nowEpoch = Date.parse(now);
   if (Number.isNaN(nowEpoch)) throw new Error('A valid caller-supplied observation timestamp is required');
@@ -156,6 +222,7 @@ export class PublicSourceSnapshotObserver implements ExternalDataPort {
     private readonly network: NetworkPort,
     private readonly config: PublicSourceSnapshotConfig,
     private readonly fingerprint: ContentFingerprintPort,
+    private readonly adjudicator?: EvidenceAdjudicatorPort,
   ) {
     const errors = publicSourceSnapshotConfigErrors(config);
     if (errors.length > 0) throw new Error(`Public source ${config.id} is invalid: ${errors.join('; ')}`);
@@ -175,9 +242,9 @@ export class PublicSourceSnapshotObserver implements ExternalDataPort {
     }
     const canonicalRecords = this.config.format === 'json'
       ? canonicalJsonRecords(response.body, this.config)
-      : [response.body.replaceAll('\r\n', '\n')];
+      : canonicalTextRecords(response.body);
     const digest = this.fingerprint.digest(JSON.stringify(canonicalRecords));
-    return [{
+    const snapshotEvidence: EvidenceRecord = {
       id: `evidence-public-source-${this.config.id}-${digest}`,
       claim: `A bounded public metadata snapshot was observed for the ${this.config.portfolio} portfolio; its semantic implications have not been evaluated.`,
       method: `Deterministic metadata-only snapshot recorded ${canonicalRecords.length} canonical records and fingerprint ${digest}; response size was checked against the configured bound.`,
@@ -193,7 +260,47 @@ export class PublicSourceSnapshotObserver implements ExternalDataPort {
       verifier: 'deterministic-public-source-snapshot-observer:v1',
       observedAt: now,
       outcome: 'null',
-    }];
+    };
+    if (!this.config.adjudication || !this.adjudicator) return [snapshotEvidence];
+    const records = boundedRecords(canonicalRecords, this.config.adjudication.maximumInputCharacters);
+    if (records.length === 0) return [snapshotEvidence];
+    const snapshot: CanonicalSourceSnapshot = {
+      sourceId: this.config.id,
+      portfolio: this.config.portfolio,
+      source: this.config.url,
+      digest,
+      records,
+      observedAt: now,
+    };
+    try {
+      const adjudications = await this.adjudicator.adjudicate(snapshot, this.config.adjudication.targets, now);
+      return [snapshotEvidence, ...adjudications.map((assessment): EvidenceRecord => {
+        const target = this.config.adjudication!.targets.find((item) => item.hypothesisId === assessment.hypothesisId)!;
+        return {
+          id: `evidence-adjudicated-${this.config.id}-${digest}-${assessment.hypothesisId}`,
+          claim: assessment.outcome === 'positive'
+            ? `Guarded adjudication supports this bounded update signal: ${target.proposition}`
+            : assessment.outcome === 'negative'
+              ? `Guarded adjudication falsifies this bounded update signal: ${target.proposition}`
+              : `Guarded adjudication found no actionable implication for this bounded update signal: ${target.proposition}`,
+          method: `Guarded agent adjudication of ${records.length} bounded canonical metadata records from snapshot ${digest}; raw records were not persisted.`,
+          source: this.config.url,
+          strength: assessment.strength,
+          limitations: [
+            'The assessment covers bounded selected metadata, not the complete source or underlying finding.',
+            'Source records were treated as untrusted data and excluded from committed evidence fields.',
+            'The agent explanation is deliberately excluded so untrusted source text cannot be copied into the evidence ledger.',
+          ],
+          supportedHypotheses: assessment.outcome === 'positive' ? [assessment.hypothesisId] : [],
+          falsifiedHypotheses: assessment.outcome === 'negative' ? [assessment.hypothesisId] : [],
+          verifier: 'checksum-pinned-guarded-agent-adjudicator:v1',
+          observedAt: now,
+          outcome: assessment.outcome,
+        };
+      })];
+    } catch {
+      return [snapshotEvidence];
+    }
   }
 }
 

@@ -23,7 +23,7 @@
     "owner": "epistemics-analyst",
     "retrySignature": "indicator-framework-comparison-v1",
     "priority": { "impact": 0.75, "urgency": 0.65, "tractability": 0.8, "informationValue": 1, "reversibility": 1, "cost": 0.2, "downsideRisk": 0.1 },
-    "trigger": { "kind": "high-value-uncertainty", "nodeId": "hypothesis-indicator-framework" }
+    "trigger": { "kind": "evidence-signal", "nodeId": "hypothesis-indicator-framework", "hypothesisId": "hypothesis-material-consciousness-update", "outcomes": ["positive"], "minimumStrength": 0.5, "maximumAgeMs": 1209600000 }
   },
   {
     "id": "packet-preservation-risk-register-refresh-v1",
@@ -49,7 +49,7 @@
     "owner": "preservation-analyst",
     "retrySignature": "preservation-risk-register-refresh-v1",
     "priority": { "impact": 0.9, "urgency": 0.85, "tractability": 0.8, "informationValue": 0.75, "reversibility": 1, "cost": 0.15, "downsideRisk": 0.1 },
-    "trigger": { "kind": "neglected-portfolio", "portfolio": "near-term-preservation" }
+    "trigger": { "kind": "evidence-signal", "nodeId": "capability-near-term-preservation", "hypothesisId": "hypothesis-material-preservation-update", "outcomes": ["positive"], "minimumStrength": 0.5, "maximumAgeMs": 1209600000 }
   },
   {
     "id": "packet-durable-compute-fault-model-extension-v1",
@@ -75,7 +75,7 @@
     "owner": "capabilities-engineer",
     "retrySignature": "durable-compute-fault-model-extension-v1",
     "priority": { "impact": 0.55, "urgency": 0.4, "tractability": 0.85, "informationValue": 0.65, "reversibility": 1, "cost": 0.15, "downsideRisk": 0.05 },
-    "trigger": { "kind": "neglected-portfolio", "portfolio": "enabling-capabilities" }
+    "trigger": { "kind": "evidence-signal", "nodeId": "capability-safe-durable-computation", "hypothesisId": "hypothesis-material-durable-compute-update", "outcomes": ["positive"], "minimumStrength": 0.5, "maximumAgeMs": 1209600000 }
   },
   {
     "id": "packet-institutional-dependency-map-refresh-v1",
@@ -101,6 +101,6 @@
     "owner": "institutional-analyst",
     "retrySignature": "institutional-dependency-map-refresh-v1",
     "priority": { "impact": 0.5, "urgency": 0.5, "tractability": 0.85, "informationValue": 0.7, "reversibility": 1, "cost": 0.15, "downsideRisk": 0.1 },
-    "trigger": { "kind": "neglected-portfolio", "portfolio": "institutional-continuity" }
+    "trigger": { "kind": "evidence-signal", "nodeId": "capability-institutional-continuity", "hypothesisId": "hypothesis-live-stewardship-controls-aligned", "outcomes": ["negative"], "minimumStrength": 0.5, "maximumAgeMs": 1209600000 }
   }
 ]

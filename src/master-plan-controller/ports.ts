@@ -1,6 +1,9 @@
 import type { AutoMergeAssessment, AutoMergeRequest, DiffFile, RepositoryControls } from './authority.js';
 import type {
   EvidenceRecord,
+  CanonicalSourceSnapshot,
+  EvidenceAdjudication,
+  EvidenceAdjudicationTarget,
   PacketResult,
   PacketVerification,
   GraphDiagnosis,
@@ -74,6 +77,14 @@ export interface SchedulerPort {
 
 export interface ExternalDataPort {
   observe(now: Timestamp): Promise<EvidenceRecord[]>;
+}
+
+export interface EvidenceAdjudicatorPort {
+  adjudicate(
+    snapshot: CanonicalSourceSnapshot,
+    targets: readonly EvidenceAdjudicationTarget[],
+    now: Timestamp,
+  ): Promise<EvidenceAdjudication[]>;
 }
 
 export interface PacketGeneratorPort {

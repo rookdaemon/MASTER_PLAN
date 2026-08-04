@@ -240,6 +240,9 @@ describe('blocking CI and governed workflows', () => {
     expect(strategyCycle).toContain('PR_COMMIT_COUNT="$commit_count"');
     expect(strategyCycle).not.toContain('PR_COMMIT_COUNT=1');
     expect(strategyCycle).toContain('npm run strategy:observe');
+    expect(strategyCycle).toContain('EVIDENCE_ADJUDICATOR_URL');
+    expect(strategyCycle).toContain('Qwen3-4B-Q4_K_M.gguf');
+    expect(strategyCycle).toContain('prompt_injection_canary');
     expect(strategyCycle).toContain('npm run strategy:generate');
     expect(strategyCycle.indexOf('npm run strategy:observe')).toBeLessThan(
       strategyCycle.indexOf('npm run strategy:generate'),

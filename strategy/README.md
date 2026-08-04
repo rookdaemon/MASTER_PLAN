@@ -7,12 +7,14 @@ preserved as v1 history.
 - `graph.json` is the typed dependency graph.
 - `evidence.json` separates claims, methods, sources, strength, limitations, and timestamps.
 - `observation-sources.json` configures credential-independent external observations that are
-  deduplicated and integrated before diagnosis.
+  deduplicated and integrated before diagnosis. Public records are bounded, treated as untrusted,
+  adjudicated in memory by a pinned local agent, and never persisted as raw source content.
 - `periodic-reviews.json` records deterministic weekly portfolio reviews and quarterly evidence,
   weight, and constitutional-risk reviews produced by the automated operating body.
 - `work-packets.json` contains the bounded ranked frontier.
 - `packet-templates.json` contains versioned recurring interventions for all four portfolios.
-  Terminal reviewed work advances to a new identity; active or blocked work suppresses duplicate retries.
+  Fresh matching adjudicated evidence advances terminal reviewed work to a new identity; unrelated
+  or null snapshots and active or blocked work suppress duplicate retries.
 - `portfolio.json` contains allocation and controller configuration.
 - `legacy-audit.json` re-audits every v1 plan card without interpreting `[DONE]` as a real-world result.
 - `ROADMAP.md` is a generated human-readable view and is not evidence.

@@ -5,6 +5,7 @@ import {
   loadPublicSourceSnapshotConfigs,
   loadRepositoryControlObservationConfigs,
 } from '../repository-observation.js';
+import { GuardedAgentEvidenceAdjudicator } from '../evidence-adjudication.js';
 import { FetchNetwork, NodeFileSystem, NodeSha256Fingerprint } from '../runtime-adapters.js';
 import { runRepositoryObservationCli } from './observe-repository.js';
 import { NodeCliRuntime } from './runtime.js';
@@ -21,10 +22,18 @@ async function main(): Promise<void> {
       loadPublicSourceSnapshotConfigs(fileSystem),
     ]);
     const fingerprint = new NodeSha256Fingerprint();
+    const adjudicatorUrl = cli.environment('EVIDENCE_ADJUDICATOR_URL');
+    const adjudicator = adjudicatorUrl
+      ? new GuardedAgentEvidenceAdjudicator(
+        network,
+        adjudicatorUrl,
+        cli.environment('EVIDENCE_ADJUDICATOR_MODEL') ?? 'Qwen3-4B-Q4_K_M.gguf',
+      )
+      : undefined;
     const externalData = new CompositeExternalData(
       [
         ...controlConfigs.map((config) => new GitHubRepositoryControlObserver(network, config)),
-        ...publicConfigs.map((config) => new PublicSourceSnapshotObserver(network, config, fingerprint)),
+        ...publicConfigs.map((config) => new PublicSourceSnapshotObserver(network, config, fingerprint, adjudicator)),
       ],
     );
     cli.write(await runRepositoryObservationCli(fileSystem, externalData, cli.arguments()));
