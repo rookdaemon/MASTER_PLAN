@@ -47,7 +47,9 @@ jobs:
           case "$artifact_path" in strategy/results/*.json) ;; *) exit 1 ;; esac
           case "$result_path" in strategy/results/*.result.json) ;; *) exit 1 ;; esac
           test "$artifact_path" != "$result_path"
-          changed_paths="$(git diff --name-only | sort)"
+          status_lines="$(git status --short)"
+          test "$(wc -l <<<"$status_lines")" -eq 2
+          changed_paths="$(sed -nE 's/^\?\? //p' <<<"$status_lines" | sort)"
           expected_paths="$(printf '%s\n%s\n' "$artifact_path" "$result_path" | sort)"
           test "$changed_paths" = "$expected_paths"
 
