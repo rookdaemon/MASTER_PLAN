@@ -1,0 +1,34 @@
+{
+  "outcome": "positive",
+  "artifactReferences": [
+    "strategy/results/indicator-framework-comparison-v1.json",
+    "strategy/results/consciousness-prediction-registry-v1.json"
+  ],
+  "evidence": [
+    {
+      "id": "evidence-indicator-framework-comparison-v1-executed",
+      "claim": "A deterministic comparison maps each registered theory interpretation to predictions, counterexamples, uncertainty, and a falsification condition.",
+      "method": "Schema-checked transformation of the checked-in consciousness prediction registry.",
+      "source": "strategy/results/indicator-framework-comparison-v1.json",
+      "strength": 0.7,
+      "limitations": [
+        "Execution establishes a reviewable repository artifact; independent agent review is still required before strategy integration.",
+        "The comparison does not establish consciousness or sentience in any biological or artificial system."
+      ],
+      "supportedHypotheses": [
+        "hypothesis-indicator-framework"
+      ],
+      "falsifiedHypotheses": [],
+      "verifier": "deterministic-packet-executor:v1",
+      "observedAt": "2026-08-04T03:24:10.000Z",
+      "outcome": "positive"
+    }
+  ],
+  "acceptanceCriteriaMet": true,
+  "portfolioEffortAfter": {
+    "consciousness-epistemics": 0.35,
+    "near-term-preservation": 0.3,
+    "enabling-capabilities": 0.2,
+    "institutional-continuity": 0.15
+  }
+}
