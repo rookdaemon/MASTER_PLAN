@@ -607,9 +607,10 @@
     ],
     "portfolio": "institutional-continuity",
     "dependencies": [],
-    "confidence": 0.56875,
+    "confidence": 0.628046875,
     "evidenceReferences": [
-      "evidence-live-repository-controls-8ed7132f4c054ff5"
+      "evidence-live-repository-controls-8ed7132f4c054ff5",
+      "evidence-live-repository-controls-e1fe0bbe32d43b40"
     ],
     "metrics": [
       {
