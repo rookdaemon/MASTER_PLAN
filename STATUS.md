@@ -30,6 +30,8 @@ contacted only for an evidence-backed issue that automation intrinsically cannot
   contract validation, credential-independent live-control observation, and injected environment
   ports with in-memory implementations. Caller-timestamped weekly and quarterly review logic records
   portfolio drift, evidence quality and staleness, and constitutional risks without mutating doctrine.
+  Versioned recurring packet families and deterministic production handlers cover all four active
+  portfolios while suppressing duplicate active or blocked work.
 - `.github/workflows/`: blocking typecheck/test/strategy checks, proposal review, and a narrowly
   scoped routine-code workflow, scheduled periodic strategy review, and an agent-controlled
   protected-change path.

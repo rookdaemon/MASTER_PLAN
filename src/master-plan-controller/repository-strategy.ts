@@ -163,7 +163,7 @@ export async function verifyRepositoryStrategy(
     errors.push(error instanceof Error ? error.message : 'Packet template configuration is invalid');
   }
   for (const template of bundle.packetTemplates) {
-    const { trigger: _trigger, ...definition } = template;
+    const { trigger: _trigger, recurrence: _recurrence, ...definition } = template;
     const packet: WorkPacket = { ...definition, lifecycle: 'eligible', attempt: 0, reviewedAt: now };
     errors.push(...workPacketValidationErrors(packet, bundle.state, now));
     const persisted = bundle.state.packets.find((candidate) => candidate.id === template.id);

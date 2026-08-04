@@ -1,9 +1,16 @@
 import { Controller } from './controller.js';
 import type { ExecutionResult, FileSystemPort } from './ports.js';
+import {
+  crossPortfolioPacketHandlers,
+  matchesRepositoryPacketHandler,
+  versionedArtifactPaths,
+  type RepositoryExecutionOutput,
+  type RepositoryPacketHandler,
+} from './repository-packet-handlers.js';
 import { formattedRepositoryJson } from './repository-json.js';
 import { integrateRepositoryPacketResult, type RepositoryPacketIntegration } from './repository-result-integration.js';
 import { loadRepositoryStrategy, verifyRepositoryStrategy } from './repository-strategy.js';
-import type { PacketResult, StrategyState, Timestamp, WorkPacket } from './types.js';
+import type { PacketResult, Timestamp } from './types.js';
 
 export interface RepositoryPacketExecution {
   status: 'waiting' | 'executed' | 'already-executed';
@@ -12,22 +19,7 @@ export interface RepositoryPacketExecution {
   resultPath: string | null;
 }
 
-export interface RepositoryExecutionOutput {
-  artifactPath: string;
-  artifact: unknown;
-  resultPath: string;
-  result: ExecutionResult;
-}
-
-export interface RepositoryPacketHandler {
-  packetId: string;
-  prepare(
-    fileSystem: FileSystemPort,
-    packet: WorkPacket,
-    state: StrategyState,
-    now: Timestamp,
-  ): Promise<RepositoryExecutionOutput>;
-}
+export type { RepositoryExecutionOutput, RepositoryPacketHandler } from './repository-packet-handlers.js';
 
 export interface AgentReviewAttestation {
   packetId: string;
@@ -56,8 +48,6 @@ interface PredictionRegistry {
 }
 
 const REGISTRY_PATH = 'strategy/results/consciousness-prediction-registry-v1.json';
-const INDICATOR_ARTIFACT_PATH = 'strategy/results/indicator-framework-comparison-v1.json';
-const INDICATOR_RESULT_PATH = 'strategy/results/indicator-framework-comparison-v1.result.json';
 
 function unique(values: readonly string[]): string[] {
   return [...new Set(values.filter((value) => value.trim().length > 0))];
@@ -79,7 +69,9 @@ function executionOutputWithoutTimestamps(artifact: unknown, result: ExecutionRe
 function indicatorComparisonHandler(): RepositoryPacketHandler {
   return {
     packetId: 'packet-indicator-framework-comparison-v1',
+    packetFamily: 'packet-indicator-framework-comparison',
     async prepare(fileSystem, packet, state, now) {
+      const paths = versionedArtifactPaths(packet, 'packet-indicator-framework-comparison');
       const registry = JSON.parse(await fileSystem.readText(REGISTRY_PATH)) as PredictionRegistry;
       const families = new Map(registry.theoryFamilies.map((family) => [family.id, family]));
       const indicators = registry.predictions.flatMap((prediction) => prediction.interpretations.map((interpretation) => {
@@ -110,7 +102,7 @@ function indicatorComparisonHandler(): RepositoryPacketHandler {
       }
       const artifact = {
         schemaVersion: '1.0.0',
-        id: 'indicator-framework-comparison-v1',
+        id: paths.artifactId,
         packetId: packet.id,
         preparedAt: now,
         sourceRegistry: REGISTRY_PATH,
@@ -123,12 +115,12 @@ function indicatorComparisonHandler(): RepositoryPacketHandler {
       };
       const result: ExecutionResult = {
         outcome: 'positive',
-        artifactReferences: [INDICATOR_ARTIFACT_PATH, REGISTRY_PATH],
+        artifactReferences: [paths.artifactPath, REGISTRY_PATH],
         evidence: [{
-          id: 'evidence-indicator-framework-comparison-v1-executed',
+          id: `evidence-${paths.artifactId}-executed`,
           claim: 'A deterministic comparison maps each registered theory interpretation to predictions, counterexamples, uncertainty, and a falsification condition.',
           method: 'Schema-checked transformation of the checked-in consciousness prediction registry.',
-          source: INDICATOR_ARTIFACT_PATH,
+          source: paths.artifactPath,
           strength: 0.7,
           limitations: [
             'Execution establishes a reviewable repository artifact; independent agent review is still required before strategy integration.',
@@ -144,9 +136,9 @@ function indicatorComparisonHandler(): RepositoryPacketHandler {
         portfolioEffortAfter: structuredClone(state.portfolioEffort),
       };
       return {
-        artifactPath: INDICATOR_ARTIFACT_PATH,
+        artifactPath: paths.artifactPath,
         artifact,
-        resultPath: INDICATOR_RESULT_PATH,
+        resultPath: paths.resultPath,
         result,
       };
     },
@@ -154,7 +146,7 @@ function indicatorComparisonHandler(): RepositoryPacketHandler {
 }
 
 export function defaultRepositoryPacketHandlers(): RepositoryPacketHandler[] {
-  return [indicatorComparisonHandler()];
+  return [indicatorComparisonHandler(), ...crossPortfolioPacketHandlers()];
 }
 
 export async function executeRepositoryPacket(
@@ -168,7 +160,7 @@ export async function executeRepositoryPacket(
   if (verification.errors.length > 0) throw new Error(`Strategy verification failed: ${verification.errors.join('; ')}`);
   const selected = new Controller(bundle.state, bundle.config).evaluate(bundle.state, now).ranked[0]?.packet;
   if (!selected) return { status: 'waiting', packetId: null, artifactPath: null, resultPath: null };
-  const handler = handlers.find((candidate) => candidate.packetId === selected.id);
+  const handler = handlers.find((candidate) => matchesRepositoryPacketHandler(candidate, selected));
   if (!handler) throw new Error(`No executor is registered for ${selected.id}`);
   const output = await handler.prepare(fileSystem, selected, bundle.state, now);
   const existing = new Set(await fileSystem.listFiles('strategy/results/'));
@@ -192,11 +184,21 @@ export async function executeRepositoryPacket(
         formattedRepositoryJson(executionOutputWithoutTimestamps(output.artifact, output.result))) {
       throw new Error(`Execution artifacts for ${selected.id} differ from deterministic output`);
     }
-    return { status: 'already-executed', packetId: selected.id, artifactPath: output.artifactPath, resultPath: output.resultPath };
+    return {
+      status: 'already-executed',
+      packetId: selected.id,
+      artifactPath: output.artifactPath,
+      resultPath: output.resultPath,
+    };
   }
   await fileSystem.writeText(output.artifactPath, formattedRepositoryJson(output.artifact));
   await fileSystem.writeText(output.resultPath, formattedRepositoryJson(output.result));
-  return { status: 'executed', packetId: selected.id, artifactPath: output.artifactPath, resultPath: output.resultPath };
+  return {
+    status: 'executed',
+    packetId: selected.id,
+    artifactPath: output.artifactPath,
+    resultPath: output.resultPath,
+  };
 }
 
 export async function integrateReviewedRepositoryExecution(

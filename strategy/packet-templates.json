@@ -1,6 +1,7 @@
 [
   {
     "id": "packet-indicator-framework-comparison-v1",
+    "recurrence": {"kind": "versioned", "minimumIntervalMs": 604800000, "requiresNewEvidence": true},
     "nodeId": "hypothesis-indicator-framework",
     "title": "Compare candidate consciousness indicators against discriminating predictions",
     "portfolio": "consciousness-epistemics",
@@ -26,6 +27,7 @@
   },
   {
     "id": "packet-preservation-risk-register-refresh-v1",
+    "recurrence": {"kind": "versioned", "minimumIntervalMs": 604800000, "requiresNewEvidence": true},
     "nodeId": "capability-near-term-preservation",
     "title": "Refresh the near-term preservation risk register from new evidence",
     "portfolio": "near-term-preservation",
@@ -51,6 +53,7 @@
   },
   {
     "id": "packet-durable-compute-fault-model-extension-v1",
+    "recurrence": {"kind": "versioned", "minimumIntervalMs": 604800000, "requiresNewEvidence": true},
     "nodeId": "capability-safe-durable-computation",
     "title": "Extend the durable-compute fault model to the next uncovered failure class",
     "portfolio": "enabling-capabilities",
@@ -76,6 +79,7 @@
   },
   {
     "id": "packet-institutional-dependency-map-refresh-v1",
+    "recurrence": {"kind": "versioned", "minimumIntervalMs": 604800000, "requiresNewEvidence": true},
     "nodeId": "capability-institutional-continuity",
     "title": "Refresh institutional continuity dependencies from new evidence",
     "portfolio": "institutional-continuity",
