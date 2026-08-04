@@ -3,6 +3,7 @@ import { CycleRunner } from '../runner.js';
 import type { ExternalDataPort } from '../ports.js';
 import {
   InMemoryExternalData,
+  InMemoryPacketGenerator,
   InMemoryPacketExecutor,
   InMemoryReviewer,
   InMemoryStateStore,
@@ -14,19 +15,22 @@ function makeRunner(
   executor = new InMemoryPacketExecutor(),
   reviewer = new InMemoryReviewer(),
   externalData: ExternalDataPort = new InMemoryExternalData(),
+  generator = new InMemoryPacketGenerator(),
 ): CycleRunner {
-  return new CycleRunner({ store, executor, reviewer, externalData }, CONFIG);
+  return new CycleRunner({ store, executor, reviewer, externalData, generator }, CONFIG);
 }
 
 describe('CycleRunner end-to-end with injected ports', () => {
   it('runs shadow mode without executing the selected packet', async () => {
     const store = new InMemoryStateStore(makeState());
     const executor = new InMemoryPacketExecutor();
-    const result = await makeRunner(store, executor).runCycle(NOW);
+    const generator = new InMemoryPacketGenerator([[makePacket({ id: 'unnecessary', reviewedAt: NOW })]]);
+    const result = await makeRunner(store, executor, undefined, undefined, generator).runCycle(NOW);
 
     expect(result.status).toBe('proposed');
     expect(result.selectedPacketId).toBe('packet-1');
     expect(executor.requests).toHaveLength(0);
+    expect(generator.requests).toHaveLength(0);
     expect((await store.load()).governance.mode).toBe('shadow');
   });
 
@@ -168,6 +172,106 @@ describe('CycleRunner end-to-end with injected ports', () => {
     await makeRunner(store, undefined, undefined, externalData).runCycle(NOW);
     expect((await store.load()).evidence.map((evidence) => evidence.id)).toContain('external');
     expect(externalData.observationTimes).toEqual([NOW]);
+  });
+
+  it('generates, persists, prioritizes, and executes a new packet after the persisted frontier is exhausted', async () => {
+    const existing = makePacket({ id: 'completed', lifecycle: 'verified' });
+    const generated = makePacket({ id: 'generated', lifecycle: 'eligible', reviewedAt: NOW });
+    const store = new InMemoryStateStore(makeState({
+      packets: [existing],
+      governance: { mode: 'supervised', shadowCyclesReviewed: 20, supervisedResultsReviewed: 4, safeAutoMergeEnabled: false },
+    }));
+    const generator = new InMemoryPacketGenerator([[generated]]);
+    const executor = new InMemoryPacketExecutor([{
+      outcome: 'positive', artifactReferences: ['artifact://generated-result'], evidence: [makeEvidence()],
+      acceptanceCriteriaMet: true, portfolioEffortAfter: RESULT_PORTFOLIO_EFFORT,
+    }]);
+    const reviewer = new InMemoryReviewer([{ status: 'passed', verifier: 'reviewer', reviewedAt: NOW }]);
+
+    const result = await makeRunner(store, executor, reviewer, undefined, generator).runCycle(NOW);
+
+    expect(result).toMatchObject({ status: 'verified', selectedPacketId: 'generated' });
+    expect(generator.requests).toHaveLength(1);
+    expect(generator.requests[0]).toMatchObject({ now: NOW });
+    expect(generator.requests[0].diagnosis.evaluatedNodeCount).toBeGreaterThan(0);
+    expect(executor.requests.map((request) => request.packet.id)).toEqual(['generated']);
+    const saved = await store.load();
+    expect(saved.packets.map((packet) => packet.id)).toEqual(['completed', 'generated']);
+    expect(saved.auditEvents.some((event) =>
+      event.type === 'packet-generated' && event.packetId === 'generated' && event.occurredAt === NOW)).toBe(true);
+  });
+
+  it('waits without mutation when generation finds no bounded candidate', async () => {
+    const existing = makePacket({ id: 'completed', lifecycle: 'verified' });
+    const initial = makeState({ packets: [existing] });
+    const store = new InMemoryStateStore(initial);
+    const generator = new InMemoryPacketGenerator();
+
+    const result = await makeRunner(store, undefined, undefined, undefined, generator).runCycle(NOW);
+
+    expect(result).toMatchObject({ status: 'waiting', selectedPacketId: null });
+    expect(generator.requests).toHaveLength(1);
+    expect(await store.load()).toEqual(initial);
+  });
+
+  it('deduplicates a generated packet identity without reopening verified work', async () => {
+    const existing = makePacket({ id: 'same', lifecycle: 'verified' });
+    const store = new InMemoryStateStore(makeState({ packets: [existing] }));
+    const generator = new InMemoryPacketGenerator([[
+      makePacket({ id: 'same', lifecycle: 'eligible', reviewedAt: NOW }),
+    ]]);
+
+    const result = await makeRunner(store, undefined, undefined, undefined, generator).runCycle(NOW);
+
+    expect(result.status).toBe('waiting');
+    expect((await store.load()).packets).toEqual([existing]);
+    expect((await store.load()).auditEvents).toEqual([]);
+  });
+
+  it('rejects a generated identity collision instead of hiding changed work behind a verified id', async () => {
+    const existing = makePacket({ id: 'same', lifecycle: 'verified', retrySignature: 'verified-definition' });
+    const store = new InMemoryStateStore(makeState({ packets: [existing] }));
+    const generator = new InMemoryPacketGenerator([[
+      makePacket({ id: 'same', lifecycle: 'eligible', reviewedAt: NOW, retrySignature: 'changed-definition' }),
+    ]]);
+
+    const result = await makeRunner(store, undefined, undefined, undefined, generator).runCycle(NOW);
+
+    expect(result.status).toBe('waiting');
+    expect(result.rejections).toEqual([{ packetId: 'same', reasons: ['Generated packet identity collides with different persisted work'] }]);
+    expect((await store.load()).packets).toEqual([existing]);
+  });
+
+  it('fails generated packets closed when their lifecycle or review timestamp is not cycle-bound', async () => {
+    for (const generated of [
+      makePacket({ id: 'active-generated', lifecycle: 'active', reviewedAt: NOW }),
+      makePacket({ id: 'future-generated', lifecycle: 'eligible', reviewedAt: '2026-08-03T12:00:01.000Z' }),
+    ]) {
+      const existing = makePacket({ id: 'completed', lifecycle: 'verified' });
+      const store = new InMemoryStateStore(makeState({ packets: [existing] }));
+      const result = await makeRunner(
+        store, undefined, undefined, undefined, new InMemoryPacketGenerator([[generated]]),
+      ).runCycle(NOW);
+
+      expect(result.status).toBe('waiting');
+      expect(result.rejections.find((rejection) => rejection.packetId === generated.id)?.reasons.join(' '))
+        .toMatch(/eligible|review timestamp/i);
+      expect((await store.load()).packets).toEqual([existing]);
+    }
+  });
+
+  it('supplies newly observed evidence to generation in the same cycle', async () => {
+    const external = makeEvidence({ id: 'new-external' });
+    const generator = new InMemoryPacketGenerator();
+    const store = new InMemoryStateStore(makeState({
+      packets: [makePacket({ lifecycle: 'verified' })],
+    }));
+
+    await makeRunner(
+      store, undefined, undefined, new InMemoryExternalData([[external]]), generator,
+    ).runCycle(NOW);
+
+    expect(generator.requests[0].state.evidence.map((record) => record.id)).toContain('new-external');
   });
 
   it('does not execute work with a qualified human escalation while its bounded decision is pending', async () => {

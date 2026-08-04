@@ -3,6 +3,7 @@ import type {
   EvidenceRecord,
   PacketResult,
   PacketVerification,
+  GraphDiagnosis,
   StrategyState,
   Timestamp,
   WorkPacket,
@@ -69,6 +70,10 @@ export interface SchedulerPort {
 
 export interface ExternalDataPort {
   observe(now: Timestamp): Promise<EvidenceRecord[]>;
+}
+
+export interface PacketGeneratorPort {
+  generate(state: StrategyState, diagnosis: GraphDiagnosis, now: Timestamp): Promise<WorkPacket[]>;
 }
 
 export interface StateStorePort {

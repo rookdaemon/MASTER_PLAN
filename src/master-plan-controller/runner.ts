@@ -3,6 +3,7 @@ import { integrateEvidence } from './evidence.js';
 import type {
   ExecutionResult,
   ExternalDataPort,
+  PacketGeneratorPort,
   PacketExecutorPort,
   ReviewerPort,
   StateStorePort,
@@ -15,12 +16,15 @@ import type {
   Timestamp,
   WorkPacket,
 } from './types.js';
+import { workPacketValidationErrors } from './strategy-validation.js';
+import { sameWorkPacketDefinition } from './packet-generation.js';
 
 export interface CycleRunnerPorts {
   store: StateStorePort;
   executor: PacketExecutorPort;
   reviewer: ReviewerPort;
   externalData: ExternalDataPort;
+  generator: PacketGeneratorPort;
 }
 
 export interface CycleResult {
@@ -78,8 +82,50 @@ export class CycleRunner {
     const observed = await this.ports.externalData.observe(now);
     for (const evidence of observed) state = integrateEvidence(state, evidence, now, this.config);
 
-    const frontier = new Controller(state, this.config).evaluate(state, now);
-    const rejections = frontier.rejected.map(({ packet, reasons }) => ({ packetId: packet.id, reasons }));
+    let frontier = new Controller(state, this.config).evaluate(state, now);
+    const generatedRejections: CycleResult['rejections'] = [];
+    const generated = frontier.ranked.length === 0
+      ? await this.ports.generator.generate(state, frontier.diagnosis, now)
+      : [];
+    for (const packet of generated) {
+      const existing = state.packets.find((candidate) => candidate.id === packet.id);
+      if (existing) {
+        if (!sameWorkPacketDefinition(existing, packet)) {
+          generatedRejections.push({
+            packetId: packet.id,
+            reasons: ['Generated packet identity collides with different persisted work'],
+          });
+        }
+        continue;
+      }
+      const reasons = [
+        ...(packet.lifecycle === 'eligible' ? [] : ['Generated packet lifecycle must be eligible']),
+        ...(packet.attempt === 0 ? [] : ['Generated packet attempt must be zero']),
+        ...(packet.reviewedAt === now ? [] : ['Generated packet review timestamp must equal the cycle timestamp']),
+        ...workPacketValidationErrors(packet, state, now),
+      ];
+      if (reasons.length > 0) {
+        generatedRejections.push({ packetId: packet.id, reasons: [...new Set(reasons)] });
+        continue;
+      }
+      state = {
+        ...state,
+        packets: [...state.packets, structuredClone(packet)],
+        auditEvents: [...state.auditEvents, {
+          id: `audit:${packet.id}:packet-generated:${now}`,
+          type: 'packet-generated',
+          packetId: packet.id,
+          occurredAt: now,
+          details: { source: 'diagnosis', portfolio: packet.portfolio },
+        }],
+      };
+    }
+
+    if (generated.length > 0) frontier = new Controller(state, this.config).evaluate(state, now);
+    const rejections = [
+      ...generatedRejections,
+      ...frontier.rejected.map(({ packet, reasons }) => ({ packetId: packet.id, reasons })),
+    ];
     const selected = frontier.ranked[0]?.packet;
     if (!selected) {
       await this.ports.store.save(state);

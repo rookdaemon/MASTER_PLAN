@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { auditLegacyCards, verifyLegacyAuditCoverage } from '../legacy-audit.js';
 import { ContinuousLoop } from '../continuous-loop.js';
+import { Controller } from '../controller.js';
+import { DiagnosticPacketGenerator } from '../packet-generation.js';
 import { loadRepositoryStrategy, verifyRepositoryStrategy } from '../repository-strategy.js';
 import { replayLegacyPlan } from '../legacy-replay.js';
 import { renderRoadmap } from '../roadmap.js';
@@ -152,6 +154,49 @@ describe('checked-in strategy v2 bundle', () => {
       'enabling-capabilities',
       'institutional-continuity',
     ]));
+  });
+
+  it('provides bounded automated generation coverage across every active portfolio', async () => {
+    const bundle = await loadRepositoryStrategy(new NodeFileSystem('.'));
+    expect(new Set(bundle.packetTemplates.map((template) => template.portfolio))).toEqual(new Set([
+      'consciousness-epistemics',
+      'near-term-preservation',
+      'enabling-capabilities',
+      'institutional-continuity',
+    ]));
+    expect(bundle.packetTemplates.every((template) =>
+      template.authorityClass !== 'human-escalation' &&
+      template.budget.limit > 0 &&
+      template.deliverables.length > 0 &&
+      template.acceptanceCriteria.length > 0 &&
+      template.testsOrPreregistration.length > 0)).toBe(true);
+  });
+
+  it('turns the current diagnosis into a deterministic executable frontier without environment time', async () => {
+    const bundle = await loadRepositoryStrategy(new NodeFileSystem('.'));
+    const diagnosis = new Controller(bundle.state, bundle.config).evaluate(bundle.state, STRATEGY_NOW).diagnosis;
+    const generated = await new DiagnosticPacketGenerator(bundle.packetTemplates)
+      .generate(bundle.state, diagnosis, STRATEGY_NOW);
+    const withGenerated = { ...bundle.state, packets: [...bundle.state.packets, ...generated] };
+    const frontier = new Controller(withGenerated, bundle.config).evaluate(withGenerated, STRATEGY_NOW);
+
+    expect(generated.map((packet) => packet.id)).toContain('packet-indicator-framework-comparison-v1');
+    expect(generated.every((packet) => packet.reviewedAt === STRATEGY_NOW)).toBe(true);
+    expect(frontier.ranked[0]?.packet.id).toBe('packet-indicator-framework-comparison-v1');
+  });
+
+  it('accepts a matching persisted generated packet but rejects divergent identity reuse', async () => {
+    const fileSystem = new NodeFileSystem('.');
+    const bundle = await loadRepositoryStrategy(fileSystem);
+    const diagnosis = new Controller(bundle.state, bundle.config).evaluate(bundle.state, STRATEGY_NOW).diagnosis;
+    const [generated] = await new DiagnosticPacketGenerator(bundle.packetTemplates)
+      .generate(bundle.state, diagnosis, STRATEGY_NOW);
+    bundle.state.packets.push(generated);
+
+    expect((await verifyRepositoryStrategy(fileSystem, bundle, STRATEGY_NOW)).errors).toEqual([]);
+    generated.retrySignature = 'divergent-definition';
+    expect((await verifyRepositoryStrategy(fileSystem, bundle, STRATEGY_NOW)).errors.join('\n'))
+      .toMatch(/collides with a different persisted packet/i);
   });
 
   it('allows a valid reviewed transition to supervised mode to keep passing strategy verification', async () => {

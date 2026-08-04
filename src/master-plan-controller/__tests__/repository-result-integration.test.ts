@@ -24,6 +24,7 @@ const STRATEGY_FILES = [
   'strategy/shadow-cycles.json',
   'strategy/shadow-reviews.json',
   'strategy/legacy-audit.json',
+  'strategy/packet-templates.json',
   'strategy/ROADMAP.md',
   'STATUS.md',
 ] as const;

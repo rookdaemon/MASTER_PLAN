@@ -13,6 +13,7 @@ import type {
   NetworkPort,
   NetworkRequest,
   NetworkResponse,
+  PacketGeneratorPort,
   PacketExecutorPort,
   ProcessPort,
   ProcessRequest,
@@ -23,6 +24,7 @@ import type {
 } from '../ports.js';
 import type {
   EvidenceRecord,
+  GraphDiagnosis,
   PacketVerification,
   StrategyState,
   Timestamp,
@@ -137,6 +139,17 @@ export class InMemoryExternalData implements ExternalDataPort {
 
   async observe(now: Timestamp): Promise<EvidenceRecord[]> {
     this.observationTimes.push(now);
+    return structuredClone(this.batches.shift() ?? []);
+  }
+}
+
+export class InMemoryPacketGenerator implements PacketGeneratorPort {
+  readonly requests: Array<{ state: StrategyState; diagnosis: GraphDiagnosis; now: Timestamp }> = [];
+
+  constructor(private readonly batches: WorkPacket[][] = []) {}
+
+  async generate(state: StrategyState, diagnosis: GraphDiagnosis, now: Timestamp): Promise<WorkPacket[]> {
+    this.requests.push({ state: structuredClone(state), diagnosis: structuredClone(diagnosis), now });
     return structuredClone(this.batches.shift() ?? []);
   }
 }
