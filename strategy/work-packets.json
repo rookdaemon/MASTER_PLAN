@@ -89,7 +89,7 @@
     "authorityClass": "autonomous",
     "authorityReasons": ["public-information analysis only; no outreach or governance mutation"],
     "owner": "institutional-analyst",
-    "lifecycle": "eligible",
+    "lifecycle": "verified",
     "attempt": 0,
     "retrySignature": "institutional-map-v1",
     "priority": {"impact": 0.5, "urgency": 0.5, "tractability": 0.8, "informationValue": 0.7, "reversibility": 1, "cost": 0.2, "downsideRisk": 0.1},
