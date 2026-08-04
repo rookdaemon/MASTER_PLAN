@@ -3,7 +3,41 @@
     {
       "kind": "github-repository-controls",
       "branch": "main",
-      "hypothesisId": "hypothesis-live-stewardship-controls-aligned"
+      "hypothesisId": "hypothesis-live-stewardship-controls-aligned",
+      "portfolio": "institutional-continuity"
+    },
+    {
+      "kind": "public-source-snapshot",
+      "id": "crossref-consciousness-metadata",
+      "portfolio": "consciousness-epistemics",
+      "url": "https://api.crossref.org/works?query=consciousness&rows=20&sort=indexed&order=desc",
+      "format": "json",
+      "lookbackMs": 604800000,
+      "maximumResponseBytes": 524288,
+      "itemsPath": "message.items",
+      "selectedFields": ["DOI", "title.0", "indexed.timestamp", "URL"],
+      "maximumItems": 20
+    },
+    {
+      "kind": "public-source-snapshot",
+      "id": "who-disease-outbreak-news",
+      "portfolio": "near-term-preservation",
+      "url": "https://www.who.int/emergencies/disease-outbreak-news",
+      "format": "text",
+      "lookbackMs": 604800000,
+      "maximumResponseBytes": 524288
+    },
+    {
+      "kind": "public-source-snapshot",
+      "id": "nvd-vulnerability-changes",
+      "portfolio": "enabling-capabilities",
+      "url": "https://services.nvd.nist.gov/rest/json/cves/2.0?lastModStartDate={windowStart}&lastModEndDate={now}&resultsPerPage=20",
+      "format": "json",
+      "lookbackMs": 604800000,
+      "maximumResponseBytes": 524288,
+      "itemsPath": "vulnerabilities",
+      "selectedFields": ["cve.id", "cve.lastModified", "cve.vulnStatus"],
+      "maximumItems": 20
     }
   ]
 }

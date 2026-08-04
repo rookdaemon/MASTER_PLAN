@@ -148,7 +148,11 @@ describe('checked-in strategy v2 bundle', () => {
     } as never);
     bundle.config.maxDecompositionDepth = 5;
     bundle.config.maxChildrenPerDecomposition = 6;
-    bundle.observationSources[0].hypothesisId = 'missing-observation-hypothesis';
+    const repositoryControlSource = bundle.observationSources.find(
+      (source) => source.kind === 'github-repository-controls',
+    );
+    if (!repositoryControlSource) throw new Error('Expected a repository control observation source');
+    repositoryControlSource.hypothesisId = 'missing-observation-hypothesis';
     bundle.periodicReviews.push({ id: 'malformed-periodic-review' } as never);
 
     const errors = (await verifyRepositoryStrategy(fileSystem, bundle, STRATEGY_NOW)).errors.join('\n');
@@ -201,13 +205,21 @@ describe('checked-in strategy v2 bundle', () => {
     expect(bundle.state.nodes.find((node) => node.id === 'hypothesis-live-stewardship-controls-aligned'))
       .toMatchObject({ kind: 'hypothesis', portfolio: 'institutional-continuity', lifecycle: 'eligible' });
     const observation = JSON.parse(await fileSystem.readText('strategy/observation-sources.json')) as {
-      sources: Array<{ kind: string; branch: string; hypothesisId: string }>;
+      sources: Array<{ kind: string; portfolio: string; branch?: string; hypothesisId?: string; id?: string }>;
     };
-    expect(observation.sources).toEqual([{
+    expect(observation.sources.find((source) => source.kind === 'github-repository-controls')).toMatchObject({
       kind: 'github-repository-controls',
       branch: 'main',
       hypothesisId: 'hypothesis-live-stewardship-controls-aligned',
-    }]);
+      portfolio: 'institutional-continuity',
+    });
+    expect(observation.sources.filter((source) => source.kind === 'public-source-snapshot')).toHaveLength(3);
+    expect(new Set(observation.sources.map((source) => source.portfolio))).toEqual(new Set([
+      'consciousness-epistemics',
+      'near-term-preservation',
+      'enabling-capabilities',
+      'institutional-continuity',
+    ]));
     expect(await fileSystem.readText('strategy/ROADMAP.md'))
       .toContain('Scheduled cycles integrate deduplicated external observations before diagnosis.');
   });
