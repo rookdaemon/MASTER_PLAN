@@ -16,7 +16,11 @@ function nonEmptyStrings(value: unknown): boolean {
     value.every((item) => typeof item === 'string' && item.trim().length > 0);
 }
 
-function packetErrors(packet: WorkPacket, state: StrategyState, now: Timestamp): string[] {
+export function workPacketValidationErrors(
+  packet: WorkPacket,
+  state: StrategyState,
+  now: Timestamp,
+): string[] {
   const errors: string[] = [];
   const prefix = `Packet ${packet.id || '<missing-id>'}`;
   for (const [label, value] of [
@@ -83,7 +87,7 @@ export function strategyContractErrors(
   }
   const packetIds = new Set<string>();
   for (const packet of state.packets) {
-    errors.push(...packetErrors(packet, state, now));
+    errors.push(...workPacketValidationErrors(packet, state, now));
     if (packetIds.has(packet.id)) errors.push(`Duplicate packet identity: ${packet.id}`);
     packetIds.add(packet.id);
   }

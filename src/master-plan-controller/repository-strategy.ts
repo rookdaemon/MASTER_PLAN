@@ -1,6 +1,12 @@
 import { validateDependencyGraph, parsePlanNodes } from './graph.js';
 import { verifyLegacyAuditCoverage } from './legacy-audit.js';
 import { strategyContractErrors } from './strategy-validation.js';
+import { workPacketValidationErrors } from './strategy-validation.js';
+import {
+  DiagnosticPacketGenerator,
+  sameWorkPacketDefinition,
+  type DiagnosticPacketTemplate,
+} from './packet-generation.js';
 import type { LegacyAuditRecord } from './legacy-audit.js';
 import type { FileSystemPort } from './ports.js';
 import type {
@@ -37,6 +43,7 @@ export interface RepositoryStrategyBundle {
   state: StrategyState;
   config: ControllerConfig;
   legacyAudit: LegacyAuditRecord[];
+  packetTemplates: DiagnosticPacketTemplate[];
 }
 
 async function json<T>(fileSystem: FileSystemPort, path: string): Promise<T> {
@@ -58,6 +65,7 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
     shadowCyclesReport,
     shadowCycleReviews,
     legacyAudit,
+    packetTemplates,
   ] = await Promise.all([
     json<Constitution>(fileSystem, 'strategy/constitution.json'),
     json<unknown>(fileSystem, 'strategy/graph.json'),
@@ -72,6 +80,7 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
     json<{ cycles: ShadowCycleRecord[] }>(fileSystem, 'strategy/shadow-cycles.json'),
     json<ShadowCycleReview[]>(fileSystem, 'strategy/shadow-reviews.json'),
     json<LegacyAuditRecord[]>(fileSystem, 'strategy/legacy-audit.json'),
+    json<DiagnosticPacketTemplate[]>(fileSystem, 'strategy/packet-templates.json'),
   ]);
   const nodes = parsePlanNodes(graphInput);
   const state: StrategyState = {
@@ -92,6 +101,7 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
   return {
     state,
     legacyAudit,
+    packetTemplates,
     config: {
       portfolioWeights: portfolio.weights,
       scoreWeights: portfolio.scoreWeights,
@@ -131,6 +141,21 @@ export async function verifyRepositoryStrategy(
   const graph = validateDependencyGraph(bundle.state.nodes);
   errors.push(...graph.errors.map((error) => error.detail));
   errors.push(...strategyContractErrors(bundle.state, bundle.config, now));
+
+  try {
+    new DiagnosticPacketGenerator(bundle.packetTemplates);
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : 'Packet template configuration is invalid');
+  }
+  for (const template of bundle.packetTemplates) {
+    const { trigger: _trigger, ...definition } = template;
+    const packet: WorkPacket = { ...definition, lifecycle: 'eligible', attempt: 0, reviewedAt: now };
+    errors.push(...workPacketValidationErrors(packet, bundle.state, now));
+    const persisted = bundle.state.packets.find((candidate) => candidate.id === template.id);
+    if (persisted && !sameWorkPacketDefinition(packet, persisted)) {
+      errors.push(`Packet template ${template.id} collides with a different persisted packet`);
+    }
+  }
 
   const evidenceIds = new Set(bundle.state.evidence.map((record) => record.id));
   for (const node of bundle.state.nodes) {

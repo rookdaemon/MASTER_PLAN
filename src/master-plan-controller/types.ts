@@ -191,6 +191,7 @@ export interface AuditEvent {
     | 'packet-retry-eligible'
     | 'packet-blocked'
     | 'packet-activated'
+    | 'packet-generated'
     | 'cycle-observed'
     | 'crash-recovered';
   packetId?: string;
