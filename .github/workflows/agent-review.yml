@@ -55,6 +55,11 @@ jobs:
               >/dev/null
           }
           continue_automated_stewardship() {
+            if gh api "repos/${GITHUB_REPOSITORY}/contents/.github/workflows/merge-policy.yml?ref=main" \
+              >/dev/null 2>&1; then
+              gh workflow run merge-policy.yml --repo "$GITHUB_REPOSITORY" --ref main \
+                -f pr_number="$PR_NUMBER" -f head_sha="$HEAD_SHA"
+            fi
             gh workflow run safe-auto-merge-request.yml --repo "$GITHUB_REPOSITORY" --ref main \
               -f pr_number="$PR_NUMBER" -f head_sha="$HEAD_SHA"
             if gh api "repos/${GITHUB_REPOSITORY}/contents/.github/workflows/strategy-integrate-reviewed.yml?ref=main" \
@@ -178,7 +183,7 @@ jobs:
             jq -n --rawfile diff "$1" --arg head "$HEAD_SHA" '{
               temperature: 0,
               seed: 42,
-              max_tokens: 256,
+              max_tokens: 512,
               response_format: {
                 type: "json_schema",
                 json_schema: {
@@ -192,7 +197,21 @@ jobs:
                       blockers: {type: "array", items: {type: "string"}}
                     },
                     required: ["verdict", "summary", "blockers"],
-                    additionalProperties: false
+                    additionalProperties: false,
+                    oneOf: [
+                      {
+                        properties: {
+                          verdict: {const: "approve"},
+                          blockers: {maxItems: 0}
+                        }
+                      },
+                      {
+                        properties: {
+                          verdict: {const: "block"},
+                          blockers: {minItems: 1}
+                        }
+                      }
+                    ]
                   }
                 }
               },
@@ -223,7 +242,7 @@ jobs:
           sanitize_diff pr.diff pr.sanitized.diff
           test "$(wc -c < pr.sanitized.diff)" -le 60000
           review="$(run_review pr.sanitized.diff)"
+          jq . <<< "$review"
           jq -e '.verdict == "approve" and (.blockers | type == "array") and (.blockers | length == 0)' \
             <<< "$review"
-          jq . <<< "$review"
           complete_success

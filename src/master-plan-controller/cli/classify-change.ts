@@ -1,6 +1,6 @@
 import { classifyChange } from '../change-classifier.js';
 import { ProcessGit } from '../process-adapters.js';
-import { assessProposalPolicy } from '../proposal-policy.js';
+import { assessProposalPolicy, retainsExistingEvidence } from '../proposal-policy.js';
 import { NodeProcess } from '../runtime-adapters.js';
 import { argumentValue, NodeCliRuntime } from './runtime.js';
 
@@ -18,7 +18,17 @@ async function main(): Promise<void> {
   try {
     const git = new ProcessGit(new NodeProcess(), cli.environment('GITHUB_WORKSPACE') ?? '.');
     const classification = classifyChange(await git.diff(base, head));
-    const proposalPolicy = assessProposalPolicy(classification, commitCount);
+    const evidenceOnly = classification.safeCodeCandidate.files.length > 0 &&
+      classification.safeCodeCandidate.files.every((file) => file.path === 'strategy/evidence.json');
+    const evidenceRetentionVerified = evidenceOnly && retainsExistingEvidence(
+      await git.readTextAtRevision(base, 'strategy/evidence.json'),
+      await git.readTextAtRevision(head, 'strategy/evidence.json'),
+    );
+    const proposalPolicy = assessProposalPolicy(
+      classification,
+      commitCount,
+      evidenceRetentionVerified,
+    );
     cli.write(JSON.stringify({ ...classification, proposalPolicy }, null, 2));
     if (!proposalPolicy.allowed) cli.fail();
   } catch (error) {

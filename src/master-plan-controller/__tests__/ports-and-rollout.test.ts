@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AutoMergeService } from '../auto-merge-service.js';
 import { safeAutoMergeFeatureEnabled, shadowCycleFingerprint, transitionGovernanceMode } from '../rollout.js';
-import { ProcessGitHub } from '../process-adapters.js';
+import { ProcessGit, ProcessGitHub } from '../process-adapters.js';
 import {
   InMemoryClock,
   InMemoryFileSystem,
@@ -32,6 +32,20 @@ describe('in-memory environment adapters', () => {
     await git.prepareBranch('work/packet-1');
     await scheduler.wait(1234);
     expect(scheduler.waits).toEqual([1234]);
+  });
+
+  it('reads revision-scoped text through the injected process port', async () => {
+    const process = new InMemoryProcess([
+      { exitCode: 0, stdout: '[{"id":"existing"}]\n', stderr: '' },
+    ]);
+    const git = new ProcessGit(process, '/workspace');
+    expect(await git.readTextAtRevision('base-sha', 'strategy/evidence.json'))
+      .toBe('[{"id":"existing"}]\n');
+    expect(process.requests).toEqual([{
+      command: 'git',
+      args: ['show', 'base-sha:strategy/evidence.json'],
+      cwd: '/workspace',
+    }]);
   });
 });
 
