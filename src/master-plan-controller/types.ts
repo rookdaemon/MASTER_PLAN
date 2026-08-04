@@ -25,6 +25,27 @@ export interface Metric {
   direction: 'at-least' | 'at-most' | 'exactly';
 }
 
+export interface OutcomeContract {
+  id: string;
+  nodeId: string;
+  metricId: string;
+  allowedSourcePrefixes: string[];
+  minimumEvidenceStrength: number;
+  maximumEvidenceAgeMs: number;
+  requiredVerifierPrefix: string;
+  verificationMethod: string;
+  minimumValue: number;
+  maximumValue: number;
+  requiresExternalDemonstration: boolean;
+}
+
+export interface MetricMeasurement {
+  outcomeContractId: string;
+  evidenceId: string;
+  value: number;
+  observedAt: Timestamp;
+}
+
 export type ActivationGate =
   | { type: 'dependencies-verified' }
   | { type: 'minimum-confidence'; minimum: number }
@@ -258,6 +279,7 @@ export interface StrategyState {
   constitution: Constitution;
   nodes: PlanNode[];
   evidence: EvidenceRecord[];
+  outcomeContracts: OutcomeContract[];
   assessments: SupersedingAssessment[];
   packets: WorkPacket[];
   activePacketId: string | null;
@@ -295,6 +317,7 @@ export interface PacketResult {
   acceptanceCriteriaMet: boolean;
   verification: PacketVerification;
   portfolioEffortAfter: Record<Portfolio, number>;
+  metricMeasurements?: MetricMeasurement[];
   retrySignature?: string;
   strategyAdjustment?: string;
 }

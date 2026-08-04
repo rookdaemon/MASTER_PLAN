@@ -51,20 +51,23 @@ describe('repository candidate generation', () => {
     const result = await runRepositoryCandidateGeneration(fileSystem, now);
 
     expect(result).toEqual({
-      generatedPacketIds: ['packet-indicator-framework-comparison-v1'],
-      selectedPacketId: 'packet-indicator-framework-comparison-v1',
+      generatedPacketIds: [
+        'packet-indicator-framework-comparison-v1',
+        'packet-preservation-mitigation-tabletop-v1',
+      ],
+      selectedPacketId: 'packet-preservation-mitigation-tabletop-v1',
     });
     const packets = JSON.parse(await fileSystem.readText('strategy/work-packets.json')) as Array<{
       id: string; lifecycle: string; reviewedAt: string;
     }>;
     expect(packets.at(-1)).toMatchObject({
-      id: 'packet-indicator-framework-comparison-v1', lifecycle: 'eligible', reviewedAt: now,
+      id: 'packet-preservation-mitigation-tabletop-v1', lifecycle: 'eligible', reviewedAt: now,
     });
     const audit = JSON.parse(await fileSystem.readText('strategy/audit-log.json')) as Array<{
       type: string; packetId: string; occurredAt: string;
     }>;
     expect(audit.at(-1)).toMatchObject({
-      type: 'packet-generated', packetId: 'packet-indicator-framework-comparison-v1', occurredAt: now,
+      type: 'packet-generated', packetId: 'packet-preservation-mitigation-tabletop-v1', occurredAt: now,
     });
     const originalPacketPrefix = initial['strategy/work-packets.json'].trimEnd().slice(0, -1).trimEnd();
     expect((await fileSystem.readText('strategy/work-packets.json')).slice(0, originalPacketPrefix.length))
@@ -81,7 +84,7 @@ describe('repository candidate generation', () => {
 
     const second = await runRepositoryCandidateGeneration(fileSystem, advanceTimestamp(now));
 
-    expect(second).toEqual({ generatedPacketIds: [], selectedPacketId: 'packet-indicator-framework-comparison-v1' });
+    expect(second).toEqual({ generatedPacketIds: [], selectedPacketId: 'packet-preservation-mitigation-tabletop-v1' });
     expect(await fileSystem.readText('strategy/work-packets.json')).toBe(packetsAfterFirst);
     expect(await fileSystem.readText('strategy/audit-log.json')).toBe(auditAfterFirst);
   });
@@ -98,7 +101,10 @@ describe('repository candidate generation', () => {
     const fileSystem = new InMemoryFileSystem(await repositorySnapshot());
     const now = nextRepositoryTimestamp(await repositorySnapshot());
     expect(JSON.parse(await runCandidateGenerationCli(fileSystem, [now]))).toMatchObject({
-      generatedPacketIds: ['packet-indicator-framework-comparison-v1'],
+      generatedPacketIds: [
+        'packet-indicator-framework-comparison-v1',
+        'packet-preservation-mitigation-tabletop-v1',
+      ],
     });
     await expect(runCandidateGenerationCli(fileSystem, [])).rejects.toThrow(/usage/i);
     await expect(runCandidateGenerationCli(fileSystem, [now, now])).rejects.toThrow(/usage/i);

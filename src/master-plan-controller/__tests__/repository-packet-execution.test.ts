@@ -10,6 +10,7 @@ const STRATEGY_FILES = [
   'strategy/constitution.json',
   'strategy/graph.json',
   'strategy/evidence.json',
+  'strategy/outcome-contracts.json',
   'strategy/work-packets.json',
   'strategy/approvals.json',
   'strategy/assessments.json',
@@ -128,6 +129,12 @@ describe('repository packet execution', () => {
   });
 
   it.each([
+    {
+      packetId: 'packet-preservation-mitigation-tabletop-v1',
+      artifactPath: 'strategy/results/preservation-mitigation-tabletop-v1.json',
+      baselinePath: 'strategy/results/preservation-risk-register-v1.json',
+      forbiddenScope: 'performsExternalIntervention',
+    },
     {
       packetId: 'packet-preservation-risk-register-refresh-v1',
       artifactPath: 'strategy/results/preservation-risk-register-refresh-v1.json',

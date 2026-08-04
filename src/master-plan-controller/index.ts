@@ -14,6 +14,7 @@ export * from './graph.js';
 export * from './human-authorization.js';
 export * from './legacy-audit.js';
 export * from './legacy-replay.js';
+export * from './outcome-contracts.js';
 export * from './ports.js';
 export * from './process-adapters.js';
 export * from './proposal-policy.js';

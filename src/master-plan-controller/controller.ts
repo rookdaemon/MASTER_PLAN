@@ -13,6 +13,7 @@ import type {
   Timestamp,
   WorkPacket,
 } from './types.js';
+import { applyMetricMeasurements } from './outcome-contracts.js';
 
 function cloneState(state: StrategyState): StrategyState {
   return structuredClone(state);
@@ -207,6 +208,21 @@ export class Controller {
       }
     }
 
+    const measurements = applyMetricMeasurements(
+      next,
+      result.metricMeasurements ?? [],
+      result.evidence,
+      current.nodeId,
+      now,
+    );
+    if (measurements.errors.length > 0) {
+      const rejected = event('result-rejected', packet.id, now, {
+        reason: 'invalid-metric-measurement',
+        errors: measurements.errors,
+      });
+      return { state: addEvent(next, rejected), event: rejected };
+    }
+    next = measurements.state;
     next.portfolioEffort = validatedPortfolioEffort(result);
 
     for (const evidence of result.evidence) {
@@ -257,6 +273,7 @@ export class Controller {
       outcome: result.outcome,
       artifactReferences: result.artifactReferences,
       verifier: result.verification.verifier,
+      metricUpdates: measurements.updates,
     });
     return { state: addEvent(next, verified), event: verified };
   }
