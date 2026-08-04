@@ -221,6 +221,7 @@ describe('checked-in strategy v2 bundle', () => {
       'institutional-continuity',
     ]));
     expect(bundle.packetTemplates.every((template) =>
+      template.recurrence?.kind === 'versioned' &&
       template.authorityClass !== 'human-escalation' &&
       template.budget.limit > 0 &&
       template.deliverables.length > 0 &&

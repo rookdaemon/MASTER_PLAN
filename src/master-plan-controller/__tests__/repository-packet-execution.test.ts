@@ -48,6 +48,39 @@ async function executableRepository(): Promise<{ fileSystem: InMemoryFileSystem;
   return { fileSystem: new InMemoryFileSystem(initial), now: nextRepositoryTimestamp(initial) };
 }
 
+async function repositoryWithEligibleTemplate(packetId: string, runtimePacketId = packetId): Promise<{
+  fileSystem: InMemoryFileSystem;
+  now: string;
+}> {
+  const source = new NodeFileSystem('.');
+  const initial: Record<string, string> = {
+    ...await snapshot(source),
+    'strategy/results/consciousness-prediction-registry-v1.json':
+      await source.readText('strategy/results/consciousness-prediction-registry-v1.json'),
+    'strategy/results/preservation-risk-register-v1.json':
+      await source.readText('strategy/results/preservation-risk-register-v1.json'),
+    'strategy/results/durable-compute-fault-model-v1.json':
+      await source.readText('strategy/results/durable-compute-fault-model-v1.json'),
+    'strategy/results/institutional-dependency-map-v1.json':
+      await source.readText('strategy/results/institutional-dependency-map-v1.json'),
+  };
+  const now = nextRepositoryTimestamp(initial);
+  const templates = JSON.parse(initial['strategy/packet-templates.json']) as Array<Record<string, unknown>>;
+  const selected = templates.find((candidate) => candidate.id === packetId);
+  if (!selected) throw new Error(`Packet template fixture is missing: ${packetId}`);
+  const { trigger: _trigger, recurrence: _recurrence, ...definition } = selected;
+  const version = /-v([1-9]\d*)$/.exec(runtimePacketId)?.[1] ?? '1';
+  definition.id = runtimePacketId;
+  definition.retrySignature = String(definition.retrySignature).replace(/-v1$/, `-v${version}`);
+  definition.deliverables = (definition.deliverables as string[])
+    .map((deliverable) => deliverable.replace(/-v1$/, `-v${version}`));
+  const packets = JSON.parse(initial['strategy/work-packets.json']) as Array<Record<string, unknown>>;
+  for (const packet of packets) packet.lifecycle = 'verified';
+  packets.push({ ...definition, lifecycle: 'eligible', attempt: 0, reviewedAt: now });
+  initial['strategy/work-packets.json'] = `${JSON.stringify(packets, null, 2)}\n`;
+  return { fileSystem: new InMemoryFileSystem(initial), now };
+}
+
 describe('repository packet execution', () => {
   it('deterministically executes the selected indicator-comparison packet at the supplied timestamp', async () => {
     const { fileSystem, now } = await executableRepository();
@@ -92,6 +125,96 @@ describe('repository packet execution', () => {
     expect(execution.artifactReferences).toContain(result.artifactPath);
     expect(execution.evidence[0].observedAt).toBe(now);
     expect(execution.evidence[0].limitations.join(' ')).toMatch(/independent agent review/i);
+  });
+
+  it.each([
+    {
+      packetId: 'packet-preservation-risk-register-refresh-v1',
+      artifactPath: 'strategy/results/preservation-risk-register-refresh-v1.json',
+      baselinePath: 'strategy/results/preservation-risk-register-v1.json',
+      forbiddenScope: 'performsExternalIntervention',
+    },
+    {
+      packetId: 'packet-durable-compute-fault-model-extension-v1',
+      artifactPath: 'strategy/results/durable-compute-fault-model-extension-v1.json',
+      baselinePath: 'strategy/results/durable-compute-fault-model-v1.json',
+      forbiddenScope: 'operatesHardware',
+    },
+    {
+      packetId: 'packet-institutional-dependency-map-refresh-v1',
+      artifactPath: 'strategy/results/institutional-dependency-map-refresh-v1.json',
+      baselinePath: 'strategy/results/institutional-dependency-map-v1.json',
+      forbiddenScope: 'changesGovernance',
+    },
+  ])('executes $packetId through a deterministic bounded production handler', async ({
+    packetId, artifactPath, baselinePath, forbiddenScope,
+  }) => {
+    const { fileSystem, now } = await repositoryWithEligibleTemplate(packetId);
+
+    const execution = await executeRepositoryPacket(fileSystem, now);
+
+    expect(execution).toEqual({
+      status: 'executed',
+      packetId,
+      artifactPath,
+      resultPath: artifactPath.replace(/\.json$/, '.result.json'),
+    });
+    const artifact = JSON.parse(await fileSystem.readText(artifactPath)) as {
+      packetId: string;
+      preparedAt: string;
+      baselineArtifact: string;
+      scope: Record<string, boolean>;
+      findings: unknown[];
+    };
+    expect(artifact).toMatchObject({ packetId, preparedAt: now, baselineArtifact: baselinePath });
+    expect(artifact.scope[forbiddenScope]).toBe(false);
+    expect(artifact.findings.length).toBeGreaterThan(0);
+    const result = JSON.parse(await fileSystem.readText(execution.resultPath!)) as {
+      outcome: string;
+      verification?: unknown;
+      evidence: Array<{ observedAt: string; limitations: string[] }>;
+    };
+    expect(['positive', 'negative', 'null']).toContain(result.outcome);
+    expect(result.verification).toBeUndefined();
+    expect(result.evidence[0].observedAt).toBe(now);
+    expect(result.evidence[0].limitations.join(' ')).toMatch(/agent review/i);
+  });
+
+  it('routes a later recurring packet version to its family executor and versioned artifacts', async () => {
+    const templateId = 'packet-preservation-risk-register-refresh-v1';
+    const packetId = 'packet-preservation-risk-register-refresh-v2';
+    const { fileSystem, now } = await repositoryWithEligibleTemplate(templateId, packetId);
+
+    const execution = await executeRepositoryPacket(fileSystem, now);
+
+    expect(execution).toEqual({
+      status: 'executed',
+      packetId,
+      artifactPath: 'strategy/results/preservation-risk-register-refresh-v2.json',
+      resultPath: 'strategy/results/preservation-risk-register-refresh-v2.result.json',
+    });
+  });
+
+  it('advances the durable-compute fault class and stress level across recurring versions', async () => {
+    const templateId = 'packet-durable-compute-fault-model-extension-v1';
+    const first = await repositoryWithEligibleTemplate(templateId);
+    const second = await repositoryWithEligibleTemplate(
+      templateId,
+      'packet-durable-compute-fault-model-extension-v2',
+    );
+
+    const firstExecution = await executeRepositoryPacket(first.fileSystem, first.now);
+    const secondExecution = await executeRepositoryPacket(second.fileSystem, second.now);
+    const firstArtifact = JSON.parse(await first.fileSystem.readText(firstExecution.artifactPath!)) as {
+      preregistration: { faultClass: string; injectedDelayMs: number };
+    };
+    const secondArtifact = JSON.parse(await second.fileSystem.readText(secondExecution.artifactPath!)) as {
+      preregistration: { faultClass: string; injectedDelayMs: number };
+    };
+
+    expect(secondArtifact.preregistration.faultClass).not.toBe(firstArtifact.preregistration.faultClass);
+    expect(secondArtifact.preregistration.injectedDelayMs)
+      .toBeGreaterThan(firstArtifact.preregistration.injectedDelayMs);
   });
 
   it('is byte-idempotent after the execution artifacts exist', async () => {

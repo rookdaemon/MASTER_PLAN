@@ -4,7 +4,7 @@ import {
   type DiagnosticPacketTemplate,
   type DiagnosticTrigger,
 } from '../packet-generation.js';
-import { makePacket, makeState, NOW } from './fixtures.js';
+import { makeEvidence, makePacket, makeState, NOW } from './fixtures.js';
 import type { GraphDiagnosis, WorkPacket } from '../types.js';
 
 function template(id: string, trigger: DiagnosticTrigger): DiagnosticPacketTemplate {
@@ -14,6 +14,15 @@ function template(id: string, trigger: DiagnosticTrigger): DiagnosticPacketTempl
   });
   const { lifecycle: _lifecycle, attempt: _attempt, reviewedAt: _reviewedAt, ...definition } = packet;
   return { ...definition, trigger };
+}
+
+function recurringTemplate(id: string, trigger: DiagnosticTrigger): DiagnosticPacketTemplate {
+  return {
+    ...template(id, trigger),
+    retrySignature: id,
+    deliverables: [`artifact://${id}`],
+    recurrence: { kind: 'versioned', minimumIntervalMs: 86_400_000, requiresNewEvidence: true },
+  };
 }
 
 const DIAGNOSIS: GraphDiagnosis = {
@@ -49,6 +58,80 @@ describe('DiagnosticPacketGenerator', () => {
     ]);
 
     expect(await generator.generate(makeState({ packets: [existing] }), DIAGNOSIS, NOW)).toEqual([]);
+  });
+
+  it('advances a versioned template after terminal work without duplicating active work', async () => {
+    const definition = recurringTemplate(
+      'candidate-v1',
+      { kind: 'high-value-uncertainty', nodeId: 'capability-1' },
+    );
+    definition.retrySignature = 'candidate-v1';
+    definition.deliverables = ['artifact://candidate-v1'];
+    const previous = makePacket({
+      id: 'candidate-v1',
+      nodeId: 'capability-1',
+      retrySignature: 'candidate-v1',
+      deliverables: ['artifact://candidate-v1'],
+      lifecycle: 'verified',
+      reviewedAt: '2026-08-01T12:00:00.000Z',
+    });
+    const generator = new DiagnosticPacketGenerator([definition]);
+
+    const state = makeState({
+      packets: [previous],
+      evidence: [makeEvidence({ observedAt: '2026-08-02T12:00:00.000Z' })],
+    });
+    const [next] = await generator.generate(state, DIAGNOSIS, NOW);
+
+    expect(next).toMatchObject({
+      id: 'candidate-v2',
+      retrySignature: 'candidate-v2',
+      deliverables: ['artifact://candidate-v2'],
+      lifecycle: 'eligible',
+      attempt: 0,
+      reviewedAt: NOW,
+    });
+    expect(await generator.generate(makeState({
+      packets: [previous, { ...next, lifecycle: 'active' }],
+    }), DIAGNOSIS, NOW)).toEqual([]);
+  });
+
+  it('requires both the configured interval and newer evidence before recurring', async () => {
+    const definition = recurringTemplate(
+      'candidate-v1',
+      { kind: 'high-value-uncertainty', nodeId: 'capability-1' },
+    );
+    const previous = makePacket({
+      id: 'candidate-v1',
+      nodeId: 'capability-1',
+      lifecycle: 'verified',
+      reviewedAt: '2026-08-02T12:00:00.000Z',
+    });
+    const generator = new DiagnosticPacketGenerator([definition]);
+
+    expect(await generator.generate(makeState({
+      packets: [previous],
+      evidence: [makeEvidence({ observedAt: '2026-08-02T11:59:59.000Z' })],
+    }), DIAGNOSIS, NOW)).toEqual([]);
+    expect(await generator.generate(makeState({
+      packets: [previous],
+      evidence: [makeEvidence({ observedAt: '2026-08-02T18:00:00.000Z' })],
+    }), DIAGNOSIS, '2026-08-03T11:59:59.999Z')).toEqual([]);
+  });
+
+  it('does not convert a blocked packet into an identical automated retry', async () => {
+    const definition = recurringTemplate(
+      'candidate-v1',
+      { kind: 'high-value-uncertainty', nodeId: 'capability-1' },
+    );
+    const blocked = makePacket({
+      id: 'candidate-v1',
+      nodeId: 'capability-1',
+      lifecycle: 'blocked',
+    });
+
+    expect(await new DiagnosticPacketGenerator([definition])
+      .generate(makeState({ packets: [blocked] }), DIAGNOSIS, NOW)).toEqual([]);
   });
 
   it('is deterministic across template input order and caps the configured frontier', async () => {
@@ -91,6 +174,22 @@ describe('DiagnosticPacketGenerator', () => {
       trigger: { kind: 'neglected-portfolio', portfolio: 'not-a-portfolio' },
     } as unknown as DiagnosticPacketTemplate;
     expect(() => new DiagnosticPacketGenerator([malformedPortfolio])).toThrow(/trigger portfolio/i);
+  });
+
+  it('rejects versioned templates that would reuse retry or deliverable identities', () => {
+    const invalidRetry = recurringTemplate(
+      'candidate-v1',
+      { kind: 'bottleneck', nodeId: 'capability-1' },
+    );
+    invalidRetry.retrySignature = 'candidate-static';
+    expect(() => new DiagnosticPacketGenerator([invalidRetry])).toThrow(/retry signature.*v1/i);
+
+    const invalidDeliverable = recurringTemplate(
+      'candidate-v1',
+      { kind: 'bottleneck', nodeId: 'capability-1' },
+    );
+    invalidDeliverable.deliverables = ['artifact://candidate-static'];
+    expect(() => new DiagnosticPacketGenerator([invalidDeliverable])).toThrow(/deliverable.*v1/i);
   });
 
   it('satisfies the packet-generator port contract without depending on environment time', async () => {
