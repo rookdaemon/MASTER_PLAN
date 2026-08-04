@@ -102,6 +102,10 @@ describe('blocking CI and governed workflows', () => {
     expect(mergeRequest).toContain('agent_controlled_candidate');
     expect(mergeRequest).toContain('.github/workflows/agent-review.yml');
     expect(mergeRequest).toContain('.pull_requests');
+    expect(mergeRequest).toContain('agent_run_id="$(sed');
+    expect(mergeRequest).toContain('<<<"$agent_external_id")"');
+    expect(mergeRequest).not.toContain('agent_details_url=');
+    expect(mergeRequest).not.toContain('<<<"$agent_details_url"');
     for (const protectedPattern of ['network', 'security', 'deploy']) {
       expect(mergeRequest).toContain(protectedPattern);
     }
