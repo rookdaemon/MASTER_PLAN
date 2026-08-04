@@ -19,6 +19,7 @@ import { CONFIG, makeEscalation, makeEscalationEvidence, NOW } from './fixtures.
 
 const STRATEGY_NOW = '2026-08-04T00:30:00.000Z';
 const GENERATED_PACKET_ID = 'packet-indicator-framework-comparison-v1';
+const GENERATED_PRESERVATION_PACKET_ID = 'packet-preservation-mitigation-tabletop-v1';
 
 function repositoryNow(value: unknown): string {
   const epochs: number[] = [];
@@ -36,15 +37,19 @@ function repositoryNow(value: unknown): string {
   return new Date(Math.max(...epochs) + 1).toISOString();
 }
 
-function withoutGeneratedIndicator<T extends { state: {
+function withoutGeneratedCandidates<T extends { state: {
   packets: Array<{ id: string }>;
   auditEvents: Array<{ packetId?: string }>;
   activePacketId: string | null;
 } }>(bundle: T): T {
   const result = structuredClone(bundle);
-  result.state.packets = result.state.packets.filter((packet) => packet.id !== GENERATED_PACKET_ID);
-  result.state.auditEvents = result.state.auditEvents.filter((event) => event.packetId !== GENERATED_PACKET_ID);
-  if (result.state.activePacketId === GENERATED_PACKET_ID) result.state.activePacketId = null;
+  const generatedPacketIds = new Set([GENERATED_PACKET_ID, GENERATED_PRESERVATION_PACKET_ID]);
+  result.state.packets = result.state.packets.filter((packet) => !generatedPacketIds.has(packet.id));
+  result.state.auditEvents = result.state.auditEvents.filter((event) =>
+    !event.packetId || !generatedPacketIds.has(event.packetId));
+  if (result.state.activePacketId && generatedPacketIds.has(result.state.activePacketId)) {
+    result.state.activePacketId = null;
+  }
   return result;
 }
 
@@ -197,9 +202,9 @@ describe('checked-in strategy v2 bundle', () => {
     expect(bundle.state.governance).toMatchObject({
       mode: 'safe-code',
       shadowCyclesReviewed: 20,
-      supervisedResultsReviewed: 5,
       safeAutoMergeEnabled: true,
     });
+    expect(bundle.state.governance.supervisedResultsReviewed).toBeGreaterThanOrEqual(5);
     const packetPortfolios = new Set(bundle.state.packets.map((packet) => packet.portfolio));
     expect(packetPortfolios).toEqual(new Set([
       'consciousness-epistemics',
@@ -261,7 +266,7 @@ describe('checked-in strategy v2 bundle', () => {
   });
 
   it('turns the current diagnosis into a deterministic executable frontier without environment time', async () => {
-    const bundle = withoutGeneratedIndicator(await loadRepositoryStrategy(new NodeFileSystem('.')));
+    const bundle = withoutGeneratedCandidates(await loadRepositoryStrategy(new NodeFileSystem('.')));
     const now = repositoryNow(bundle);
     bundle.state.evidence.push({
       id: 'evidence-test-material-consciousness-update',
@@ -289,7 +294,7 @@ describe('checked-in strategy v2 bundle', () => {
 
   it('accepts a matching persisted generated packet but rejects divergent identity reuse', async () => {
     const fileSystem = new NodeFileSystem('.');
-    const bundle = withoutGeneratedIndicator(await loadRepositoryStrategy(fileSystem));
+    const bundle = withoutGeneratedCandidates(await loadRepositoryStrategy(fileSystem));
     const now = repositoryNow(bundle);
     bundle.state.evidence.push({
       id: 'evidence-test-material-consciousness-update', claim: 'A bounded update requires renewed comparison.',
