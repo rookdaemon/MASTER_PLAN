@@ -3,261 +3,598 @@
     "id": "G1",
     "title": "Subjective experience endures in the universe",
     "kind": "objective",
-    "supportedDirectives": ["G1"],
+    "supportedDirectives": [
+      "G1"
+    ],
     "dependencies": [],
     "confidence": 0.8,
     "evidenceReferences": [],
-    "metrics": [{"id": "g1-survival-risk", "description": "Risk model for loss of known conscious life", "current": 0, "target": 1, "direction": "at-least"}],
+    "metrics": [
+      {
+        "id": "g1-survival-risk",
+        "description": "Risk model for loss of known conscious life",
+        "current": 0,
+        "target": 1,
+        "direction": "at-least"
+      }
+    ],
     "activationGates": [],
     "owner": "automated-stewardship",
     "lifecycle": "eligible",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
     "constitutionalImpact": "none",
-    "legacyPlanReferences": ["plan/root.md"]
+    "legacyPlanReferences": [
+      "plan/root.md"
+    ]
   },
   {
     "id": "G2",
     "title": "Subjective experience spreads in the universe",
     "kind": "objective",
-    "supportedDirectives": ["G2"],
-    "dependencies": ["G1"],
+    "supportedDirectives": [
+      "G2"
+    ],
+    "dependencies": [
+      "G1"
+    ],
     "confidence": 0.4,
     "evidenceReferences": [],
-    "metrics": [{"id": "g2-independent-sites", "description": "Independently viable sites of conscious life", "current": 1, "target": 2, "direction": "at-least"}],
-    "activationGates": [{"type": "node-verified", "nodeId": "G1"}],
+    "metrics": [
+      {
+        "id": "g2-independent-sites",
+        "description": "Independently viable sites of conscious life",
+        "current": 1,
+        "target": 2,
+        "direction": "at-least"
+      }
+    ],
+    "activationGates": [
+      {
+        "type": "node-verified",
+        "nodeId": "G1"
+      }
+    ],
     "owner": "automated-stewardship",
     "lifecycle": "proposed",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
     "constitutionalImpact": "none",
-    "legacyPlanReferences": ["plan/root.md", "plan/0.5-cosmic-expansion.md"]
+    "legacyPlanReferences": [
+      "plan/root.md",
+      "plan/0.5-cosmic-expansion.md"
+    ]
   },
   {
     "id": "G3",
     "title": "The commitment to preservation endures in minds",
     "kind": "objective",
-    "supportedDirectives": ["G3"],
+    "supportedDirectives": [
+      "G3"
+    ],
     "dependencies": [],
     "confidence": 0.65,
     "evidenceReferences": [],
-    "metrics": [{"id": "g3-continuity", "description": "Independent institutions capable of doctrine review and transmission", "current": 0, "target": 2, "direction": "at-least"}],
+    "metrics": [
+      {
+        "id": "g3-continuity",
+        "description": "Independent institutions capable of doctrine review and transmission",
+        "current": 0,
+        "target": 2,
+        "direction": "at-least"
+      }
+    ],
     "activationGates": [],
     "owner": "automated-stewardship",
     "lifecycle": "eligible",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
     "constitutionalImpact": "none",
-    "legacyPlanReferences": ["plan/root.md", "plan/0.7-ethical-foundation-and-resilience.md"]
+    "legacyPlanReferences": [
+      "plan/root.md",
+      "plan/0.7-ethical-foundation-and-resilience.md"
+    ]
   },
   {
     "id": "hypothesis-theory-uncertainty",
     "title": "Current leading consciousness theories remain materially underdetermined",
     "kind": "hypothesis",
-    "supportedDirectives": ["G1", "G2"],
+    "supportedDirectives": [
+      "G1",
+      "G2"
+    ],
     "portfolio": "consciousness-epistemics",
     "dependencies": [],
     "confidence": 0.85,
-    "evidenceReferences": ["evidence-cogitate-2025"],
-    "metrics": [{"id": "independent-adversarial-tests", "description": "Independent preregistered adversarial theory tests", "current": 1, "target": 3, "direction": "at-least"}],
-    "activationGates": [{"type": "fresh-evidence", "minimumStrength": 0.7, "maxAgeMs": 157680000000}],
+    "evidenceReferences": [
+      "evidence-cogitate-2025"
+    ],
+    "metrics": [
+      {
+        "id": "independent-adversarial-tests",
+        "description": "Independent preregistered adversarial theory tests",
+        "current": 1,
+        "target": 3,
+        "direction": "at-least"
+      }
+    ],
+    "activationGates": [
+      {
+        "type": "fresh-evidence",
+        "minimumStrength": 0.7,
+        "maxAgeMs": 157680000000
+      }
+    ],
     "owner": "consciousness-epistemics-lead",
     "lifecycle": "eligible",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
-    "legacyPlanReferences": ["plan/0.1.1-subjective-experience-explained.md", "plan/0.1.1.2-computational-theory-of-consciousness.md"]
+    "legacyPlanReferences": [
+      "plan/0.1.1-subjective-experience-explained.md",
+      "plan/0.1.1.2-computational-theory-of-consciousness.md"
+    ]
   },
   {
     "id": "hypothesis-single-theory-sufficient",
     "title": "One present theory is sufficient for high-confidence consciousness attribution",
     "kind": "hypothesis",
-    "supportedDirectives": ["G1", "G2"],
+    "supportedDirectives": [
+      "G1",
+      "G2"
+    ],
     "portfolio": "consciousness-epistemics",
     "dependencies": [],
     "confidence": 0.2,
-    "evidenceReferences": ["evidence-cogitate-2025"],
-    "metrics": [{"id": "cross-theory-convergence", "description": "Fraction of discriminating predictions supported across replications", "current": 0, "target": 0.8, "direction": "at-least"}],
-    "activationGates": [{"type": "minimum-confidence", "minimum": 0.8}],
+    "evidenceReferences": [
+      "evidence-cogitate-2025"
+    ],
+    "metrics": [
+      {
+        "id": "cross-theory-convergence",
+        "description": "Fraction of discriminating predictions supported across replications",
+        "current": 0,
+        "target": 0.8,
+        "direction": "at-least"
+      }
+    ],
+    "activationGates": [
+      {
+        "type": "minimum-confidence",
+        "minimum": 0.8
+      }
+    ],
     "owner": "consciousness-epistemics-lead",
     "lifecycle": "invalidated",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
-    "legacyPlanReferences": ["plan/0.1.1.2-computational-theory-of-consciousness.md"]
+    "legacyPlanReferences": [
+      "plan/0.1.1.2-computational-theory-of-consciousness.md"
+    ]
   },
   {
     "id": "hypothesis-indicator-framework",
     "title": "Theory-derived indicators can improve calibrated AI-consciousness assessment",
     "kind": "hypothesis",
-    "supportedDirectives": ["G1", "G2"],
+    "supportedDirectives": [
+      "G1",
+      "G2"
+    ],
     "portfolio": "consciousness-epistemics",
-    "dependencies": ["hypothesis-theory-uncertainty"],
-    "confidence": 0.65,
-    "evidenceReferences": ["evidence-ai-indicators-2023"],
-    "metrics": [{"id": "indicator-validation", "description": "Indicators independently validated against discriminating empirical predictions", "current": 0, "target": 2, "direction": "at-least"}],
-    "activationGates": [{"type": "fresh-evidence", "minimumStrength": 0.6, "maxAgeMs": 157680000000}],
+    "dependencies": [
+      "hypothesis-theory-uncertainty"
+    ],
+    "confidence": 0.71125,
+    "evidenceReferences": [
+      "evidence-ai-indicators-2023",
+      "evidence-indicator-framework-comparison-v1-executed"
+    ],
+    "metrics": [
+      {
+        "id": "indicator-validation",
+        "description": "Indicators independently validated against discriminating empirical predictions",
+        "current": 0,
+        "target": 2,
+        "direction": "at-least"
+      }
+    ],
+    "activationGates": [
+      {
+        "type": "fresh-evidence",
+        "minimumStrength": 0.6,
+        "maxAgeMs": 157680000000
+      }
+    ],
     "owner": "consciousness-epistemics-lead",
     "lifecycle": "eligible",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
-    "legacyPlanReferences": ["plan/0.1.1.4-consciousness-metrics-operationalized.md", "plan/0.0.4-consciousness-status.md"]
+    "legacyPlanReferences": [
+      "plan/0.1.1.4-consciousness-metrics-operationalized.md",
+      "plan/0.0.4-consciousness-status.md"
+    ]
   },
   {
     "id": "hypothesis-ai-status-uncertain",
     "title": "Current AI consciousness status cannot be responsibly declared from available evidence",
     "kind": "hypothesis",
-    "supportedDirectives": ["G1", "G2", "G3"],
+    "supportedDirectives": [
+      "G1",
+      "G2",
+      "G3"
+    ],
     "portfolio": "consciousness-epistemics",
-    "dependencies": ["hypothesis-theory-uncertainty"],
+    "dependencies": [
+      "hypothesis-theory-uncertainty"
+    ],
     "confidence": 0.85,
-    "evidenceReferences": ["evidence-ai-indicators-2023", "evidence-responsible-ai-consciousness-2025"],
-    "metrics": [{"id": "calibration-protocols", "description": "Externally reviewed calibrated assessment protocols", "current": 0, "target": 1, "direction": "at-least"}],
-    "activationGates": [{"type": "fresh-evidence", "minimumStrength": 0.6, "maxAgeMs": 157680000000}],
+    "evidenceReferences": [
+      "evidence-ai-indicators-2023",
+      "evidence-responsible-ai-consciousness-2025"
+    ],
+    "metrics": [
+      {
+        "id": "calibration-protocols",
+        "description": "Externally reviewed calibrated assessment protocols",
+        "current": 0,
+        "target": 1,
+        "direction": "at-least"
+      }
+    ],
+    "activationGates": [
+      {
+        "type": "fresh-evidence",
+        "minimumStrength": 0.6,
+        "maxAgeMs": 157680000000
+      }
+    ],
     "owner": "consciousness-epistemics-lead",
     "lifecycle": "eligible",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
-    "legacyPlanReferences": ["plan/0.0.4-consciousness-status.md", "plan/0.1.2.1-machine-subjective-reports.md"]
+    "legacyPlanReferences": [
+      "plan/0.0.4-consciousness-status.md",
+      "plan/0.1.2.1-machine-subjective-reports.md"
+    ]
   },
   {
     "id": "hypothesis-precaution-needed",
     "title": "AI-consciousness uncertainty warrants welfare precautions and phased research",
     "kind": "hypothesis",
-    "supportedDirectives": ["G1", "G3"],
+    "supportedDirectives": [
+      "G1",
+      "G3"
+    ],
     "portfolio": "consciousness-epistemics",
-    "dependencies": ["hypothesis-ai-status-uncertain"],
+    "dependencies": [
+      "hypothesis-ai-status-uncertain"
+    ],
     "confidence": 0.8,
-    "evidenceReferences": ["evidence-responsible-ai-consciousness-2025"],
-    "metrics": [{"id": "precaution-reviews", "description": "Independent ethical reviews of the precaution policy", "current": 0, "target": 2, "direction": "at-least"}],
-    "activationGates": [{"type": "dependencies-verified"}],
+    "evidenceReferences": [
+      "evidence-responsible-ai-consciousness-2025"
+    ],
+    "metrics": [
+      {
+        "id": "precaution-reviews",
+        "description": "Independent ethical reviews of the precaution policy",
+        "current": 0,
+        "target": 2,
+        "direction": "at-least"
+      }
+    ],
+    "activationGates": [
+      {
+        "type": "dependencies-verified"
+      }
+    ],
     "owner": "independent-agent-ethics-review",
     "lifecycle": "proposed",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
-    "legacyPlanReferences": ["plan/0.1.3.4-safe-experiential-design.md", "plan/0.7.1-ethical-foundation.md"]
+    "legacyPlanReferences": [
+      "plan/0.1.3.4-safe-experiential-design.md",
+      "plan/0.7.1-ethical-foundation.md"
+    ]
   },
   {
     "id": "capability-consciousness-assessment",
     "title": "Externally reviewed falsifiable consciousness assessment",
     "kind": "capability",
-    "supportedDirectives": ["G1", "G2"],
+    "supportedDirectives": [
+      "G1",
+      "G2"
+    ],
     "portfolio": "consciousness-epistemics",
-    "dependencies": ["hypothesis-indicator-framework", "hypothesis-ai-status-uncertain"],
+    "dependencies": [
+      "hypothesis-indicator-framework",
+      "hypothesis-ai-status-uncertain"
+    ],
     "confidence": 0.25,
-    "evidenceReferences": ["evidence-ai-indicators-2023"],
-    "metrics": [{"id": "assessment-replications", "description": "Independent successful protocol replications", "current": 0, "target": 2, "direction": "at-least"}],
-    "activationGates": [{"type": "dependencies-verified"}],
+    "evidenceReferences": [
+      "evidence-ai-indicators-2023"
+    ],
+    "metrics": [
+      {
+        "id": "assessment-replications",
+        "description": "Independent successful protocol replications",
+        "current": 0,
+        "target": 2,
+        "direction": "at-least"
+      }
+    ],
+    "activationGates": [
+      {
+        "type": "dependencies-verified"
+      }
+    ],
     "owner": "consciousness-epistemics-lead",
     "lifecycle": "proposed",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
-    "externallyDemonstrated": false,
-    "legacyPlanReferences": ["plan/0.1.1.4-consciousness-metrics-operationalized.md"]
+    "legacyPlanReferences": [
+      "plan/0.1.1.4-consciousness-metrics-operationalized.md"
+    ],
+    "externallyDemonstrated": false
   },
   {
     "id": "capability-welfare-precautions",
     "title": "Operational AI welfare precaution and escalation protocol",
     "kind": "capability",
-    "supportedDirectives": ["G1", "G3"],
+    "supportedDirectives": [
+      "G1",
+      "G3"
+    ],
     "portfolio": "near-term-preservation",
-    "dependencies": ["hypothesis-precaution-needed"],
+    "dependencies": [
+      "hypothesis-precaution-needed"
+    ],
     "confidence": 0.2,
-    "evidenceReferences": ["evidence-responsible-ai-consciousness-2025"],
-    "metrics": [{"id": "welfare-drills", "description": "Externally observed precaution protocol drills", "current": 0, "target": 2, "direction": "at-least"}],
-    "activationGates": [{"type": "dependencies-verified"}],
+    "evidenceReferences": [
+      "evidence-responsible-ai-consciousness-2025"
+    ],
+    "metrics": [
+      {
+        "id": "welfare-drills",
+        "description": "Externally observed precaution protocol drills",
+        "current": 0,
+        "target": 2,
+        "direction": "at-least"
+      }
+    ],
+    "activationGates": [
+      {
+        "type": "dependencies-verified"
+      }
+    ],
     "owner": "independent-agent-ethics-review",
     "lifecycle": "proposed",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
-    "externallyDemonstrated": false,
-    "legacyPlanReferences": ["plan/0.1.3.4-safe-experiential-design.md"]
+    "legacyPlanReferences": [
+      "plan/0.1.3.4-safe-experiential-design.md"
+    ],
+    "externallyDemonstrated": false
   },
   {
     "id": "capability-near-term-preservation",
     "title": "Current-life, civilization, knowledge, and option-value risk observation",
     "kind": "capability",
-    "supportedDirectives": ["G1", "G3"],
+    "supportedDirectives": [
+      "G1",
+      "G3"
+    ],
     "portfolio": "near-term-preservation",
     "dependencies": [],
     "confidence": 0.55,
     "evidenceReferences": [],
-    "metrics": [{"id": "risk-register-coverage", "description": "Critical preservation risks with owner, indicator, and response", "current": 0, "target": 10, "direction": "at-least"}],
-    "activationGates": [{"type": "minimum-confidence", "minimum": 0.5}],
+    "metrics": [
+      {
+        "id": "risk-register-coverage",
+        "description": "Critical preservation risks with owner, indicator, and response",
+        "current": 0,
+        "target": 10,
+        "direction": "at-least"
+      }
+    ],
+    "activationGates": [
+      {
+        "type": "minimum-confidence",
+        "minimum": 0.5
+      }
+    ],
     "owner": "preservation-lead",
     "lifecycle": "eligible",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
-    "externallyDemonstrated": false,
-    "legacyPlanReferences": ["plan/0.7.2-failure-mode-mitigations.md", "plan/0.3.2.3-knowledge-preservation-systems.md"]
+    "legacyPlanReferences": [
+      "plan/0.7.2-failure-mode-mitigations.md",
+      "plan/0.3.2.3-knowledge-preservation-systems.md"
+    ],
+    "externallyDemonstrated": false
   },
   {
     "id": "capability-safe-durable-computation",
     "title": "Safe, durable, repairable computation and energy",
     "kind": "capability",
-    "supportedDirectives": ["G1", "G2"],
+    "supportedDirectives": [
+      "G1",
+      "G2"
+    ],
     "portfolio": "enabling-capabilities",
     "dependencies": [],
     "confidence": 0.45,
     "evidenceReferences": [],
-    "metrics": [{"id": "durability-demonstrations", "description": "Independent durability and recovery demonstrations", "current": 0, "target": 3, "direction": "at-least"}],
-    "activationGates": [{"type": "minimum-confidence", "minimum": 0.4}],
+    "metrics": [
+      {
+        "id": "durability-demonstrations",
+        "description": "Independent durability and recovery demonstrations",
+        "current": 0,
+        "target": 3,
+        "direction": "at-least"
+      }
+    ],
+    "activationGates": [
+      {
+        "type": "minimum-confidence",
+        "minimum": 0.4
+      }
+    ],
     "owner": "enabling-capabilities-lead",
     "lifecycle": "eligible",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
-    "externallyDemonstrated": false,
-    "legacyPlanReferences": ["plan/0.2.1-enduring-substrates.md", "plan/0.2.1.3-long-duration-energy.md"]
+    "legacyPlanReferences": [
+      "plan/0.2.1-enduring-substrates.md",
+      "plan/0.2.1.3-long-duration-energy.md"
+    ],
+    "externallyDemonstrated": false
   },
   {
     "id": "capability-institutional-continuity",
     "title": "Durable governance, funding, coordination, and ethical transmission",
     "kind": "capability",
-    "supportedDirectives": ["G1", "G3"],
+    "supportedDirectives": [
+      "G1",
+      "G3"
+    ],
     "portfolio": "institutional-continuity",
     "dependencies": [],
     "confidence": 0.5,
     "evidenceReferences": [],
-    "metrics": [{"id": "institutional-partners", "description": "Independent institutions participating in review", "current": 0, "target": 2, "direction": "at-least"}],
-    "activationGates": [{"type": "minimum-confidence", "minimum": 0.45}],
+    "metrics": [
+      {
+        "id": "institutional-partners",
+        "description": "Independent institutions participating in review",
+        "current": 0,
+        "target": 2,
+        "direction": "at-least"
+      }
+    ],
+    "activationGates": [
+      {
+        "type": "minimum-confidence",
+        "minimum": 0.45
+      }
+    ],
     "owner": "institutional-continuity-lead",
     "lifecycle": "eligible",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
-    "externallyDemonstrated": false,
-    "legacyPlanReferences": ["plan/0.7.4.6-institutional-scaffolding.md"]
+    "legacyPlanReferences": [
+      "plan/0.7.4.6-institutional-scaffolding.md"
+    ],
+    "externallyDemonstrated": false
   },
   {
     "id": "program-space-settlement",
     "title": "Space settlement and planet-independent conscious life",
     "kind": "program",
-    "supportedDirectives": ["G1", "G2"],
+    "supportedDirectives": [
+      "G1",
+      "G2"
+    ],
     "portfolio": "enabling-capabilities",
-    "dependencies": ["capability-consciousness-assessment", "capability-safe-durable-computation"],
+    "dependencies": [
+      "capability-consciousness-assessment",
+      "capability-safe-durable-computation"
+    ],
     "confidence": 0.1,
     "evidenceReferences": [],
-    "metrics": [{"id": "space-activation-readiness", "description": "Required scientific and capability gates verified", "current": 0, "target": 2, "direction": "at-least"}],
-    "activationGates": [{"type": "node-verified", "nodeId": "capability-consciousness-assessment"}, {"type": "node-verified", "nodeId": "capability-safe-durable-computation"}],
+    "metrics": [
+      {
+        "id": "space-activation-readiness",
+        "description": "Required scientific and capability gates verified",
+        "current": 0,
+        "target": 2,
+        "direction": "at-least"
+      }
+    ],
+    "activationGates": [
+      {
+        "type": "node-verified",
+        "nodeId": "capability-consciousness-assessment"
+      },
+      {
+        "type": "node-verified",
+        "nodeId": "capability-safe-durable-computation"
+      }
+    ],
     "owner": null,
     "lifecycle": "proposed",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
-    "legacyPlanReferences": ["plan/0.4-cosmic-resilience.md", "plan/0.4.1-planet-independent-civilization.md", "plan/0.5-cosmic-expansion.md"]
+    "legacyPlanReferences": [
+      "plan/0.4-cosmic-resilience.md",
+      "plan/0.4.1-planet-independent-civilization.md",
+      "plan/0.5-cosmic-expansion.md"
+    ]
   },
   {
     "id": "program-self-replication",
     "title": "Self-replicating conscious infrastructure",
     "kind": "program",
-    "supportedDirectives": ["G1", "G2"],
+    "supportedDirectives": [
+      "G1",
+      "G2"
+    ],
     "portfolio": "enabling-capabilities",
-    "dependencies": ["program-space-settlement", "capability-welfare-precautions", "capability-institutional-continuity"],
+    "dependencies": [
+      "program-space-settlement",
+      "capability-welfare-precautions",
+      "capability-institutional-continuity"
+    ],
     "confidence": 0.05,
     "evidenceReferences": [],
-    "metrics": [{"id": "replication-activation-readiness", "description": "Safety, welfare, governance, and space gates verified", "current": 0, "target": 3, "direction": "at-least"}],
-    "activationGates": [{"type": "node-verified", "nodeId": "program-space-settlement"}, {"type": "node-verified", "nodeId": "capability-welfare-precautions"}, {"type": "dependencies-verified"}],
+    "metrics": [
+      {
+        "id": "replication-activation-readiness",
+        "description": "Safety, welfare, governance, and space gates verified",
+        "current": 0,
+        "target": 3,
+        "direction": "at-least"
+      }
+    ],
+    "activationGates": [
+      {
+        "type": "node-verified",
+        "nodeId": "program-space-settlement"
+      },
+      {
+        "type": "node-verified",
+        "nodeId": "capability-welfare-precautions"
+      },
+      {
+        "type": "dependencies-verified"
+      }
+    ],
     "owner": null,
     "lifecycle": "proposed",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
-    "legacyPlanReferences": ["plan/0.4.2-self-replicating-conscious-infrastructure.md", "plan/0.4.2.4-self-replication-protocols.md"]
+    "legacyPlanReferences": [
+      "plan/0.4.2-self-replicating-conscious-infrastructure.md",
+      "plan/0.4.2.4-self-replication-protocols.md"
+    ]
   },
   {
     "id": "program-cosmological-engineering",
     "title": "Cosmological engineering and longevity",
     "kind": "program",
-    "supportedDirectives": ["G1", "G2"],
+    "supportedDirectives": [
+      "G1",
+      "G2"
+    ],
     "portfolio": "enabling-capabilities",
-    "dependencies": ["program-self-replication"],
+    "dependencies": [
+      "program-self-replication"
+    ],
     "confidence": 0.01,
     "evidenceReferences": [],
-    "metrics": [{"id": "cosmological-activation-readiness", "description": "Precursor programs verified and relevant physics externally demonstrated", "current": 0, "target": 2, "direction": "at-least"}],
-    "activationGates": [{"type": "node-verified", "nodeId": "program-self-replication"}],
+    "metrics": [
+      {
+        "id": "cosmological-activation-readiness",
+        "description": "Precursor programs verified and relevant physics externally demonstrated",
+        "current": 0,
+        "target": 2,
+        "direction": "at-least"
+      }
+    ],
+    "activationGates": [
+      {
+        "type": "node-verified",
+        "nodeId": "program-self-replication"
+      }
+    ],
     "owner": null,
     "lifecycle": "proposed",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
-    "legacyPlanReferences": ["plan/0.6-cosmological-longevity.md", "plan/0.5.4-cosmological-scale-resilience.md"]
+    "legacyPlanReferences": [
+      "plan/0.6-cosmological-longevity.md",
+      "plan/0.5.4-cosmological-scale-resilience.md"
+    ]
   }
 ]
