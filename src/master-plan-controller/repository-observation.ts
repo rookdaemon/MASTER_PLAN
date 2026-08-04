@@ -4,6 +4,12 @@ import { appendRepositoryJsonArrayItems, formattedRepositoryJson } from './repos
 import { loadRepositoryStrategy, verifyRepositoryStrategy } from './repository-strategy.js';
 import type { EvidenceRecord, Timestamp } from './types.js';
 
+export {
+  PublicSourceSnapshotObserver,
+  loadPublicSourceSnapshotConfigs,
+  type PublicSourceSnapshotConfig,
+} from './public-source-observation.js';
+
 export interface RepositoryControlObservationConfig {
   repository: string;
   branch: string;
@@ -37,9 +43,9 @@ export interface RepositoryObservationResult {
 
 interface ObservationSourcesFile {
   sources: Array<{
-    kind: 'github-repository-controls';
-    branch: string;
-    hypothesisId: string;
+    kind: string;
+    branch?: string;
+    hypothesisId?: string;
   }>;
 }
 
@@ -178,7 +184,9 @@ export async function loadRepositoryControlObservationConfigs(
   if (!Array.isArray(parsedSources.sources) || parsedSources.sources.length === 0) {
     throw new Error('At least one external observation source is required');
   }
-  return parsedSources.sources.map((source) => {
+  const controls = parsedSources.sources.filter((source) => source.kind === 'github-repository-controls');
+  if (controls.length === 0) throw new Error('At least one repository control observation source is required');
+  return controls.map((source) => {
     if (source.kind !== 'github-repository-controls' || !source.branch?.trim() || !source.hypothesisId?.trim()) {
       throw new Error('Repository control observation source is malformed');
     }

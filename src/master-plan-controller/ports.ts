@@ -36,6 +36,10 @@ export interface NetworkPort {
   request(request: NetworkRequest): Promise<NetworkResponse>;
 }
 
+export interface ContentFingerprintPort {
+  digest(content: string): string;
+}
+
 export interface ProcessRequest {
   command: string;
   args: string[];

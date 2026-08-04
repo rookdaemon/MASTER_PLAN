@@ -4,6 +4,10 @@ import { strategyContractErrors } from './strategy-validation.js';
 import { workPacketValidationErrors } from './strategy-validation.js';
 import { periodicReviewValidationErrors, type PeriodicReviewRecord } from './periodic-review.js';
 import {
+  publicSourceSnapshotConfigErrors,
+  type PublicSourceSnapshotConfig,
+} from './public-source-observation.js';
+import {
   DiagnosticPacketGenerator,
   sameWorkPacketDefinition,
   type DiagnosticPacketTemplate,
@@ -49,11 +53,13 @@ export interface RepositoryStrategyBundle {
   periodicReviews: PeriodicReviewRecord[];
 }
 
-export interface RepositoryObservationSource {
+export interface RepositoryControlObservationSource {
   kind: 'github-repository-controls';
   branch: string;
   hypothesisId: string;
 }
+
+export type RepositoryObservationSource = RepositoryControlObservationSource | PublicSourceSnapshotConfig;
 
 async function json<T>(fileSystem: FileSystemPort, path: string): Promise<T> {
   return JSON.parse(await fileSystem.readText(path)) as T;
@@ -200,15 +206,20 @@ export async function verifyRepositoryStrategy(
   } else {
     const sourceKeys = new Set<string>();
     for (const source of bundle.observationSources) {
-      const key = `${source.kind}:${source.branch}:${source.hypothesisId}`;
+      const key = source.kind === 'github-repository-controls'
+        ? `${source.kind}:${source.branch}:${source.hypothesisId}`
+        : `${source.kind}:${source.id}`;
       if (sourceKeys.has(key)) errors.push(`Duplicate observation source: ${key}`);
       sourceKeys.add(key);
-      const hypothesis = bundle.state.nodes.find((node) => node.id === source.hypothesisId);
-      if (source.kind !== 'github-repository-controls' || !source.branch?.trim()) {
-        errors.push(`Observation source ${key} is malformed`);
+      if (source.kind === 'github-repository-controls') {
+        const hypothesis = bundle.state.nodes.find((node) => node.id === source.hypothesisId);
+        if (!source.branch?.trim()) errors.push(`Observation source ${key} is malformed`);
+        if (!hypothesis) errors.push(`Observation source ${key} references a missing hypothesis`);
+        else if (hypothesis.kind !== 'hypothesis') errors.push(`Observation source ${key} does not target a hypothesis`);
+      } else {
+        errors.push(...publicSourceSnapshotConfigErrors(source)
+          .map((error) => `Observation source ${key} is malformed: ${error}`));
       }
-      if (!hypothesis) errors.push(`Observation source ${key} references a missing hypothesis`);
-      else if (hypothesis.kind !== 'hypothesis') errors.push(`Observation source ${key} does not target a hypothesis`);
     }
   }
   for (const packet of bundle.state.packets) {

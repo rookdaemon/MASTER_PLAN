@@ -1,8 +1,10 @@
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { dirname, relative, resolve } from 'node:path';
 import type {
   ClockPort,
+  ContentFingerprintPort,
   FileSystemPort,
   NetworkPort,
   NetworkRequest,
@@ -80,6 +82,12 @@ export class FetchNetwork implements NetworkPort {
       body: await response.text(),
       headers: Object.fromEntries(response.headers.entries()),
     };
+  }
+}
+
+export class NodeSha256Fingerprint implements ContentFingerprintPort {
+  digest(content: string): string {
+    return createHash('sha256').update(content, 'utf8').digest('hex');
   }
 }
 
