@@ -5,6 +5,7 @@ import type {
   PlanNode,
   StrategyState,
   WorkPacket,
+  OutcomeContract,
 } from '../types.js';
 
 export const NOW = '2026-08-03T12:00:00.000Z';
@@ -56,6 +57,23 @@ export function makeEvidence(overrides: Partial<EvidenceRecord> = {}): EvidenceR
     verifier: 'independent-reviewer',
     observedAt: NOW,
     outcome: 'positive',
+    ...overrides,
+  };
+}
+
+export function makeOutcomeContract(overrides: Partial<OutcomeContract> = {}): OutcomeContract {
+  return {
+    id: 'contract-capability-1-metric-1',
+    nodeId: 'capability-1',
+    metricId: 'metric-1',
+    allowedSourcePrefixes: ['https://independent.example/'],
+    minimumEvidenceStrength: 0.7,
+    maximumEvidenceAgeMs: 86_400_000,
+    requiredVerifierPrefix: 'independent-',
+    verificationMethod: 'Independent public outcome observation.',
+    minimumValue: 0,
+    maximumValue: 10,
+    requiresExternalDemonstration: true,
     ...overrides,
   };
 }
@@ -134,6 +152,7 @@ export function makeState(overrides: Partial<StrategyState> = {}): StrategyState
     },
     nodes: [node],
     evidence: [],
+    outcomeContracts: [makeOutcomeContract({ nodeId: node.id, metricId: node.metrics[0].id })],
     assessments: [],
     packets: [makePacket()],
     activePacketId: null,

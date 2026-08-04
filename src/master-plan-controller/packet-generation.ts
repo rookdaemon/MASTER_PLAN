@@ -6,12 +6,14 @@ import type {
   Timestamp,
   WorkPacket,
 } from './types.js';
+import { hasMetricGap } from './outcome-contracts.js';
 
 export type DiagnosticTrigger =
   | { kind: 'high-value-uncertainty'; nodeId: string }
   | { kind: 'bottleneck'; nodeId: string }
   | { kind: 'neglected-portfolio'; portfolio: Portfolio }
   | { kind: 'failure-mode'; nodeId: string }
+  | { kind: 'metric-gap'; nodeId: string; metricId: string; outcomeContractId: string }
   | {
     kind: 'evidence-signal';
     nodeId: string;
@@ -89,6 +91,14 @@ function matches(trigger: DiagnosticTrigger, diagnosis: GraphDiagnosis, state: S
       return diagnosis.failureModes.some((item) => item.nodeId === trigger.nodeId);
     case 'evidence-signal':
       return matchingEvidence(trigger, state, now);
+    case 'metric-gap': {
+      const contract = state.outcomeContracts.find((candidate) => candidate.id === trigger.outcomeContractId);
+      const node = state.nodes.find((candidate) => candidate.id === trigger.nodeId);
+      const metric = node?.metrics.find((candidate) => candidate.id === trigger.metricId);
+      return contract?.nodeId === trigger.nodeId && contract.metricId === trigger.metricId &&
+        node !== undefined && !['blocked', 'invalidated', 'retired'].includes(node.lifecycle) &&
+        metric !== undefined && hasMetricGap(metric);
+    }
   }
 }
 
@@ -140,6 +150,13 @@ function validateTemplate(template: DiagnosticPacketTemplate): void {
       if (typeof candidate.minimumStrength !== 'number' || candidate.minimumStrength < 0 || candidate.minimumStrength > 1 ||
         !Number.isSafeInteger(candidate.maximumAgeMs) || (candidate.maximumAgeMs as number) <= 0) {
         throw new Error(`Packet template ${template.id} evidence trigger bounds are invalid`);
+      }
+      return;
+    case 'metric-gap':
+      if (typeof candidate.nodeId !== 'string' || candidate.nodeId !== template.nodeId ||
+        typeof candidate.metricId !== 'string' || !candidate.metricId.trim() ||
+        typeof candidate.outcomeContractId !== 'string' || !candidate.outcomeContractId.trim()) {
+        throw new Error(`Packet template ${template.id} metric-gap trigger is malformed`);
       }
       return;
     case 'neglected-portfolio':

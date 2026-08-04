@@ -93,11 +93,80 @@ interface PreservationBaseline {
   risks: Array<{
     id: string;
     rank: number;
+    title: string;
     rankingRationale: string;
     sourceIds: string[];
     uncertainty: unknown;
-    reversibleResponses: Array<{ rollback: string; authorityBoundary: string }>;
+    leadingIndicators: Array<{ indicator: string; directionOfConcern: string; updateCadence: string }>;
+    reversibleResponses: Array<{
+      action: string; trigger: string; rollback: string; authorityBoundary: string;
+    }>;
   }>;
+}
+
+function preservationMitigationTabletopHandler(): RepositoryPacketHandler {
+  const family = 'packet-preservation-mitigation-tabletop';
+  return {
+    packetId: `${family}-v1`,
+    packetFamily: family,
+    async prepare(fileSystem, packet, state, now) {
+      const baseline = JSON.parse(await fileSystem.readText(PRESERVATION_BASELINE_PATH)) as PreservationBaseline;
+      const risks = [...baseline.risks].sort((left, right) => left.rank - right.rank || left.id.localeCompare(right.id));
+      if (risks.length === 0) throw new Error('Preservation risk baseline contains no risks');
+      const paths = versionedArtifactPaths(packet, family);
+      const risk = risks[(paths.version - 1) % risks.length];
+      const indicator = risk.leadingIndicators?.[0];
+      const response = risk.reversibleResponses?.[0];
+      if (!risk.id?.trim() || !risk.title?.trim() || !Number.isSafeInteger(risk.rank) || !indicator?.indicator?.trim() ||
+        !indicator.directionOfConcern?.trim() || !indicator.updateCadence?.trim() || !response?.action?.trim() ||
+        !response.trigger?.trim() || !response.rollback?.trim() || !response.authorityBoundary?.trim()) {
+        throw new Error('Preservation risk baseline cannot support a bounded tabletop');
+      }
+      const finding = {
+        riskId: risk.id,
+        rank: risk.rank,
+        scenario: `Observe whether ${indicator.indicator} moves in the direction of concern: ${indicator.directionOfConcern}`,
+        observationCadence: indicator.updateCadence,
+        measurableTrigger: response.trigger,
+        boundedResponse: response.action,
+        rollback: response.rollback,
+        authorityBoundary: response.authorityBoundary,
+        disposition: 'requires-external-observation',
+      };
+      const artifact = {
+        schemaVersion: '1.0.0',
+        id: paths.artifactId,
+        packetId: packet.id,
+        preparedAt: now,
+        baselineArtifact: PRESERVATION_BASELINE_PATH,
+        scope: { performsExternalIntervention: false, publishesExternally: false, spendsFunds: false },
+        selection: { ordering: 'ascending-risk-rank', versionIndex: paths.version - 1 },
+        findings: [finding],
+        summary: {
+          testedRiskCount: 1,
+          realWorldRiskReductionClaimed: false,
+          metricMeasurementProduced: false,
+        },
+      };
+      return {
+        artifactPath: paths.artifactPath,
+        artifact,
+        resultPath: paths.resultPath,
+        result: boundedAnalysisResult(
+          packet,
+          now,
+          paths.artifactPath,
+          PRESERVATION_BASELINE_PATH,
+          `A deterministic tabletop specified a measurable trigger and reversible response for ranked risk ${risk.id}.`,
+          [
+            'The tabletop is a repository artifact and does not establish real-world risk reduction.',
+            'The contracted metric remains unchanged until qualifying external outcome evidence is independently reviewed.',
+          ],
+          state.portfolioEffort,
+        ),
+      };
+    },
+  };
 }
 
 function preservationRefreshHandler(): RepositoryPacketHandler {
@@ -316,6 +385,7 @@ function institutionalRefreshHandler(): RepositoryPacketHandler {
 
 export function crossPortfolioPacketHandlers(): RepositoryPacketHandler[] {
   return [
+    preservationMitigationTabletopHandler(),
     preservationRefreshHandler(),
     durableComputeExtensionHandler(),
     institutionalRefreshHandler(),

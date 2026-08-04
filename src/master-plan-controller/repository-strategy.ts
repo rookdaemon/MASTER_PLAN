@@ -3,6 +3,7 @@ import { verifyLegacyAuditCoverage } from './legacy-audit.js';
 import { strategyContractErrors } from './strategy-validation.js';
 import { workPacketValidationErrors } from './strategy-validation.js';
 import { periodicReviewValidationErrors, type PeriodicReviewRecord } from './periodic-review.js';
+import { outcomeContractErrors } from './outcome-contracts.js';
 import {
   publicSourceSnapshotConfigErrors,
   type PublicSourceSnapshotConfig,
@@ -22,6 +23,7 @@ import type {
   EvidenceRecord,
   EscalationRecord,
   GovernanceState,
+  OutcomeContract,
   Portfolio,
   StrategyState,
   ShadowCycleReview,
@@ -70,6 +72,7 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
     constitution,
     graphInput,
     evidence,
+    outcomeContracts,
     packets,
     approvals,
     assessments,
@@ -87,6 +90,7 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
     json<Constitution>(fileSystem, 'strategy/constitution.json'),
     json<unknown>(fileSystem, 'strategy/graph.json'),
     json<EvidenceRecord[]>(fileSystem, 'strategy/evidence.json'),
+    json<OutcomeContract[]>(fileSystem, 'strategy/outcome-contracts.json'),
     json<WorkPacket[]>(fileSystem, 'strategy/work-packets.json'),
     json<Approval[]>(fileSystem, 'strategy/approvals.json'),
     json<SupersedingAssessment[]>(fileSystem, 'strategy/assessments.json'),
@@ -106,6 +110,7 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
     constitution,
     nodes,
     evidence,
+    outcomeContracts,
     assessments,
     packets,
     activePacketId: packets.find((packet) => packet.lifecycle === 'active')?.id ?? null,
@@ -162,6 +167,7 @@ export async function verifyRepositoryStrategy(
   const graph = validateDependencyGraph(bundle.state.nodes);
   errors.push(...graph.errors.map((error) => error.detail));
   errors.push(...strategyContractErrors(bundle.state, bundle.config, now));
+  errors.push(...outcomeContractErrors(bundle.state));
 
   try {
     new DiagnosticPacketGenerator(bundle.packetTemplates);
@@ -178,6 +184,13 @@ export async function verifyRepositoryStrategy(
       if (!hypothesis) errors.push(`Packet template ${template.id} evidence trigger references a missing hypothesis`);
       else if (hypothesis.kind !== 'hypothesis') {
         errors.push(`Packet template ${template.id} evidence trigger does not reference a hypothesis`);
+      }
+    } else if (template.trigger.kind === 'metric-gap') {
+      const trigger = template.trigger;
+      const contract = bundle.state.outcomeContracts.find((candidate) =>
+        candidate.id === trigger.outcomeContractId);
+      if (!contract || contract.nodeId !== template.nodeId || contract.metricId !== trigger.metricId) {
+        errors.push(`Packet template ${template.id} metric-gap trigger references a mismatched outcome contract`);
       }
     }
     const persisted = bundle.state.packets.find((candidate) => candidate.id === template.id);

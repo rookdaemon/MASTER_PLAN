@@ -4,7 +4,7 @@ import {
   type DiagnosticPacketTemplate,
   type DiagnosticTrigger,
 } from '../packet-generation.js';
-import { makeEvidence, makePacket, makeState, NOW } from './fixtures.js';
+import { makeEvidence, makeOutcomeContract, makePacket, makeState, NOW } from './fixtures.js';
 import type { GraphDiagnosis, WorkPacket } from '../types.js';
 
 function template(id: string, trigger: DiagnosticTrigger): DiagnosticPacketTemplate {
@@ -148,6 +148,27 @@ describe('DiagnosticPacketGenerator', () => {
       expect(await generator.generate(makeState({ packets: [], evidence: [evidence] }), DIAGNOSIS, NOW))
         .toEqual([]);
     }
+  });
+
+  it('generates bounded work for a contracted metric gap and stops at the target', async () => {
+    const trigger: DiagnosticTrigger = {
+      kind: 'metric-gap',
+      nodeId: 'capability-1',
+      metricId: 'metric-1',
+      outcomeContractId: 'contract-capability-1-metric-1',
+    };
+    const generator = new DiagnosticPacketGenerator([recurringTemplate('gap-v1', trigger)]);
+    const contract = makeOutcomeContract();
+    const satisfiedNode = structuredClone(makeState().nodes[0]);
+    satisfiedNode.metrics[0].current = 1;
+
+    expect(await generator.generate(makeState({ packets: [], outcomeContracts: [contract] }), DIAGNOSIS, NOW))
+      .toHaveLength(1);
+    expect(await generator.generate(makeState({
+      packets: [],
+      outcomeContracts: [contract],
+      nodes: [satisfiedNode],
+    }), DIAGNOSIS, NOW)).toEqual([]);
   });
 
   it('requires recurring evidence signals to be newer than the previous packet', async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Controller } from '../controller.js';
-import { CONFIG, makeEscalation, makeEscalationEvidence, makeEvidence, makeNode, makePacket, makeState, NOW, RESULT_PORTFOLIO_EFFORT } from './fixtures.js';
+import { CONFIG, makeEscalation, makeEscalationEvidence, makeEvidence, makeNode, makeOutcomeContract, makePacket, makeState, NOW, RESULT_PORTFOLIO_EFFORT } from './fixtures.js';
 
 describe('Controller.evaluate', () => {
   it('gives credible G1 extinction-prevention work lexical priority over expansion', () => {
@@ -156,6 +156,59 @@ describe('Controller.evaluate', () => {
 });
 
 describe('Controller.advance', () => {
+  it('updates a metric only from fresh independently verified outcome evidence bound to its contract', () => {
+    const packet = makePacket({ lifecycle: 'active' });
+    const evidence = makeEvidence({
+      id: 'outcome-evidence',
+      source: 'https://independent.example/result/1',
+      strength: 0.9,
+      verifier: 'independent-lab',
+      observedAt: NOW,
+      outcome: 'positive',
+    });
+    const state = makeState({
+      packets: [packet],
+      activePacketId: packet.id,
+      outcomeContracts: [makeOutcomeContract()],
+    });
+    const advanced = new Controller(state, CONFIG).advance(packet, {
+      outcome: 'positive', artifactReferences: ['artifact://experiment-1'], evidence: [evidence],
+      acceptanceCriteriaMet: true,
+      verification: { status: 'passed', verifier: 'independent-reviewer', reviewedAt: NOW },
+      portfolioEffortAfter: RESULT_PORTFOLIO_EFFORT,
+      metricMeasurements: [{
+        outcomeContractId: 'contract-capability-1-metric-1', evidenceId: evidence.id,
+        value: 1, observedAt: NOW,
+      }],
+    }, NOW);
+
+    expect(advanced.state.nodes[0].metrics[0].current).toBe(1);
+    expect(advanced.state.nodes[0].externallyDemonstrated).toBe(true);
+    expect(advanced.event.details.metricUpdates).toEqual([{ nodeId: 'capability-1', metricId: 'metric-1', value: 1 }]);
+  });
+
+  it('rejects a claimed metric update when its evidence is local, stale, weak, or contract-mismatched', () => {
+    const packet = makePacket({ lifecycle: 'active' });
+    const contract = makeOutcomeContract();
+    for (const evidence of [
+      makeEvidence({ id: 'bad', source: 'artifact://local-result', verifier: 'independent-lab' }),
+      makeEvidence({ id: 'bad', source: 'https://independent.example/result', verifier: 'independent-lab', strength: 0.69 }),
+      makeEvidence({ id: 'bad', source: 'https://independent.example/result', verifier: 'independent-lab', observedAt: '2026-08-01T00:00:00.000Z' }),
+      makeEvidence({ id: 'bad', source: 'https://independent.example/result', verifier: 'self-reviewer' }),
+    ]) {
+      const state = makeState({ packets: [packet], activePacketId: packet.id, outcomeContracts: [contract] });
+      const advanced = new Controller(state, CONFIG).advance(packet, {
+        outcome: 'positive', artifactReferences: ['artifact://experiment-1'], evidence: [evidence],
+        acceptanceCriteriaMet: true,
+        verification: { status: 'passed', verifier: 'independent-reviewer', reviewedAt: NOW },
+        portfolioEffortAfter: RESULT_PORTFOLIO_EFFORT,
+        metricMeasurements: [{ outcomeContractId: contract.id, evidenceId: evidence.id, value: 1, observedAt: evidence.observedAt }],
+      }, NOW);
+      expect(advanced.event.type).toBe('result-rejected');
+      expect(advanced.state.nodes[0].metrics[0].current).toBe(0);
+      expect(advanced.state.evidence).toEqual([]);
+    }
+  });
   it('does not count a result with no evidence-bearing artifact as progress', () => {
     const packet = makePacket({ lifecycle: 'active' });
     const state = makeState({ packets: [packet], activePacketId: packet.id });

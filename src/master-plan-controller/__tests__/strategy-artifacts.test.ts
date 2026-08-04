@@ -253,7 +253,11 @@ describe('checked-in strategy v2 bundle', () => {
       template.deliverables.length > 0 &&
       template.acceptanceCriteria.length > 0 &&
       template.testsOrPreregistration.length > 0)).toBe(true);
-    expect(bundle.packetTemplates.every((template) => template.trigger.kind === 'evidence-signal')).toBe(true);
+    expect(bundle.packetTemplates.some((template) => template.trigger.kind === 'metric-gap')).toBe(true);
+    expect(bundle.packetTemplates.some((template) =>
+      template.trigger.kind === 'metric-gap' && template.credibleExtinctionPrevention)).toBe(true);
+    const metricCount = bundle.state.nodes.reduce((total, node) => total + node.metrics.length, 0);
+    expect(bundle.state.outcomeContracts).toHaveLength(metricCount);
   });
 
   it('turns the current diagnosis into a deterministic executable frontier without environment time', async () => {
@@ -280,7 +284,7 @@ describe('checked-in strategy v2 bundle', () => {
 
     expect(generated.map((packet) => packet.id)).toContain(GENERATED_PACKET_ID);
     expect(generated.every((packet) => packet.reviewedAt === now)).toBe(true);
-    expect(frontier.ranked[0]?.packet.id).toBe(GENERATED_PACKET_ID);
+    expect(frontier.ranked[0]?.packet.id).toBe('packet-preservation-mitigation-tabletop-v1');
   });
 
   it('accepts a matching persisted generated packet but rejects divergent identity reuse', async () => {

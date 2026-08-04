@@ -14,6 +14,7 @@ const STRATEGY_FILES = [
   'strategy/constitution.json',
   'strategy/graph.json',
   'strategy/evidence.json',
+  'strategy/outcome-contracts.json',
   'strategy/work-packets.json',
   'strategy/approvals.json',
   'strategy/assessments.json',
@@ -151,6 +152,34 @@ describe('repository packet-result integration', () => {
       .rejects.toThrow(/packet-verified/);
 
     for (const path of STRATEGY_FILES) expect(await fileSystem.readText(path)).toBe(initial[path]);
+  });
+
+  it('persists a contract-qualified outcome measurement into the graph', async () => {
+    const initial = await eligibleRepositorySnapshot(new NodeFileSystem('.'));
+    const contracts = JSON.parse(initial['strategy/outcome-contracts.json']) as Array<Record<string, unknown>>;
+    const contract = contracts.find((candidate) =>
+      candidate.nodeId === 'capability-near-term-preservation' && candidate.metricId === 'risk-register-coverage');
+    if (!contract) throw new Error('Expected preservation outcome contract');
+    contract.allowedSourcePrefixes = ['https://github.com/rookdaemon/MASTER_PLAN/'];
+    contract.requiredVerifierPrefix = 'independent-agent-review:';
+    initial['strategy/outcome-contracts.json'] = `${JSON.stringify(contracts, null, 2)}\n`;
+    const fileSystem = new InMemoryFileSystem(initial);
+    const result = reviewedResult();
+    result.metricMeasurements = [{
+      outcomeContractId: String(contract.id),
+      evidenceId: result.evidence[0].id,
+      value: 1,
+      observedAt: result.evidence[0].observedAt,
+    }];
+
+    await integrateRepositoryPacketResult(fileSystem, PACKET_ID, result, NOW);
+
+    const graph = JSON.parse(await fileSystem.readText('strategy/graph.json')) as Array<{
+      id: string; externallyDemonstrated?: boolean; metrics: Array<{ id: string; current: number }>;
+    }>;
+    const node = graph.find((candidate) => candidate.id === 'capability-near-term-preservation');
+    expect(node?.metrics.find((metric) => metric.id === 'risk-register-coverage')?.current).toBe(1);
+    expect(node?.externallyDemonstrated).toBe(true);
   });
 
   it('rejects replay of an already verified packet without changing a byte', async () => {
