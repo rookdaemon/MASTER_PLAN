@@ -11,6 +11,7 @@
   "enforceAdmins": true,
   "repositoryAutoMergeEnabled": true,
   "safeAutoMergeVariableEnabled": true,
+  "workflowPullRequestCreationEnabled": true,
   "appliedAndVerified": true,
   "applicationAuthority": "single-maintainer-risk-policy",
   "highRiskPolicy": {

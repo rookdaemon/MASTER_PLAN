@@ -27,6 +27,7 @@ describe('blocking CI and governed workflows', () => {
       appliedAndVerified: boolean;
       repositoryAutoMergeEnabled: boolean;
       safeAutoMergeVariableEnabled: boolean;
+      workflowPullRequestCreationEnabled: boolean;
       highRiskPolicy: { maximumCommitCount: number; mergeMode: string };
       agentReview: { provider: string; automatic: boolean; reviewOnPush: boolean; fallback: string };
     };
@@ -41,6 +42,7 @@ describe('blocking CI and governed workflows', () => {
       appliedAndVerified: true,
       repositoryAutoMergeEnabled: true,
       safeAutoMergeVariableEnabled: true,
+      workflowPullRequestCreationEnabled: true,
       highRiskPolicy: { maximumCommitCount: 1, mergeMode: 'agent-controlled' },
       agentReview: {
         provider: 'github-agent-reviewers', automatic: true, reviewOnPush: true,
@@ -85,6 +87,8 @@ describe('blocking CI and governed workflows', () => {
     const agentReview = await fileSystem.readText('.github/workflows/agent-review.yml');
     const agentReviewRequest = await fileSystem.readText('.github/workflows/agent-review-request.yml');
     const strategyCycle = await fileSystem.readText('.github/workflows/strategy-cycle.yml');
+    const executionCycle = await fileSystem.readText('.github/workflows/strategy-execution.yml');
+    const reviewedIntegration = await fileSystem.readText('.github/workflows/strategy-integrate-reviewed.yml');
     expect(proposal).toContain('pull_request:');
     expect(proposal).toContain('npm run governance:classify');
     expect(proposal).toContain('PR_COMMIT_COUNT');
@@ -121,6 +125,8 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain('commit_id');
     expect(agentReview).toContain('checks: write');
     expect(agentReview).toContain('/check-runs');
+    expect(agentReview).toContain('gh workflow run strategy-integrate-reviewed.yml');
+    expect(agentReview).toContain('contents/.github/workflows/strategy-integrate-reviewed.yml?ref=main');
     expect(agentReview).toContain('Exact-head agent review is already successful; skipping duplicate run');
     expect(agentReview.indexOf('existing_success=')).toBeLessThan(agentReview.indexOf('check_id='));
     expect(agentReview).toContain('head.sha');
@@ -182,6 +188,41 @@ describe('blocking CI and governed workflows', () => {
     expect(strategyCycle).toContain("external_id=\"strategy-cycle:run:${GITHUB_RUN_ID}:head:${head_sha}:check:${check_name}\"");
     expect(strategyCycle).toContain('gh workflow run agent-review.yml');
     expect(strategyCycle).not.toMatch(/human|approval/i);
+    expect(executionCycle).toContain('schedule:');
+    expect(executionCycle).toContain('concurrency:');
+    expect(executionCycle).toContain('ref: main');
+    expect(executionCycle).toContain('npm run --silent strategy:execute');
+    expect(executionCycle).toContain("jq -er '.artifactPath'");
+    expect(executionCycle).toContain("jq -er '.resultPath'");
+    expect(executionCycle).toContain('git rev-list --count origin/main..HEAD');
+    expect(executionCycle).toContain('PR_COMMIT_COUNT="$commit_count"');
+    expect(executionCycle).toContain('npm run lint');
+    expect(executionCycle).toContain('npm test');
+    expect(executionCycle).toContain('npm run strategy:verify');
+    expect(executionCycle).toContain('npm run governance:classify');
+    expect(executionCycle).toContain('strategy-execution:packet:');
+    expect(executionCycle).toContain('/check-runs');
+    expect(executionCycle).toContain('gh workflow run agent-review.yml');
+    expect(executionCycle).toContain('gh pr merge');
+    expect(executionCycle).not.toMatch(/human|approval/i);
+    expect(reviewedIntegration).toContain('workflow_dispatch:');
+    expect(reviewedIntegration).toContain('schedule:');
+    expect(reviewedIntegration).toContain('Redispatch merged execution results for idempotent integration');
+    expect(reviewedIntegration).toContain('strategy-execution:packet:');
+    expect(reviewedIntegration).toContain('Agent review PR #${PR_NUMBER} @ ${HEAD_SHA}');
+    expect(reviewedIntegration).toContain('merge_commit_sha');
+    expect(reviewedIntegration).toContain('git merge-base --is-ancestor');
+    expect(reviewedIntegration).toContain('npm run strategy:integrate-reviewed-execution');
+    expect(reviewedIntegration).toContain('git rev-list --count origin/main..HEAD');
+    expect(reviewedIntegration).toContain('PR_COMMIT_COUNT="$commit_count"');
+    expect(reviewedIntegration).toContain('npm run lint');
+    expect(reviewedIntegration).toContain('npm test');
+    expect(reviewedIntegration).toContain('npm run strategy:verify');
+    expect(reviewedIntegration).toContain('npm run governance:classify');
+    expect(reviewedIntegration).toContain('/check-runs');
+    expect(reviewedIntegration).toContain('gh workflow run agent-review.yml');
+    expect(reviewedIntegration).toContain('gh pr merge');
+    expect(reviewedIntegration).not.toMatch(/human|approval/i);
   });
 
   it('provides CLI scripts for deterministic strategy and governance checks', async () => {
@@ -191,6 +232,8 @@ describe('blocking CI and governed workflows', () => {
       'governance:classify': 'tsx src/master-plan-controller/cli/classify-change.ts',
       'auto-merge:evaluate': 'tsx src/master-plan-controller/cli/evaluate-auto-merge.ts',
       'strategy:generate': 'tsx src/master-plan-controller/cli/generate-candidates-main.ts',
+      'strategy:execute': 'tsx src/master-plan-controller/cli/execute-packet-main.ts',
+      'strategy:integrate-reviewed-execution': 'tsx src/master-plan-controller/cli/integrate-reviewed-execution-main.ts',
     });
   });
 });
