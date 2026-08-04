@@ -223,7 +223,6 @@ jobs:
           sanitize_diff pr.diff pr.sanitized.diff
           test "$(wc -c < pr.sanitized.diff)" -le 60000
           review="$(run_review pr.sanitized.diff)"
-          jq -e '.verdict == "approve" and (.blockers | type == "array") and (.blockers | length == 0)' \
+          jq -e 'debug | select(.verdict == "approve" and (.blockers | type == "array") and (.blockers | length == 0))' \
             <<< "$review"
-          jq . <<< "$review"
           complete_success

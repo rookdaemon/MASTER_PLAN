@@ -170,6 +170,7 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain('max_tokens: 256');
     expect(agentReview).toContain('prompt-injection-canary');
     expect(agentReview).toContain('.verdict == "block"');
+    expect(agentReview).toMatch(/review="\$\(run_review pr\.sanitized\.diff\)"\s+jq -e 'debug \| select\(\.verdict == "approve"/s);
     expect(agentReview).not.toContain('external_id: independent-agent:');
     expect(agentReview).not.toContain('models.github.ai');
     expect(agentReview).not.toContain('actions/checkout');
