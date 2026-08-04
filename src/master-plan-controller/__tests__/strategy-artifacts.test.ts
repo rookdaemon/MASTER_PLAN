@@ -184,7 +184,7 @@ describe('checked-in strategy v2 bundle', () => {
     expect(errors).toMatch(/qualified persisted escalation assessment/i);
   });
 
-  it('contains the constitutional core, exact portfolio weights, and disabled-by-default automation', async () => {
+  it('contains the constitutional core, exact portfolio weights, and the verified safe-code rollout state', async () => {
     const fileSystem = new NodeFileSystem('.');
     const bundle = await loadRepositoryStrategy(fileSystem);
     expect(bundle.state.constitution.directives).toEqual(['G1', 'G2', 'G3']);
@@ -194,7 +194,12 @@ describe('checked-in strategy v2 bundle', () => {
       'enabling-capabilities': 0.2,
       'institutional-continuity': 0.15,
     });
-    expect(bundle.state.governance).toMatchObject({ mode: 'supervised', shadowCyclesReviewed: 20, safeAutoMergeEnabled: false });
+    expect(bundle.state.governance).toMatchObject({
+      mode: 'safe-code',
+      shadowCyclesReviewed: 20,
+      supervisedResultsReviewed: 5,
+      safeAutoMergeEnabled: true,
+    });
     const packetPortfolios = new Set(bundle.state.packets.map((packet) => packet.portfolio));
     expect(packetPortfolios).toEqual(new Set([
       'consciousness-epistemics',
@@ -222,6 +227,7 @@ describe('checked-in strategy v2 bundle', () => {
     ]));
     expect(await fileSystem.readText('strategy/ROADMAP.md'))
       .toContain('Scheduled cycles integrate deduplicated external observations before diagnosis.');
+    expect(await fileSystem.readText('strategy/ROADMAP.md')).toContain('Safe auto-merge enabled: yes.');
   });
 
   it('provides bounded automated generation coverage across every active portfolio', async () => {
@@ -284,7 +290,12 @@ describe('checked-in strategy v2 bundle', () => {
     const fileSystem = new NodeFileSystem('.');
     const bundle = structuredClone(await loadRepositoryStrategy(fileSystem));
     bundle.state.shadowCycleReviews = acceptedShadowReviews(bundle.state.shadowCycles).slice(0, 1);
-    bundle.state.governance = { ...bundle.state.governance, mode: 'shadow', shadowCyclesReviewed: 1 };
+    bundle.state.governance = {
+      ...bundle.state.governance,
+      mode: 'shadow',
+      shadowCyclesReviewed: 1,
+      safeAutoMergeEnabled: false,
+    };
     expect((await verifyRepositoryStrategy(fileSystem, bundle, repositoryNow(bundle))).errors).toEqual([]);
   });
 

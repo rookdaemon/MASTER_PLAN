@@ -90,6 +90,9 @@ describe('blocking CI and governed workflows', () => {
     expect(status).toContain('Human role: **servant leader for exceptional escalation**');
     expect(status).toContain('Branch protection applied and verified: **yes**');
     expect(status).toContain('Safe auto-merge: **enabled for routine code/test changes**');
+    expect(status).toContain(
+      'Routine code/test changes auto-merge after classification, tests, and protected controls; no agent or human review is required.',
+    );
   });
 
   it('enforces one-commit protected proposals and automatic routine merge without a label', async () => {

@@ -58,7 +58,7 @@ export function renderRoadmap(bundle: RepositoryStrategyBundle): string {
     '',
     '## Operating status',
     '',
-    `- Mode: **${bundle.state.governance.mode === 'supervised' ? 'automated stewardship' : bundle.state.governance.mode}**.`,
+    `- Mode: **${bundle.state.governance.mode === 'shadow' ? 'shadow' : 'automated stewardship'}**.`,
     `- Historical calibration: ${bundle.state.governance.shadowCyclesReviewed} agent-reviewed shadow records retained as evidence, never an operating prerequisite.`,
     `- Automated results independently agent-reviewed: ${bundle.state.governance.supervisedResultsReviewed}.`,
     `- Safe auto-merge enabled: ${bundle.state.governance.safeAutoMergeEnabled ? 'yes' : 'no'}.`,
