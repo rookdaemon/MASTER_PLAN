@@ -139,8 +139,13 @@ describe('blocking CI and governed workflows', () => {
     expect(mergePolicy).toContain('head_sha="$HEAD_SHA"');
     expect(mergePolicy).toContain('merge-policy:pr:${PR_NUMBER}:head:${HEAD_SHA}:run:${GITHUB_RUN_ID}');
     expect(mergePolicy).toContain('complete_success');
+    expect(mergePolicy).toContain('repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}');
+    expect(mergePolicy).toContain("-f context='merge-policy'");
+    expect(mergePolicy).toContain('statuses: write');
+    expect(mergePolicy).toContain('publish_success_attestation');
     expect(mergePolicy).not.toContain('actions/checkout');
     expect(mergePolicy).toContain('base_evidence');
+    expect(mergePolicy).toContain('jq -n -e --slurpfile base');
     expect(mergePolicy).toContain('all($base[0][]; . as $existing | any($head[0][]; . == $existing))');
     expect(mergePolicy).toContain('test "$commit_count" -eq 1');
     expect(mergePolicy).toContain('check_name=agent-review');

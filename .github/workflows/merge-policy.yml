@@ -22,6 +22,7 @@ permissions:
   checks: write
   contents: read
   pull-requests: read
+  statuses: write
 
 concurrency:
   group: merge-policy-${{ github.event.pull_request.number || inputs.pr_number }}
@@ -44,11 +45,21 @@ jobs:
           pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
           HEAD_SHA="$(jq -r '.head.sha' <<<"$pr_json")"
           if test -n "$DISPATCH_HEAD"; then test "$HEAD_SHA" = "$DISPATCH_HEAD"; fi
+          publish_success_attestation() {
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
+              -f state='success' -f context='merge-policy' \
+              -f description="Exact-head merge policy run ${GITHUB_RUN_ID} passed" \
+              -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+              >/dev/null
+          }
           existing_success="$(gh api \
             "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?check_name=merge-policy" \
             | jq -r --arg prefix "merge-policy:pr:${PR_NUMBER}:head:${HEAD_SHA}:" \
               'any(.check_runs[]; .conclusion == "success" and .external_id != null and (.external_id | startswith($prefix)))')"
-          if test "$existing_success" = true; then exit 0; fi
+          if test "$existing_success" = true; then
+            publish_success_attestation
+            exit 0
+          fi
           check_id="$(gh api --method POST "repos/${GITHUB_REPOSITORY}/check-runs" \
             -f name='merge-policy' -f head_sha="$HEAD_SHA" -f status='in_progress' \
             -f external_id="merge-policy:pr:${PR_NUMBER}:head:${HEAD_SHA}:run:${GITHUB_RUN_ID}" \
@@ -66,6 +77,7 @@ jobs:
           complete_success() {
             gh api --method PATCH "repos/${GITHUB_REPOSITORY}/check-runs/${check_id}" \
               -f status='completed' -f conclusion='success' >/dev/null
+            publish_success_attestation
             check_finished=true
           }
           trap finish_check EXIT
@@ -92,7 +104,7 @@ jobs:
           if test "$routine_evidence" = true; then
             gh api "repos/${GITHUB_REPOSITORY}/contents/strategy/evidence.json?ref=${BASE_SHA}" --jq '.content' | base64 --decode > base_evidence.json
             gh api "repos/${GITHUB_REPOSITORY}/contents/strategy/evidence.json?ref=${HEAD_SHA}" --jq '.content' | base64 --decode > head_evidence.json
-            jq -e --slurpfile base base_evidence.json --slurpfile head head_evidence.json '
+            jq -n -e --slurpfile base base_evidence.json --slurpfile head head_evidence.json '
               ($base[0] | type == "array") and
               ($head[0] | type == "array") and
               all($base[0][]; . as $existing | any($head[0][]; . == $existing))
