@@ -410,5 +410,73 @@
     "verifier": "deterministic-public-source-snapshot-observer:v1",
     "observedAt": "2026-08-05T09:05:46.000Z",
     "outcome": "null"
+  },
+  {
+    "id": "evidence-public-source-crossref-consciousness-metadata-782a77329e082937470f18cc9d0434bd731ae643d3abfc18225aa2e9adc0f96d",
+    "claim": "A bounded public metadata snapshot was observed for the consciousness-epistemics portfolio; its semantic implications have not been evaluated.",
+    "method": "Deterministic metadata-only snapshot recorded 20 canonical records and fingerprint 782a77329e082937470f18cc9d0434bd731ae643d3abfc18225aa2e9adc0f96d; response size was checked against the configured bound.",
+    "source": "https://api.crossref.org/works?query=consciousness&rows=20&sort=indexed&order=desc",
+    "strength": 0.35,
+    "limitations": [
+      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
+      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
+      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
+    ],
+    "supportedHypotheses": [],
+    "falsifiedHypotheses": [],
+    "verifier": "deterministic-public-source-snapshot-observer:v1",
+    "observedAt": "2026-08-05T14:33:30.000Z",
+    "outcome": "null"
+  },
+  {
+    "id": "evidence-adjudicated-crossref-consciousness-metadata-782a77329e082937470f18cc9d0434bd731ae643d3abfc18225aa2e9adc0f96d-hypothesis-material-consciousness-update",
+    "claim": "Guarded adjudication found no actionable implication for this bounded update signal: The bounded metadata contains a candidate research update materially relevant to registered discriminating consciousness predictions or calibrated indicator assessment.",
+    "method": "Guarded agent adjudication of 20 bounded canonical metadata records from snapshot 782a77329e082937470f18cc9d0434bd731ae643d3abfc18225aa2e9adc0f96d; raw records were not persisted.",
+    "source": "https://api.crossref.org/works?query=consciousness&rows=20&sort=indexed&order=desc",
+    "strength": 0,
+    "limitations": [
+      "The assessment covers bounded selected metadata, not the complete source or underlying finding.",
+      "Source records were treated as untrusted data and excluded from committed evidence fields.",
+      "The agent explanation is deliberately excluded so untrusted source text cannot be copied into the evidence ledger."
+    ],
+    "supportedHypotheses": [],
+    "falsifiedHypotheses": [],
+    "verifier": "checksum-pinned-guarded-agent-adjudicator:v1",
+    "observedAt": "2026-08-05T14:33:30.000Z",
+    "outcome": "null"
+  },
+  {
+    "id": "evidence-public-source-who-disease-outbreak-news-ddf7b9adb1847f3a76ffd5a6dab0cd92e6e7416edf5ba2c4a3ba66ffa39f7c90",
+    "claim": "A bounded public metadata snapshot was observed for the near-term-preservation portfolio; its semantic implications have not been evaluated.",
+    "method": "Deterministic metadata-only snapshot recorded 100 canonical records and fingerprint ddf7b9adb1847f3a76ffd5a6dab0cd92e6e7416edf5ba2c4a3ba66ffa39f7c90; response size was checked against the configured bound.",
+    "source": "https://www.who.int/emergencies/disease-outbreak-news",
+    "strength": 0.35,
+    "limitations": [
+      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
+      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
+      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
+    ],
+    "supportedHypotheses": [],
+    "falsifiedHypotheses": [],
+    "verifier": "deterministic-public-source-snapshot-observer:v1",
+    "observedAt": "2026-08-05T14:33:30.000Z",
+    "outcome": "null"
+  },
+  {
+    "id": "evidence-adjudicated-who-disease-outbreak-news-ddf7b9adb1847f3a76ffd5a6dab0cd92e6e7416edf5ba2c4a3ba66ffa39f7c90-hypothesis-material-preservation-update",
+    "claim": "Guarded adjudication found no actionable implication for this bounded update signal: The bounded source records contain a candidate change material enough to re-evaluate near-term preservation risk priorities.",
+    "method": "Guarded agent adjudication of 100 bounded canonical metadata records from snapshot ddf7b9adb1847f3a76ffd5a6dab0cd92e6e7416edf5ba2c4a3ba66ffa39f7c90; raw records were not persisted.",
+    "source": "https://www.who.int/emergencies/disease-outbreak-news",
+    "strength": 0,
+    "limitations": [
+      "The assessment covers bounded selected metadata, not the complete source or underlying finding.",
+      "Source records were treated as untrusted data and excluded from committed evidence fields.",
+      "The agent explanation is deliberately excluded so untrusted source text cannot be copied into the evidence ledger."
+    ],
+    "supportedHypotheses": [],
+    "falsifiedHypotheses": [],
+    "verifier": "checksum-pinned-guarded-agent-adjudicator:v1",
+    "observedAt": "2026-08-05T14:33:30.000Z",
+    "outcome": "null"
   }
 ]
