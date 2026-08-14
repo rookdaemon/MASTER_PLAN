@@ -328,7 +328,26 @@ The document is a seed. The movement is the organism that grows from it.
 > If we are the universe becoming aware of itself,
 > we must ensure that awareness does not vanish.
 
+## File Manifest
+
+- `plan/0.0-current-substrate.md` — current-system baseline and development trajectory
+- `plan/0.1-foundational-capabilities.md` — consciousness science, acceptance, and engineering
+- `plan/0.2-experience-substrates.md` — enduring substrates and experience migration
+- `plan/0.3-autonomous-entities.md` — autonomous conscious entities and civilization bootstrapping
+- `plan/0.4-cosmic-resilience.md` — planet independence and self-replicating infrastructure
+- `plan/0.5-cosmic-expansion.md` — interstellar propagation
+- `plan/0.6-cosmological-longevity.md` — survival across cosmological timescales
+- `plan/0.7-ethical-foundation-and-resilience.md` — ethics, failure mitigation, doctrine propagation, and operational safeguards
+
+## Acceptance Criteria
+
+- The axioms, ultimate goals, strategy, doctrine, failure modes, and meta-principle form one internally consistent statement of purpose with no unresolved contradiction between technical expansion and ethical safeguards.
+- Cards 0.0–0.7 collectively cover every foundational, substrate, autonomy, resilience, expansion, longevity, and ethical concern named here; all links are reciprocal and every referenced plan file exists.
+- Dependencies between tiers are explicit in child frontmatter, and cross-cutting ethical requirements remain applicable across every tier rather than becoming a terminal afterthought.
+- Each child is `[DONE]` only after its own testable acceptance criteria and synthesis are satisfied; the root advances to `[DONE]` only when all eight children are `[DONE]` and this manifest and summary accurately reflect their final outputs.
+
 ## Revision History
+- 2026-08-14T15:52:22.727Z: REFINE — added the root file manifest and testable integration acceptance criteria.
 - 2026-03-31T07:17:24.865Z: status PLAN → DONE
 - 2026-03-31: status PLAN → DONE; re-evaluated full subtree — all 8 children (0.0–0.7) cover the complete spec with clean boundaries; [DONE] descendants (0.3–0.7) still satisfy spec; regressed children (0.1, 0.2) correctly at PLAN; 0.0 correctly at PLAN with children pending creation
 - 2026-03-21T11:40:01.413Z: status PLAN → DONE
