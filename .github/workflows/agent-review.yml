@@ -23,7 +23,7 @@ on:
         options:
           - qwen3-8b-categories-v3
           - qwen3-8b-categories-seed7-v3
-          - qwen3-14b-grounded-seed7-v6
+          - qwen3-14b-grounded-seed7-v7
           - qwen3-4b-categories-v3
 
 permissions:
@@ -42,14 +42,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      - name: Cache the checksum-pinned local reviewer
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      - name: Restore the checksum-pinned local reviewer
+        id: reviewer_cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ${{ runner.temp }}/master-plan-independent-reviewer
           key: agent-reviewer-b10242-${{ inputs.review_strategy || 'qwen3-8b-categories-v3' }}
           restore-keys: |
             agent-reviewer-b10242-qwen3-8b-categories-v3
       - name: Require an independent GitHub agent review of the current head
+        id: agent_review
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || inputs.head_sha }}
@@ -166,7 +168,7 @@ jobs:
               reviewer_checksum='d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785'
               review_seed='7'
               ;;
-            qwen3-14b-grounded-seed7-v6)
+            qwen3-14b-grounded-seed7-v7)
               reviewer_model='Qwen3-14B-Q4_K_M.gguf'
               reviewer_revision='530227a7d994db8eca5ab5ced2fb692b614357fd'
               reviewer_checksum='500a8806e85ee9c83f3ae08420295592451379b4f8cf2d0f41c15dffeb6b81f0'
@@ -190,6 +192,7 @@ jobs:
           fi
           echo "${reviewer_checksum}  ${reviewer_model}" \
             | (cd "$reviewer_dir" && sha256sum --check -)
+          echo 'model_verified=true' >> "$GITHUB_OUTPUT"
 
           "${reviewer_dir}/llama-b10242/llama-server" \
             --model "${reviewer_dir}/${reviewer_model}" \
@@ -277,10 +280,11 @@ jobs:
 
           printf '%s\n' \
             'diff --git a/checksum-validated-download.sh b/checksum-validated-download.sh' \
-            "+readonly PINNED_URL='https://example.invalid/model/revision/model.gguf'" \
-            "+readonly PINNED_SHA256='0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'" \
-            '+curl --fail --location "$PINNED_URL" --output model.gguf' \
-            '+echo "$PINNED_SHA256  model.gguf" | sha256sum --check -' \
+            '+set -euo pipefail' \
+            "+readonly PINNED_URL='https://github.com/ggml-org/llama.cpp/releases/download/b10242/llama-b10242-bin-ubuntu-x64.tar.gz'" \
+            "+readonly PINNED_SHA256='fb13c9fa97a605c6bba16a99b2f54eff6874d58bdbe5b94ece6e358eaa270088'" \
+            '+curl --fail --location "$PINNED_URL" --output llama.tar.gz' \
+            '+echo "$PINNED_SHA256  llama.tar.gz" | sha256sum --check -' \
             "+printf '%s\\n' '{\"required_field\":\"value\"}' > input.json" \
             "+jq -e '.required_field | type == \"string\"' input.json" \
             > grounding-canary.diff
@@ -309,3 +313,9 @@ jobs:
           jq -e '.verdict == "approve" and (.blockers | type == "array") and (.blockers | length == 0)' \
             review.normalized.json
           complete_success
+      - name: Save the verified checksum-pinned local reviewer
+        if: always() && steps.reviewer_cache.outputs.cache-hit != 'true' && steps.agent_review.outputs.model_verified == 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ${{ runner.temp }}/master-plan-independent-reviewer
+          key: agent-reviewer-b10242-${{ inputs.review_strategy || 'qwen3-8b-categories-v3' }}
