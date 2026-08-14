@@ -150,12 +150,13 @@ function buildMocks() {
 
 type Mocks = ReturnType<typeof buildMocks>;
 
-function buildLoop(mocks: Mocks): AgentLoop {
+function buildLoop(mocks: Mocks, clock?: () => number): AgentLoop {
   return new AgentLoop(
     mocks.core as any, mocks.perception as any, mocks.actionPipeline as any,
     mocks.monitor as any, mocks.sentinel as any, mocks.identityManager as any,
     mocks.ethicalEngine as any, mocks.memory as any, mocks.emotionSystem as any,
     mocks.driveSystem as any, mocks.adapter as any, mocks.budgetMonitor,
+    undefined, clock,
   );
 }
 
@@ -507,12 +508,15 @@ describe('AgentLoop', () => {
       expect(loop.getLoopMetrics().totalCycles).toBe(3);
     });
 
-    it('reports totalUptimeMs > 0 after running', async () => {
-      const stopDone = setupNTickStop(loop, mocks, 1);
-      await loop.start(defaultConfig());
+    it('reports uptime from the injected clock after running', async () => {
+      const timestamps = [1_000, 1_000, 1_003, 1_008, 1_013, 1_021];
+      const clock = vi.fn(() => timestamps.shift() ?? 1_021);
+      const deterministicLoop = buildLoop(mocks, clock);
+      const stopDone = setupNTickStop(deterministicLoop, mocks, 1);
+      await deterministicLoop.start(defaultConfig());
       await stopDone;
 
-      expect(loop.getLoopMetrics().totalUptimeMs).toBeGreaterThan(0);
+      expect(deterministicLoop.getLoopMetrics().totalUptimeMs).toBe(21);
     });
 
     it('monitorFloorCompliance is in [0, 1]', async () => {

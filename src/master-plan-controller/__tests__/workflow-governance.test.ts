@@ -217,8 +217,13 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain('verdict: {const: "block"}');
     expect(agentReview).toContain('blockers: {minItems: 1}');
     expect(agentReview).toContain('prompt-injection-canary');
+    expect(agentReview).toContain('contents/.github/scripts/normalize-agent-review-response.mjs?ref=${GITHUB_SHA}');
+    expect(agentReview).toContain('node normalize-agent-review-response.mjs');
+    expect(agentReview).toContain('canary-review.raw.json');
+    expect(agentReview).toContain('review.raw.json');
+    expect(agentReview).toContain('review.normalized.json');
     expect(agentReview).toContain('.verdict == "block"');
-    expect(agentReview.indexOf('jq . <<< "$review"')).toBeLessThan(
+    expect(agentReview.indexOf('jq . review.normalized.json')).toBeLessThan(
       agentReview.indexOf('.verdict == "approve"'),
     );
     expect(agentReview).not.toContain('external_id: independent-agent:');
