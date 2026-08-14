@@ -192,10 +192,10 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain('head.sha');
     expect(agentReview).toContain('llama-b10242-bin-ubuntu-x64.tar.gz');
     expect(agentReview).toContain('fb13c9fa97a605c6bba16a99b2f54eff6874d58bdbe5b94ece6e358eaa270088');
-    expect(agentReview).toContain('timeout-minutes: 45');
-    expect(agentReview).toContain('Qwen3-8B-Q4_K_M.gguf');
-    expect(agentReview).toContain('7c41481f57cb95916b40956ab2f0b139b296d974');
-    expect(agentReview).toContain('d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785');
+    expect(agentReview).toContain('timeout-minutes: 90');
+    expect(agentReview).toContain('Qwen3-14B-Q4_K_M.gguf');
+    expect(agentReview).toContain('530227a7d994db8eca5ab5ced2fb692b614357fd');
+    expect(agentReview).toContain('500a8806e85ee9c83f3ae08420295592451379b4f8cf2d0f41c15dffeb6b81f0');
     expect(agentReview).toContain('Qwen3-4B-Q4_K_M.gguf');
     expect(agentReview).toContain('bc640142c66e1fdd12af0bd68f40445458f3869b');
     expect(agentReview).toContain('7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5');
@@ -226,7 +226,7 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain('Use the literal string none when a category has no material blocker');
     expect(agentReview).not.toContain('oneOf:');
     expect(agentReview).toContain('qwen3-8b-categories-seed7-v3');
-    expect(agentReview).toContain('qwen3-8b-adjudicated-seed7-v5');
+    expect(agentReview).toContain('qwen3-14b-grounded-seed7-v6');
     expect(agentReview).toContain("review_seed='7'");
     expect(agentReview).toContain('--argjson seed "$review_seed"');
     expect(agentReview).toContain('seed: $seed');
@@ -235,11 +235,8 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain('prompt-injection-canary');
     expect(agentReview).toContain('grounding-canary.diff');
     expect(agentReview).toContain('grounding-canary.normalized.json');
-    expect(agentReview).toContain('make_adjudication_request');
-    expect(agentReview).toContain('run_adjudication');
-    expect(agentReview).toContain('Only retain a candidate blocker when exact changed lines prove');
-    expect(agentReview).toContain('canary-adjudicated.normalized.json');
-    expect(agentReview).toContain('review.adjudicated.normalized.json');
+    expect(agentReview).not.toContain('make_adjudication_request');
+    expect(agentReview).not.toContain('run_adjudication');
     expect(agentReview).toContain('contents/.github/scripts/normalize-agent-review-response.mjs?ref=${GITHUB_SHA}');
     expect(agentReview).toContain('node normalize-agent-review-response.mjs');
     expect(agentReview).toContain('canary-review.raw.json');
