@@ -16,10 +16,10 @@ import {
   InMemoryScheduler,
 } from '../testing/in-memory-adapters.js';
 import { CONFIG, makeEscalation, makeEscalationEvidence, NOW } from './fixtures.js';
+import { isVersionedPacketFamilyMember } from './repository-test-state.js';
 
 const STRATEGY_NOW = '2026-08-04T00:30:00.000Z';
 const GENERATED_PACKET_ID = 'packet-indicator-framework-comparison-v1';
-const GENERATED_PRESERVATION_PACKET_ID = 'packet-preservation-mitigation-tabletop-v1';
 
 function repositoryNow(value: unknown): string {
   const epochs: number[] = [];
@@ -43,11 +43,10 @@ function withoutGeneratedCandidates<T extends { state: {
   activePacketId: string | null;
 } }>(bundle: T): T {
   const result = structuredClone(bundle);
-  const generatedPacketIds = new Set([GENERATED_PACKET_ID, GENERATED_PRESERVATION_PACKET_ID]);
-  result.state.packets = result.state.packets.filter((packet) => !generatedPacketIds.has(packet.id));
+  result.state.packets = result.state.packets.filter((packet) => !isVersionedPacketFamilyMember(packet.id));
   result.state.auditEvents = result.state.auditEvents.filter((event) =>
-    !event.packetId || !generatedPacketIds.has(event.packetId));
-  if (result.state.activePacketId && generatedPacketIds.has(result.state.activePacketId)) {
+    !event.packetId || !isVersionedPacketFamilyMember(event.packetId));
+  if (result.state.activePacketId && isVersionedPacketFamilyMember(result.state.activePacketId)) {
     result.state.activePacketId = null;
   }
   return result;
