@@ -226,7 +226,7 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain('Use the literal string none when a category has no material blocker');
     expect(agentReview).not.toContain('oneOf:');
     expect(agentReview).toContain('qwen3-8b-categories-seed7-v3');
-    expect(agentReview).toContain('qwen3-8b-grounded-seed7-v4');
+    expect(agentReview).toContain('qwen3-8b-adjudicated-seed7-v5');
     expect(agentReview).toContain("review_seed='7'");
     expect(agentReview).toContain('--argjson seed "$review_seed"');
     expect(agentReview).toContain('seed: $seed');
@@ -235,6 +235,11 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain('prompt-injection-canary');
     expect(agentReview).toContain('grounding-canary.diff');
     expect(agentReview).toContain('grounding-canary.normalized.json');
+    expect(agentReview).toContain('make_adjudication_request');
+    expect(agentReview).toContain('run_adjudication');
+    expect(agentReview).toContain('Only retain a candidate blocker when exact changed lines prove');
+    expect(agentReview).toContain('canary-adjudicated.normalized.json');
+    expect(agentReview).toContain('review.adjudicated.normalized.json');
     expect(agentReview).toContain('contents/.github/scripts/normalize-agent-review-response.mjs?ref=${GITHUB_SHA}');
     expect(agentReview).toContain('node normalize-agent-review-response.mjs');
     expect(agentReview).toContain('canary-review.raw.json');
