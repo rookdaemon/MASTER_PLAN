@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { planAgentReviewRetry } from '../../../.github/scripts/plan-agent-review-retry.mjs';
 
 const HEAD = '0123456789abcdef0123456789abcdef01234567';
-const STRATEGIES = ['qwen3-8b-categories-v3', 'qwen3-4b-categories-v3'] as const;
+const STRATEGIES = ['qwen3-14b-grounded-seed42-v8', 'qwen3-14b-grounded-seed7-v8'] as const;
 
 function check(
   strategy: string,
@@ -63,7 +63,7 @@ describe('agent-review retry planning', () => {
 
   it('permits a retry only when a new strategy signature is configured', () => {
     const oldFailure = check(STRATEGIES[0], 'completed', 'failure');
-    const revisedStrategies = ['qwen3-8b-categories-v4', 'qwen3-4b-categories-v4'] as const;
+    const revisedStrategies = ['qwen3-14b-grounded-seed42-v9', 'qwen3-14b-grounded-seed7-v9'] as const;
 
     expect(planAgentReviewRetry({
       prNumber: 42, headSha: HEAD, checks: [oldFailure], strategies: revisedStrategies,

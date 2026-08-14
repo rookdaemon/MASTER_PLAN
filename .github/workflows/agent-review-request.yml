@@ -28,7 +28,7 @@ jobs:
           else
             pr_numbers="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number --jq '.[].number')"
           fi
-          review_strategies='qwen3-8b-categories-v3,qwen3-4b-categories-v3'
+          review_strategies='qwen3-14b-grounded-seed42-v8,qwen3-14b-grounded-seed7-v8'
           gh api \
             "repos/${GITHUB_REPOSITORY}/contents/.github/scripts/plan-agent-review-retry.mjs?ref=main" \
             --jq '.content' | base64 --decode > plan-agent-review-retry.mjs
@@ -48,7 +48,7 @@ jobs:
               continue
             fi
             gh api \
-              "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/check-runs?check_name=agent-review" \
+              "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/check-runs?check_name=agent-review&filter=all" \
               --jq '.check_runs' > agent-review-checks.json
             plan="$(node plan-agent-review-retry.mjs agent-review-checks.json \
               "$pr_number" "$head_sha" "$review_strategies")"

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 // The reviewer executes this dependency-free module directly on the hosted runner.
 // @ts-expect-error JavaScript workflow modules intentionally have no TypeScript declaration file.
-import { normalizeAgentReviewResponse } from '../../../.github/scripts/normalize-agent-review-response.mjs';
+import { normalizeAgentReviewResponse, parseAgentReviewResponseJson } from '../../../.github/scripts/normalize-agent-review-response.mjs';
 
 describe('agent review response normalization', () => {
   it('preserves a canonical approval', () => {
@@ -65,6 +65,18 @@ describe('agent review response normalization', () => {
       summary: 'The reviewer reported 1 material blocker.',
       blockers: ['correctness: The changed branch skips exact-head validation.'],
     });
+  });
+
+  it('repairs literal control characters inside constrained JSON string values', () => {
+    expect(parseAgentReviewResponseJson(
+      '{"blockers":{"security":"none","correctness":"line one\nline two"}}',
+    )).toEqual({
+      blockers: { security: 'none', correctness: 'line one\nline two' },
+    });
+  });
+
+  it('fails closed when invalid JSON is not a control character inside a string', () => {
+    expect(() => parseAgentReviewResponseJson('{"blockers":}')).toThrow();
   });
 
   it('fails closed for ambiguous or contradictory responses', () => {
