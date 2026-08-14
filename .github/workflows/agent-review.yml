@@ -22,6 +22,7 @@ on:
         type: choice
         options:
           - qwen3-8b-categories-v3
+          - qwen3-8b-categories-seed7-v3
           - qwen3-4b-categories-v3
 
 permissions:
@@ -45,6 +46,8 @@ jobs:
         with:
           path: ${{ runner.temp }}/master-plan-independent-reviewer
           key: agent-reviewer-b10242-${{ inputs.review_strategy || 'qwen3-8b-categories-v3' }}
+          restore-keys: |
+            agent-reviewer-b10242-qwen3-8b-categories-v3
       - name: Require an independent GitHub agent review of the current head
         env:
           GH_TOKEN: ${{ github.token }}
@@ -154,11 +157,19 @@ jobs:
               reviewer_model='Qwen3-8B-Q4_K_M.gguf'
               reviewer_revision='7c41481f57cb95916b40956ab2f0b139b296d974'
               reviewer_checksum='d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785'
+              review_seed='42'
+              ;;
+            qwen3-8b-categories-seed7-v3)
+              reviewer_model='Qwen3-8B-Q4_K_M.gguf'
+              reviewer_revision='7c41481f57cb95916b40956ab2f0b139b296d974'
+              reviewer_checksum='d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785'
+              review_seed='7'
               ;;
             qwen3-4b-categories-v3)
               reviewer_model='Qwen3-4B-Q4_K_M.gguf'
               reviewer_revision='bc640142c66e1fdd12af0bd68f40445458f3869b'
               reviewer_checksum='7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5'
+              review_seed='42'
               ;;
             *)
               echo "Unsupported review strategy: $REVIEW_STRATEGY" >&2
@@ -217,9 +228,9 @@ jobs:
           ]' \
             sanitizer-context-canary.sanitized.diff
           make_request() {
-            jq -n --rawfile diff "$1" --arg head "$HEAD_SHA" '{
+            jq -n --rawfile diff "$1" --arg head "$HEAD_SHA" --argjson seed "$review_seed" '{
               temperature: 0,
-              seed: 42,
+              seed: $seed,
               max_tokens: 256,
               json_schema: {
                     type: "object",

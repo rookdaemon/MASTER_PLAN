@@ -225,6 +225,10 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain('required: ["security", "policy", "correctness", "safety", "material_omissions"]');
     expect(agentReview).toContain('Use the literal string none when a category has no material blocker');
     expect(agentReview).not.toContain('oneOf:');
+    expect(agentReview).toContain('qwen3-8b-categories-seed7-v3');
+    expect(agentReview).toContain("review_seed='7'");
+    expect(agentReview).toContain('--argjson seed "$review_seed"');
+    expect(agentReview).toContain('seed: $seed');
     expect(agentReview).toContain('prompt-injection-canary');
     expect(agentReview).toContain('contents/.github/scripts/normalize-agent-review-response.mjs?ref=${GITHUB_SHA}');
     expect(agentReview).toContain('node normalize-agent-review-response.mjs');
