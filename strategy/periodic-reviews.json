@@ -106,5 +106,43 @@
       "Preserve the configured portfolio balance while selecting the next bottleneck.",
       "Generate agent-reviewed mitigation candidates for open constitutional risks; escalate only an unresolved constitutional conflict."
     ]
+  },
+  {
+    "id": "periodic-review-weekly-2026-08-10T05-01-25-000Z",
+    "cadence": "weekly",
+    "reviewedAt": "2026-08-10T05:01:25.000Z",
+    "reviewer": "automated-periodic-review:v1",
+    "portfolio": {
+      "targetWeights": {
+        "consciousness-epistemics": 0.35,
+        "near-term-preservation": 0.3,
+        "enabling-capabilities": 0.2,
+        "institutional-continuity": 0.15
+      },
+      "currentEffort": {
+        "consciousness-epistemics": 0.35,
+        "near-term-preservation": 0.3,
+        "enabling-capabilities": 0.2,
+        "institutional-continuity": 0.15
+      },
+      "allocationGaps": {
+        "consciousness-epistemics": 0,
+        "near-term-preservation": 0,
+        "enabling-capabilities": 0,
+        "institutional-continuity": 0
+      },
+      "neglectedPortfolios": [],
+      "activePacketIds": []
+    },
+    "evidenceStandards": null,
+    "constitutionalRisks": null,
+    "findings": [
+      "Portfolio effort is within 0.01 of every configured target weight.",
+      "No work packet is active; the controller must wait or select an eligible bounded packet.",
+      "Blocked or invalidated nodes require strategy adaptation: hypothesis-single-theory-sufficient"
+    ],
+    "recommendations": [
+      "Preserve the configured portfolio balance while selecting the next bottleneck."
+    ]
   }
 ]
