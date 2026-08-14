@@ -28,6 +28,10 @@ jobs:
           else
             pr_numbers="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number --jq '.[].number')"
           fi
+          review_strategies='qwen3-8b-categories-v3,qwen3-4b-categories-v3'
+          gh api \
+            "repos/${GITHUB_REPOSITORY}/contents/.github/scripts/plan-agent-review-retry.mjs?ref=main" \
+            --jq '.content' | base64 --decode > plan-agent-review-retry.mjs
           for pr_number in $pr_numbers; do
             head_sha="$(gh pr view "$pr_number" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
             reviewed="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/reviews" \
@@ -43,15 +47,15 @@ jobs:
               echo "Direct pull-request event already launches the fallback; skipping duplicate dispatch"
               continue
             fi
-            exact_review_active="$(gh api \
+            gh api \
               "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/check-runs?check_name=agent-review" \
-              | jq -r --arg external_id "agent-review:pr:${pr_number}:head:${head_sha}:" \
-                '[.check_runs[] | select(.external_id != null and (.external_id | startswith($external_id)))]
-                 | any(.[]; .status == "in_progress" or .conclusion == "success")')"
-            if test "$exact_review_active" = true; then
-              echo "Exact-head agent review is already running or successful; skipping fallback dispatch"
-              continue
+              --jq '.check_runs' > agent-review-checks.json
+            plan="$(node plan-agent-review-retry.mjs agent-review-checks.json \
+              "$pr_number" "$head_sha" "$review_strategies")"
+            echo "Review retry plan: $plan"
+            if test "$(jq -r '.action' <<<"$plan")" = 'dispatch'; then
+              strategy="$(jq -r '.strategy' <<<"$plan")"
+              gh workflow run agent-review.yml --repo "$GITHUB_REPOSITORY" --ref main \
+                -f pr_number="$pr_number" -f head_sha="$head_sha" -f review_strategy="$strategy"
             fi
-            gh workflow run agent-review.yml --repo "$GITHUB_REPOSITORY" --ref main \
-              -f pr_number="$pr_number" -f head_sha="$head_sha"
           done

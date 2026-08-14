@@ -128,7 +128,9 @@ jobs:
               if test "$external_id" = "agent-review:pr:${PR_NUMBER}:head:${HEAD_SHA}:run:${run_id}" && test -n "$run_id"; then
                 run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}")"
                 if test "$(jq -r '.path' <<<"$run_json")" = '.github/workflows/agent-review.yml' &&
-                  test "$(jq -r '.display_title' <<<"$run_json")" = "Agent review PR #${PR_NUMBER} @ ${HEAD_SHA}"; then
+                  test "$(jq -r '.display_title' <<<"$run_json")" = "Agent review PR #${PR_NUMBER} @ ${HEAD_SHA}" &&
+                  jq -e '.event == "pull_request_target" or (.event == "workflow_dispatch" and .head_branch == "main")' \
+                    <<<"$run_json" >/dev/null; then
                   complete_success
                   exit 0
                 fi

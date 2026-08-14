@@ -93,6 +93,8 @@ jobs:
           agent_run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${review_run_id}")"
           test "$(jq -r '.path' <<<"$agent_run")" = '.github/workflows/agent-review.yml'
           test "$(jq -r '.display_title' <<<"$agent_run")" = "Agent review PR #${PR_NUMBER} @ ${HEAD_SHA}"
+          jq -e '.event == "pull_request_target" or (.event == "workflow_dispatch" and .head_branch == "main")' \
+            <<<"$agent_run" >/dev/null
           reviewed_at="$(jq -er '.completed_at' <<<"$agent_check")"
           echo "reviewed_execution=true" >> "$GITHUB_OUTPUT"
           echo "packet_id=$packet_id" >> "$GITHUB_OUTPUT"

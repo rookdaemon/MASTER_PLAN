@@ -7,6 +7,51 @@ function objectRecord(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : null;
 }
 
+function escapeLiteralControlsInsideJsonStrings(text) {
+  let insideString = false;
+  let escaped = false;
+  let repaired = '';
+  for (const character of text) {
+    if (!insideString) {
+      if (character === '"') insideString = true;
+      repaired += character;
+      continue;
+    }
+    if (escaped) {
+      escaped = false;
+      repaired += character;
+      continue;
+    }
+    if (character === '\\') {
+      escaped = true;
+      repaired += character;
+      continue;
+    }
+    if (character === '"') {
+      insideString = false;
+      repaired += character;
+      continue;
+    }
+    const code = character.codePointAt(0);
+    if (code !== undefined && code <= 0x1f) {
+      repaired += `\\u${code.toString(16).padStart(4, '0')}`;
+      continue;
+    }
+    repaired += character;
+  }
+  return repaired;
+}
+
+function parseAgentReviewResponseJson(text) {
+  try {
+    return JSON.parse(text);
+  } catch (originalError) {
+    const repaired = escapeLiteralControlsInsideJsonStrings(text);
+    if (repaired === text) throw originalError;
+    return JSON.parse(repaired);
+  }
+}
+
 function canonicalResponse(response) {
   if (response.verdict !== 'approve' && response.verdict !== 'block') return null;
   if (response.summary !== undefined && typeof response.summary !== 'string') {
@@ -63,7 +108,7 @@ export function normalizeAgentReviewResponse(value) {
 export function runAgentReviewNormalizerCli(runtime) {
   const [path, ...extra] = runtime.arguments();
   if (!path || extra.length > 0) throw new Error('Usage: normalize-agent-review-response <response-json-path>');
-  const parsed = JSON.parse(runtime.readText(path));
+  const parsed = parseAgentReviewResponseJson(runtime.readText(path));
   runtime.write(JSON.stringify(normalizeAgentReviewResponse(parsed)));
 }
 
