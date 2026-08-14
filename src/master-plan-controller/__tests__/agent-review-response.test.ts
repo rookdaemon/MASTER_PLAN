@@ -17,6 +17,26 @@ describe('agent review response normalization', () => {
     });
   });
 
+  it('supplies a deterministic summary when constrained output leaves it empty', () => {
+    expect(normalizeAgentReviewResponse({
+      verdict: 'approve',
+      summary: '',
+      blockers: [],
+    })).toEqual({
+      verdict: 'approve',
+      summary: 'The reviewer reported no material blockers.',
+      blockers: [],
+    });
+  });
+
+  it('supplies a deterministic summary when constrained output omits it', () => {
+    expect(normalizeAgentReviewResponse({ verdict: 'approve', blockers: [] })).toEqual({
+      verdict: 'approve',
+      summary: 'The reviewer reported no material blockers.',
+      blockers: [],
+    });
+  });
+
   it('normalizes the pinned reviewer all-none category response to approval', () => {
     expect(normalizeAgentReviewResponse({
       blockers: {
