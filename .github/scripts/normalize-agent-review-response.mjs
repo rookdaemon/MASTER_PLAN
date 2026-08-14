@@ -9,8 +9,8 @@ function objectRecord(value) {
 
 function canonicalResponse(response) {
   if (response.verdict !== 'approve' && response.verdict !== 'block') return null;
-  if (typeof response.summary !== 'string' || response.summary.trim().length === 0) {
-    throw new Error('Canonical agent review response requires a nonempty summary');
+  if (response.summary !== undefined && typeof response.summary !== 'string') {
+    throw new Error('Canonical agent review response summary must be a string when present');
   }
   if (!Array.isArray(response.blockers) ||
       response.blockers.some((blocker) => typeof blocker !== 'string' || blocker.trim().length === 0)) {
@@ -23,7 +23,10 @@ function canonicalResponse(response) {
   if (response.verdict === 'block' && blockers.length === 0) {
     throw new Error('Contradictory agent review response blocks without reporting a blocker');
   }
-  return { verdict: response.verdict, summary: response.summary.trim(), blockers };
+  const summary = (typeof response.summary === 'string' ? response.summary.trim() : '') || (response.verdict === 'approve'
+    ? 'The reviewer reported no material blockers.'
+    : 'The reviewer reported one or more material blockers.');
+  return { verdict: response.verdict, summary, blockers };
 }
 
 function categoryResponse(response) {
