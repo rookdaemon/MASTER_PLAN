@@ -61,10 +61,12 @@ describe('parseCli', () => {
       '--agentic',
       '--agentic-provider', 'codex',
       '--codex-model', 'gpt-5.4',
+      '--codex-effort', 'xhigh',
     ]);
     expect(opts.executionMode).toBe('agentic');
     expect(opts.agenticProvider).toBe('codex');
     expect(opts.agenticModel).toBe('gpt-5.4');
+    expect(opts.codexEffort).toBe('xhigh');
   });
 
   it('defaults codex agentic runs to gpt-5.6-sol', () => {
@@ -104,6 +106,8 @@ describe('parseCli', () => {
 
   it('rejects an invalid effort level', () => {
     expect(() => parseCli(['node', 'main.ts', '--effort-ceiling', 'turbo']))
+      .toThrow(/effort/i);
+    expect(() => parseCli(['node', 'main.ts', '--codex-effort', 'turbo']))
       .toThrow(/effort/i);
   });
 

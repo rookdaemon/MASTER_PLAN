@@ -34,10 +34,14 @@ npm run guardian -- --agentic --agentic-provider codex
 # Override the Codex model:
 npm run guardian -- --agentic --agentic-provider codex --codex-model gpt-5.6-sol
 
+# Pin Codex reasoning effort:
+npm run guardian -- --agentic --agentic-provider codex --codex-model gpt-5.6-sol --codex-effort xhigh
+
 # Useful flags:
 #   --agentic-provider <p>    claude (default) or codex
 #   --agentic-model <model>   provider-neutral model flag (Codex default: gpt-5.6-sol)
 #   --codex-model <model>     alias for --agentic-model
+#   --codex-effort <effort>   exact Codex effort (low, medium, high, xhigh, max)
 #   --claude-timeout <ms>     per-invocation CLI timeout (default 300000)
 #   --quarantine-branch <b>   commit onto a side branch
 #   --strict-integrity false  disable the integrity gate (not recommended)

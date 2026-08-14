@@ -564,6 +564,7 @@ export async function runAgenticEpoch(
     modelBounds: config.modelBounds,
     agenticProvider: config.agenticProvider,
     agenticModel: config.agenticModel,
+    codexEffort: config.codexEffort,
   };
 
   const item = batch[0];
@@ -743,6 +744,7 @@ export async function runAgenticParallelEpoch(
     modelBounds: config.modelBounds,
     agenticProvider: config.agenticProvider,
     agenticModel: config.agenticModel,
+    codexEffort: config.codexEffort,
   };
 
   type RunOutcome =
@@ -1141,7 +1143,9 @@ function getClockMs(config: GuardianConfig): number {
 }
 
 function agenticModelLabel(config: GuardianConfig): string | undefined {
-  return config.agenticProvider === 'codex' ? `codex:${config.agenticModel ?? 'default'}` : undefined;
+  if (config.agenticProvider !== 'codex') return undefined;
+  const effortTag = config.codexEffort ? `\u00b7${config.codexEffort}` : '';
+  return `codex:${config.agenticModel ?? 'default'}${effortTag}`;
 }
 
 function summarizeBlockedReasons(blockedTasks: ReadonlyMap<string, BlockedTaskState>): string[] {

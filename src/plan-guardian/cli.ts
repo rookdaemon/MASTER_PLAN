@@ -29,6 +29,8 @@ export interface CliOptions {
   agenticProvider: AgenticProvider;
   /** Provider-specific model id for the agentic CLI. Codex defaults to gpt-5.6-sol. */
   agenticModel?: string;
+  /** Exact Codex reasoning effort passed through to `codex exec`. */
+  codexEffort?: EffortLevel;
   /** Per-invocation Claude CLI timeout in ms (agentic mode). */
   claudeTimeoutMs: number;
   /** Per-card model/effort policy bounds (agentic mode). */
@@ -55,6 +57,7 @@ const DEFAULTS: CliOptions = {
   executionMode: 'provider',
   agenticProvider: 'claude',
   agenticModel: undefined,
+  codexEffort: undefined,
   claudeTimeoutMs: 5 * 60 * 1000,
   proceduralRollup: false,
   provider: 'openrouter',
@@ -138,6 +141,9 @@ export function parseCli(argv: string[]): CliOptions {
       case '--agentic-model':
       case '--codex-model':
         opts.agenticModel = next();
+        break;
+      case '--codex-effort':
+        opts.codexEffort = validateEffort(next());
         break;
       case '--claude-timeout':
         opts.claudeTimeoutMs = parseInt(next(), 10);

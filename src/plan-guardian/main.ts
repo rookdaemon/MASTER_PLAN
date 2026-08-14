@@ -110,6 +110,7 @@ async function main() {
       executionMode: 'agentic',
       agenticProvider: opts.agenticProvider,
       agenticModel: opts.agenticModel,
+      codexEffort: opts.codexEffort,
       claudeInvoker: opts.agenticProvider === 'codex' ? new NodeCodexInvoker() : new NodeClaudeInvoker(),
       rootPlanFile,
       claudeTimeoutMs: opts.claudeTimeoutMs,
@@ -128,6 +129,7 @@ async function main() {
     console.log(`[guardian] Concurrency: ${concurrency} (parallel, ${concurrency} worktree${concurrency === 1 ? '' : 's'}) | Max iterations: ${opts.maxIterations} | Dry run: ${opts.dryRun} | CLI timeout: ${opts.claudeTimeoutMs}ms`);
     if (opts.agenticProvider === 'codex') {
       console.log(`[guardian] Codex model: ${opts.agenticModel ?? 'default'}`);
+      console.log(`[guardian] Codex effort: ${opts.codexEffort ?? 'default'}`);
     }
     console.log(`[guardian] Model policy: floor=${opts.modelFloor ?? 'haiku'} ceiling=${opts.modelCeiling ?? 'opus'} effort-ceiling=${opts.effortCeiling ?? 'max'}`);
     console.log(`[guardian] Strict integrity: ${opts.strictIntegrity} | Max new files/action: ${opts.maxNewFilesPerAction} | Quarantine branch: ${opts.quarantineBranch ?? 'none'}`);
@@ -136,6 +138,7 @@ async function main() {
       executionMode: 'agentic',
       agenticProvider: opts.agenticProvider,
       agenticModel: opts.agenticModel ?? null,
+      codexEffort: opts.codexEffort ?? null,
       planDir: opts.planDir,
       rootPlanFile,
       concurrency,
@@ -214,7 +217,7 @@ async function main() {
           mode: opts.executionMode,
           concurrency: config.concurrency,
           modelPolicy: opts.agenticProvider === 'codex'
-            ? `codex=${opts.agenticModel ?? 'default'}`
+            ? `codex=${opts.agenticModel ?? 'default'} effort=${opts.codexEffort ?? 'default'}`
             : `floor=${opts.modelFloor ?? 'haiku'} ceiling=${opts.modelCeiling ?? 'opus'} eff=${opts.effortCeiling ?? 'max'}`,
         },
         { write: s => process.stdout.write(s), now: () => Date.now() },

@@ -117,18 +117,20 @@ describe('runAgenticWorker', () => {
       ...config,
       agenticProvider: 'codex',
       agenticModel: 'gpt-5.4',
+      codexEffort: 'xhigh',
     });
 
     expect(seenArgs.slice(0, 2)).toEqual(['exec', '--dangerously-bypass-approvals-and-sandbox']);
     expect(seenArgs).toContain('--json');
     expect(seenArgs[seenArgs.indexOf('-m') + 1]).toBe('gpt-5.4');
+    expect(seenArgs[seenArgs.indexOf('-c') + 1]).toBe('model_reasoning_effort="xhigh"');
     expect(seenArgs[seenArgs.indexOf('-C') + 1]).toBe('.');
     expect(seenArgs.at(-1)).toBe('-');
     expect(seenCwd).toBeUndefined();
     expect(seenStdin).toContain('SYSTEM INSTRUCTIONS:');
     expect(seenStdin).toContain('@plan/0.0-alpha.md');
     expect(result.action.filesModified[0].content).toContain('Edited by Codex');
-    expect(result.action.summary).toContain('[codex:gpt-5.4]');
+    expect(result.action.summary).toContain('[codex:gpt-5.4\u00b7xhigh]');
   });
 
   it('packages the observed diff into a PlanningAction with read-back content', async () => {

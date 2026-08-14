@@ -8,6 +8,7 @@
 
 import { execFileSync } from 'node:child_process';
 import type { ParsedClaudeOutput } from './claude-invoker.js';
+import type { EffortLevel } from './cli.js';
 
 export type ExecFileSyncLike = (
   file: string,
@@ -28,6 +29,7 @@ export interface CodexArgsInput {
   rootPlanFile: string;
   instruction?: string;
   model?: string;
+  reasoningEffort?: EffortLevel;
   contextNote?: string;
   cwd: string;
 }
@@ -82,6 +84,9 @@ export function buildCodexArgs(input: CodexArgsInput): CodexInvocation {
     '--ephemeral',
   ];
   if (input.model) args.push('-m', input.model);
+  if (input.reasoningEffort) {
+    args.push('-c', `model_reasoning_effort="${input.reasoningEffort}"`);
+  }
   args.push('-C', input.cwd, '-');
   return { args, stdin };
 }
