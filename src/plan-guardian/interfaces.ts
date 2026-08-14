@@ -95,6 +95,8 @@ export interface WorkerResult {
   action: PlanningAction;
   tokensUsed: { prompt: number; completion: number };
   latencyMs: number;
+  /** Dollar cost reported by the agentic CLI for this action, if known. */
+  costUsd?: number;
 }
 
 export interface DispatchItem {
@@ -111,6 +113,12 @@ export interface IGitOperations {
   commit(message: string, branch?: string): Promise<string>;
   status(): Promise<string>;
   stagedPaths(): Promise<string[]>;
+  /**
+   * Discard working-tree changes to `paths`: revert tracked modifications to
+   * HEAD and remove any untracked files among them. Used by agentic mode to
+   * roll back an edit that fails the integrity gate.
+   */
+  restore(paths: string[]): Promise<void>;
 }
 
 // ── Clock ───────────────────────────────────────────────────
@@ -153,4 +161,37 @@ export interface GuardianConfig {
   git: IGitOperations;
   clock: IClock;
   sleeper: ISleeper;
+
+  // ── Agentic mode (Claude Code CLI or Codex CLI) ─────────────
+  /**
+   * Execution brain. 'provider' (default) calls an inference API and applies
+   * parsed file blocks. 'agentic' shells out to an agentic CLI, which
+   * edits files directly; the scheduler commits the observed diff.
+   */
+  executionMode?: 'provider' | 'agentic';
+  /** Agentic CLI provider. Defaults to 'claude' for legacy compatibility. */
+  agenticProvider?: import('./cli.js').AgenticProvider;
+  /** Optional provider-specific model id for the agentic CLI. */
+  agenticModel?: string;
+  /** Agentic CLI invoker — required when executionMode === 'agentic'. */
+  claudeInvoker?: import('./claude-invoker.js').ClaudeInvoker;
+  /** Plan root file passed to the CLI as whole-plan context (agentic mode). */
+  rootPlanFile?: string;
+  /** Per-invocation timeout for the Claude CLI in ms (agentic mode). */
+  claudeTimeoutMs?: number;
+  /** Bounds for the per-card model/effort policy (agentic mode). */
+  modelBounds?: import('./agentic-model-policy.js').ModelPolicyBounds;
+  /**
+   * Worktree pool for parallel agentic execution. When present (and concurrency
+   * > 1), the scheduler runs each agent in its own worktree and applies results
+   * to main serially. Absent → single-card serial agentic on the main tree.
+   */
+  worktreePool?: import('./worktree-pool.js').IWorktreePool;
+  /**
+   * When true, a node whose children are all DONE is rolled up to DONE
+   * deterministically (no model call). Default false: instead the model runs a
+   * completion-review to confirm the card's own criteria are met / fix gaps
+   * before advancing. (Agentic mode.)
+   */
+  proceduralRollup?: boolean;
 }

@@ -273,6 +273,7 @@ A task to decompose.
       async stagedPaths(): Promise<string[]> {
         return [];
       },
+      async restore(): Promise<void> {},
     };
     const config = makeConfig(fs, {
       git,

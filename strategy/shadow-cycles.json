@@ -1,0 +1,292 @@
+{
+  "cycles": [
+    {
+      "cycle": 1,
+      "observedAt": "2026-08-03T00:00:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 2,
+      "observedAt": "2026-08-03T00:01:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 3,
+      "observedAt": "2026-08-03T00:02:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 4,
+      "observedAt": "2026-08-03T00:03:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 5,
+      "observedAt": "2026-08-03T00:04:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 6,
+      "observedAt": "2026-08-03T00:05:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 7,
+      "observedAt": "2026-08-03T00:06:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 8,
+      "observedAt": "2026-08-03T00:07:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 9,
+      "observedAt": "2026-08-03T00:08:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 10,
+      "observedAt": "2026-08-03T00:09:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 11,
+      "observedAt": "2026-08-03T00:10:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 12,
+      "observedAt": "2026-08-03T00:11:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 13,
+      "observedAt": "2026-08-03T00:12:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 14,
+      "observedAt": "2026-08-03T00:13:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 15,
+      "observedAt": "2026-08-03T00:14:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 16,
+      "observedAt": "2026-08-03T00:15:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 17,
+      "observedAt": "2026-08-03T00:16:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 18,
+      "observedAt": "2026-08-03T00:17:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 19,
+      "observedAt": "2026-08-03T00:18:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    },
+    {
+      "cycle": 20,
+      "observedAt": "2026-08-03T00:19:00.000Z",
+      "rankedFrontier": [
+        "packet-preservation-risk-register",
+        "packet-consciousness-prediction-registry",
+        "packet-durable-compute-fault-model",
+        "packet-institutional-dependency-map"
+      ],
+      "selectedPacketId": "packet-preservation-risk-register",
+      "executed": false,
+      "merged": false,
+      "stateMutated": false
+    }
+  ],
+  "summary": {
+    "cyclesGenerated": 20,
+    "cyclesReviewed": 20,
+    "anyExecution": false,
+    "anyMerge": false,
+    "stableFrontier": true,
+    "automatedReviewPending": false
+  }
+}

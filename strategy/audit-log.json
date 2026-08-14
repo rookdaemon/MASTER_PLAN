@@ -1,0 +1,130 @@
+[
+  {
+    "id": "audit:packet-preservation-risk-register:packet-verified:2026-08-03T21:30:00.000Z",
+    "type": "packet-verified",
+    "packetId": "packet-preservation-risk-register",
+    "occurredAt": "2026-08-03T21:30:00.000Z",
+    "details": {
+      "outcome": "positive",
+      "artifactReferences": [
+        "strategy/results/preservation-risk-register-v1.json",
+        "https://github.com/rookdaemon/MASTER_PLAN/pull/116",
+        "https://github.com/rookdaemon/MASTER_PLAN/pull/116#pullrequestreview-4848516713",
+        "https://github.com/rookdaemon/MASTER_PLAN/actions/runs/30852585749",
+        "git:882d62fdd3144be9a9ce8c81b74348b121b0c39e"
+      ],
+      "verifier": "agent-review:github-run:30852585749"
+    }
+  },
+  {
+    "id": "audit:packet-consciousness-prediction-registry:packet-verified:2026-08-03T22:53:00.000Z",
+    "type": "packet-verified",
+    "packetId": "packet-consciousness-prediction-registry",
+    "occurredAt": "2026-08-03T22:53:00.000Z",
+    "details": {
+      "outcome": "positive",
+      "artifactReferences": [
+        "strategy/results/consciousness-prediction-registry-v1.json",
+        "https://github.com/rookdaemon/MASTER_PLAN/pull/119",
+        "https://github.com/rookdaemon/MASTER_PLAN/pull/119#pullrequestreview-4849079054",
+        "https://github.com/rookdaemon/MASTER_PLAN/actions/runs/30859173640",
+        "git:db0df364758917e3fe48b6111afce78cf2625f01"
+      ],
+      "verifier": "independent-agent-review:4849079054+github-run:30859173640"
+    }
+  },
+  {
+    "id": "audit:packet-institutional-dependency-map:packet-verified:2026-08-03T23:57:30.000Z",
+    "type": "packet-verified",
+    "packetId": "packet-institutional-dependency-map",
+    "occurredAt": "2026-08-03T23:57:30.000Z",
+    "details": {
+      "outcome": "positive",
+      "artifactReferences": [
+        "strategy/results/institutional-dependency-map-v1.json",
+        "https://github.com/rookdaemon/MASTER_PLAN/pull/122",
+        "https://github.com/rookdaemon/MASTER_PLAN/pull/122#pullrequestreview-4849377990",
+        "https://github.com/rookdaemon/MASTER_PLAN/actions/runs/30863160408",
+        "git:bf330e89aa4922db1eda611538f1f3f2704e185c"
+      ],
+      "verifier": "independent-agent-review:4849377990+github-run:30863160408"
+    }
+  },
+  {
+    "id": "audit:packet-durable-compute-fault-model:packet-verified:2026-08-04T00:29:00.000Z",
+    "type": "packet-verified",
+    "packetId": "packet-durable-compute-fault-model",
+    "occurredAt": "2026-08-04T00:29:00.000Z",
+    "details": {
+      "outcome": "positive",
+      "artifactReferences": [
+        "strategy/results/durable-compute-fault-model-v1.json",
+        "https://github.com/rookdaemon/MASTER_PLAN/pull/124",
+        "https://github.com/rookdaemon/MASTER_PLAN/pull/124#pullrequestreview-4849533096",
+        "https://github.com/rookdaemon/MASTER_PLAN/actions/runs/30865111083",
+        "git:d7e8097da10f5b25301f87f518d33c55d50de059"
+      ],
+      "verifier": "independent-agent-review:4849533096+github-run:30865111083"
+    }
+  },
+  {
+    "id": "audit:packet-indicator-framework-comparison-v1:packet-generated:2026-08-04T02:38:58.000Z",
+    "type": "packet-generated",
+    "packetId": "packet-indicator-framework-comparison-v1",
+    "occurredAt": "2026-08-04T02:38:58.000Z",
+    "details": {
+      "source": "diagnosis",
+      "portfolio": "consciousness-epistemics"
+    }
+  },
+  {
+    "id": "audit:packet-indicator-framework-comparison-v1:packet-verified:2026-08-04T04:08:43.000Z",
+    "type": "packet-verified",
+    "packetId": "packet-indicator-framework-comparison-v1",
+    "occurredAt": "2026-08-04T04:08:43.000Z",
+    "details": {
+      "outcome": "positive",
+      "artifactReferences": [
+        "strategy/results/indicator-framework-comparison-v1.json",
+        "strategy/results/consciousness-prediction-registry-v1.json"
+      ],
+      "verifier": "github-hosted-agent-review:run:30874685030:head:365b5e4dbdaa960da3dbf22f8bc94d2be555fd46"
+    }
+  },
+  {
+    "id": "audit:packet-preservation-mitigation-tabletop-v1:packet-generated:2026-08-04T18:44:27.000Z",
+    "type": "packet-generated",
+    "packetId": "packet-preservation-mitigation-tabletop-v1",
+    "occurredAt": "2026-08-04T18:44:27.000Z",
+    "details": {
+      "source": "diagnosis",
+      "portfolio": "near-term-preservation"
+    }
+  },
+  {
+    "id": "audit:packet-preservation-mitigation-tabletop-v1:packet-verified:2026-08-04T19:15:21.000Z",
+    "type": "packet-verified",
+    "packetId": "packet-preservation-mitigation-tabletop-v1",
+    "occurredAt": "2026-08-04T19:15:21.000Z",
+    "details": {
+      "outcome": "null",
+      "artifactReferences": [
+        "strategy/results/preservation-mitigation-tabletop-v1.json",
+        "strategy/results/preservation-risk-register-v1.json"
+      ],
+      "verifier": "github-hosted-agent-review:run:30941624014:head:ac3e3865940de74a656fb2ba0a2770dff80625b9",
+      "externalMetricChanged": false,
+      "metricUpdates": []
+    }
+  },
+  {
+    "id": "audit:packet-preservation-mitigation-tabletop-v2:packet-generated:2026-08-14T13:42:58.000Z",
+    "type": "packet-generated",
+    "packetId": "packet-preservation-mitigation-tabletop-v2",
+    "occurredAt": "2026-08-14T13:42:58.000Z",
+    "details": {
+      "source": "diagnosis",
+      "portfolio": "near-term-preservation"
+    }
+  }
+]

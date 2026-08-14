@@ -10,6 +10,8 @@
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type {
+  AppraisalEvent,
+  AppraisalEventKind,
   AppraisalResult,
   EmotionalInfluenceVector,
   IntegrityState,
@@ -38,3 +40,6 @@ export { MoodDynamics }       from './mood-dynamics.js';
 export { EmotionalInfluence } from './emotional-influence.js';
 export { EmotionalRegulation } from './emotional-regulation.js';
 export { ValenceMonitor }     from './valence-monitor.js';
+
+// ── Event bridge ──────────────────────────────────────────────────────────────
+export { appraisalResultFromEvents } from './appraisal-event.js';

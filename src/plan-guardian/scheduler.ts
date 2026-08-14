@@ -23,6 +23,8 @@ import { buildDAG } from './dag.js';
 import { prioritize, selectIndependentBatch } from './priority.js';
 import { runPlanningWorker } from './worker.js';
 import { runExecutionWorker } from './executor.js';
+import { runAgenticWorker } from './agentic-worker.js';
+import { selectModelEffort } from './agentic-model-policy.js';
 import {
   buildSnapshotWithActions,
   validateActionIntegrity,
@@ -39,6 +41,21 @@ import {
   MAX_BACKOFF_MS as MAX_RATE_LIMIT_BACKOFF_MS,
 } from './model-selector.js';
 
+/**
+ * Appended to the user turn when a card's children are all DONE: turns the old
+ * rubber-stamp roll-up into a genuine completion-review.
+ */
+const FINALIZE_NOTE =
+  'NOTE: every child of this card is already [DONE]. Do not simply mark this card DONE — first verify THIS card itself: are its own acceptance criteria fully met, and is its synthesis/integration complete (a summary tying the children together, accurate cross-references, an up-to-date file manifest)? If it is genuinely complete, ADVANCE its status to DONE. If a material gap remains, fix the single biggest gap and leave the status unchanged (it will be reviewed again).';
+
+/**
+ * Safety net against endless "betterment": once a card has been committed this
+ * many times in a run without reaching DONE, it is settled for the rest of the
+ * run. Generous enough for the full PLAN→ARCHITECT→IMPLEMENT→REVIEW→DONE
+ * lifecycle plus a few refinements.
+ */
+const MAX_COMMITS_PER_CARD = 8;
+
 export interface EpochResult {
   epoch: number;
   dispatched: number;
@@ -51,6 +68,11 @@ export interface EpochResult {
   rateLimitedTasks: RateLimitedTask[];
   commits: string[];
   totalTokens: { prompt: number; completion: number };
+  /**
+   * Tasks that were dispatched but produced no change (converged for now).
+   * Used by the scheduler to stop re-selecting a card that has nothing to do.
+   */
+  noChangeTaskPaths?: string[];
 }
 
 export interface RateLimitedTask {
@@ -61,7 +83,8 @@ export interface RateLimitedTask {
 
 export interface SchedulerCallbacks {
   onEpochStart?(epoch: number, batchSize: number): void;
-  onWorkerStart?(task: string, actionType: DispatchItem['actionType']): void;
+  /** `model` is the resolved model·effort tag (agentic parallel mode), if known. */
+  onWorkerStart?(task: string, actionType: DispatchItem['actionType'], model?: string): void;
   onWorkerComplete?(result: WorkerResult): void;
   onWorkerError?(task: string, error: Error): void;
   onCommit?(hash: string, message: string): void;
@@ -85,6 +108,14 @@ export function runScheduler(
 ): SchedulerHandle {
   let stopRequested = false;
   const blockedTasks = new Map<string, BlockedTaskState>();
+  // Cards that produced a no-op (nothing to do for now) are excluded from
+  // re-selection. Cleared whenever any epoch commits, so progress elsewhere
+  // re-opens previously-settled cards (e.g. a node once its children advance).
+  const settledTasks = new Set<string>();
+  // Cards committed too many times without reaching DONE — permanently settled
+  // for the run to bound "betterment" churn. NOT cleared on commit.
+  const overworkedTasks = new Set<string>();
+  const commitCountByCard = new Map<string, number>();
   const initialBackoffMs = getInitialRateLimitBackoffMs(config);
 
   const done = (async (): Promise<EpochResult[]> => {
@@ -99,7 +130,8 @@ export function runScheduler(
     if (stopRequested) break;
 
     if (activeQueue == null) {
-      activeQueue = await buildEpochQueue(config, blockedTasks);
+      const excluded = new Set<string>([...settledTasks, ...overworkedTasks]);
+      activeQueue = await buildEpochQueue(config, blockedTasks, excluded);
       if (activeQueue.length === 0) {
         const empty: EpochResult = {
           epoch,
@@ -136,7 +168,13 @@ export function runScheduler(
     }
 
     const nowMs = getClockMs(config);
-    const epochResult = await runEpoch(
+    const runEpochFn =
+      config.executionMode === 'agentic'
+        ? config.worktreePool
+          ? runAgenticParallelEpoch
+          : runAgenticEpoch
+        : runEpoch;
+    const epochResult = await runEpochFn(
       epoch,
       config,
       { ...callbacks, onEpochStart: undefined, onEpochEnd: undefined },
@@ -146,6 +184,28 @@ export function runScheduler(
     cycleCount += 1;
 
     epochAggregate = mergeEpochResults(epochAggregate!, epochResult);
+
+    // Convergence tracking: a commit means the plan changed, so re-open all
+    // previously-settled cards; a no-op settles that card so we move on.
+    if (epochResult.commits.length > 0) {
+      settledTasks.clear();
+    }
+    for (const path of epochResult.noChangeTaskPaths ?? []) {
+      settledTasks.add(path);
+    }
+
+    // Churn cap: count commits per card; a card committed too many times without
+    // reaching DONE is permanently settled so "betterment" can't loop forever.
+    const noChange = new Set(epochResult.noChangeTaskPaths ?? []);
+    const rateLimited = new Set(epochResult.rateLimitedTasks.map(t => t.path));
+    if (epochResult.commits.length > 0) {
+      for (const path of epochResult.dispatchedTaskPaths) {
+        if (noChange.has(path) || rateLimited.has(path)) continue;
+        const n = (commitCountByCard.get(path) ?? 0) + 1;
+        commitCountByCard.set(path, n);
+        if (n >= MAX_COMMITS_PER_CARD) overworkedTasks.add(path);
+      }
+    }
 
     const rateLimitedPaths = new Set(epochResult.rateLimitedTasks.map(task => task.path));
     const consumedPaths = new Set(
@@ -430,6 +490,401 @@ export async function runEpoch(
   return epochResult;
 }
 
+/**
+ * Agentic epoch — drives one card per epoch through the configured agentic CLI.
+ *
+ * Same signature as `runEpoch`, so `runScheduler` can pick either runner. The
+ * brain is the CLI (it edits files on disk); this function reuses the guardian's
+ * task selection, integrity gate, and git commit, committing the OBSERVED diff
+ * rather than applying parsed blocks. Agentic mode is strictly serial — exactly
+ * one card per epoch — so the working tree stays clean between commits.
+ */
+export async function runAgenticEpoch(
+  epoch: number,
+  config: GuardianConfig,
+  callbacks: SchedulerCallbacks = {},
+  blockedTasks: ReadonlyMap<string, BlockedTaskState> = new Map(),
+  queuedBatch?: readonly QueuedDispatchItem[],
+): Promise<EpochResult> {
+  const { fs, git, clock, planDir, dryRun } = config;
+  const now = clock.now();
+  const nowMs = Number.isFinite(Date.parse(now)) ? Date.parse(now) : Date.now();
+
+  const dag = await buildDAG(fs, planDir);
+  const fullBatch = queuedBatch
+    ? buildDispatchBatchFromQueue(queuedBatch, dag, blockedTasks, nowMs)
+    : selectIndependentBatch(
+        prioritize(dag, now).filter(candidate => {
+          const blocked = blockedTasks.get(candidate.task.path);
+          return !blocked || blocked.resumeAtMs <= nowMs;
+        }),
+        1,
+      );
+  // Strictly serial: one card per epoch keeps the working tree clean so the
+  // observed diff is exactly this card's edit.
+  const batch = fullBatch.slice(0, 1);
+
+  const base = (over: Partial<EpochResult>): EpochResult => ({
+    epoch,
+    dispatched: 0,
+    completed: 0,
+    failed: 0,
+    rateLimitFailures: 0,
+    rateLimitBackoffHintMs: 0,
+    rateLimitReasons: [],
+    dispatchedTaskPaths: [],
+    rateLimitedTasks: [],
+    commits: [],
+    totalTokens: { prompt: 0, completion: 0 },
+    ...over,
+  });
+
+  if (batch.length === 0) return base({});
+
+  // Clean-tree invariant: an agentic epoch captures the post-CLI git diff as
+  // the action. Any pre-existing uncommitted changes would be wrongly swept into
+  // that commit, so refuse to run on a dirty tree (commit/stash first).
+  const preStatus = (await git.status()).trim();
+  if (preStatus.length > 0) {
+    throw new Error(
+      `Refusing agentic epoch: the working tree has uncommitted changes. ` +
+        `Commit or stash them first so only the agentic CLI edits are captured.\n${preStatus}`,
+    );
+  }
+
+  if (!queuedBatch) callbacks.onEpochStart?.(epoch, batch.length);
+
+  const invoker = config.claudeInvoker;
+  if (!invoker) throw new Error('agentic mode requires config.claudeInvoker');
+
+  const agenticConfig = {
+    rootPlanFile: config.rootPlanFile ?? `${planDir}/root.md`,
+    planDir,
+    claudeTimeoutMs: config.claudeTimeoutMs ?? 5 * 60 * 1000,
+    modelBounds: config.modelBounds,
+    agenticProvider: config.agenticProvider,
+    agenticModel: config.agenticModel,
+  };
+
+  const item = batch[0];
+  const dispatchedTaskPaths = [item.task.path];
+  callbacks.onWorkerStart?.(item.task.path, item.actionType, agenticModelLabel(config));
+
+  // A node whose children are all DONE is a candidate to finalize. With
+  // --procedural-rollup it's marked DONE deterministically (no model call);
+  // otherwise the model runs a completion-review (verify own criteria / fix gaps
+  // before advancing) via the contextNote below.
+  const children = dag.childrenOf(item.task.path);
+  const childrenAllDone =
+    item.task.status !== 'DONE' && children.length > 0 && children.every(c => c.status === 'DONE');
+
+  if (childrenAllDone && config.proceduralRollup) {
+    const det = makeDeterministicStatusUpdate(item, now);
+    const commits: string[] = [];
+    if (!dryRun) {
+      for (const f of det.action.filesModified) await fs.writeFile(f.path, f.content, 'utf-8');
+      await git.add(det.action.writeSet);
+      if ((await git.stagedPaths()).length > 0) {
+        const message = `[guardian] epoch ${epoch}: ${det.action.summary} [procedural]`;
+        const hash = await git.commit(message, config.quarantineBranch);
+        commits.push(hash);
+        callbacks.onCommit?.(hash, message);
+      }
+    }
+    callbacks.onWorkerComplete?.(det);
+    return base({ dispatched: 1, completed: 1, dispatchedTaskPaths, commits });
+  }
+
+  let result: WorkerResult;
+  try {
+    result = await runAgenticWorker(item, { invoker, fs, git }, now, nowMs, {
+      ...agenticConfig,
+      contextNote: childrenAllDone ? FINALIZE_NOTE : undefined,
+    });
+  } catch (err) {
+    if (isRateLimitError(err)) {
+      const hintMs = parseRateLimitBackoffHintMs(err, nowMs);
+      const reason = extractRateLimitReason(err);
+      callbacks.onWorkerError?.(item.task.path, err as Error);
+      return base({
+        dispatched: 1,
+        failed: 1,
+        rateLimitFailures: 1,
+        rateLimitBackoffHintMs: hintMs,
+        rateLimitReasons: [reason],
+        dispatchedTaskPaths,
+        rateLimitedTasks: [{ path: item.task.path, reason, hintMs }],
+      });
+    }
+    callbacks.onWorkerError?.(item.task.path, err as Error);
+    // Settle a hard-failed card too, so a persistent failure (e.g. auth) sweeps
+    // and terminates instead of fail-looping on the top-priority card.
+    return base({ dispatched: 1, failed: 1, dispatchedTaskPaths, noChangeTaskPaths: [item.task.path] });
+  }
+
+  // No-op: the CLI made no change → this card has converged for now. Report it
+  // so the scheduler stops re-selecting it (otherwise the 1-item queue rebuilds
+  // to the same top-priority card every epoch).
+  if (result.action.writeSet.length === 0) {
+    callbacks.onWorkerComplete?.(result);
+    return base({ dispatched: 1, completed: 1, dispatchedTaskPaths, noChangeTaskPaths: [item.task.path] });
+  }
+
+  // Integrity gate (artifact-or-nothing): reject + revert the on-disk edit if invalid.
+  if (config.strictIntegrity) {
+    const baselineNodes = dag.nodes;
+    const verdict = validateActionIntegrity(result.action, baselineNodes, config);
+    const graphVerdict = verdict.valid
+      ? validateGraphIntegrity(buildSnapshotWithActions(baselineNodes, [result.action]), planDir)
+      : { valid: true, errors: [] };
+    if (!verdict.valid || !graphVerdict.valid) {
+      const errors = [...verdict.errors, ...graphVerdict.errors];
+      await git.restore(result.action.writeSet);
+      callbacks.onWorkerError?.(
+        item.task.path,
+        new Error(`Integrity gate failed in ${item.task.path}: ${errors.join('; ')}`),
+      );
+      return base({ dispatched: 1, failed: 1, dispatchedTaskPaths, noChangeTaskPaths: [item.task.path] });
+    }
+  }
+
+  // Dry-run is a genuine preview: undo the CLI edit, report what would happen.
+  if (dryRun) {
+    await git.restore(result.action.writeSet);
+    callbacks.onWorkerComplete?.(result);
+    return base({ dispatched: 1, completed: 1, dispatchedTaskPaths });
+  }
+
+  const commits: string[] = [];
+  await git.add(result.action.writeSet);
+  if ((await git.stagedPaths()).length > 0) {
+    const message = `[guardian] epoch ${epoch}: ${result.action.summary}`;
+    const hash = await git.commit(message, config.quarantineBranch);
+    commits.push(hash);
+    callbacks.onCommit?.(hash, message);
+  }
+  callbacks.onWorkerComplete?.(result);
+
+  return base({ dispatched: 1, completed: 1, dispatchedTaskPaths, commits });
+}
+
+/**
+ * Parallel agentic epoch — runs up to `pool.size` cards concurrently, each in
+ * its own git worktree, then applies results to the main tree SERIALLY (gate +
+ * commit). Same signature as runEpoch so runScheduler can select it.
+ *
+ * Isolation model: each agent edits only its worktree, so parallel CLI
+ * processes can't collide. We then write each agent's resulting file contents
+ * to main and commit one card at a time — on an integrity-gate failure we
+ * simply don't write to main (the worktree is discarded on the next reset), so
+ * no revert is needed.
+ */
+export async function runAgenticParallelEpoch(
+  epoch: number,
+  config: GuardianConfig,
+  callbacks: SchedulerCallbacks = {},
+  blockedTasks: ReadonlyMap<string, BlockedTaskState> = new Map(),
+  queuedBatch?: readonly QueuedDispatchItem[],
+): Promise<EpochResult> {
+  const { fs, git, clock, planDir, dryRun } = config;
+  const pool = config.worktreePool;
+  if (!pool) throw new Error('parallel agentic mode requires config.worktreePool');
+  const invoker = config.claudeInvoker;
+  if (!invoker) throw new Error('agentic mode requires config.claudeInvoker');
+
+  const now = clock.now();
+  const nowMs = Number.isFinite(Date.parse(now)) ? Date.parse(now) : Date.now();
+
+  const dag = await buildDAG(fs, planDir);
+  const fullBatch = queuedBatch
+    ? buildDispatchBatchFromQueue(queuedBatch, dag, blockedTasks, nowMs)
+    : selectIndependentBatch(
+        prioritize(dag, now).filter(candidate => {
+          const blocked = blockedTasks.get(candidate.task.path);
+          return !blocked || blocked.resumeAtMs <= nowMs;
+        }),
+        pool.size,
+      );
+  const batch = fullBatch.slice(0, pool.size);
+
+  const base = (over: Partial<EpochResult>): EpochResult => ({
+    epoch,
+    dispatched: 0,
+    completed: 0,
+    failed: 0,
+    rateLimitFailures: 0,
+    rateLimitBackoffHintMs: 0,
+    rateLimitReasons: [],
+    dispatchedTaskPaths: [],
+    rateLimitedTasks: [],
+    commits: [],
+    totalTokens: { prompt: 0, completion: 0 },
+    ...over,
+  });
+
+  if (batch.length === 0) return base({});
+
+  // Clean-tree invariant on main (results are written to main; pre-existing
+  // changes would be wrongly committed).
+  const preStatus = (await git.status()).trim();
+  if (preStatus.length > 0) {
+    throw new Error(
+      `Refusing agentic epoch: the working tree has uncommitted changes. ` +
+        `Commit or stash them first.\n${preStatus}`,
+    );
+  }
+
+  if (!queuedBatch) callbacks.onEpochStart?.(epoch, batch.length);
+
+  const agenticConfig = {
+    rootPlanFile: config.rootPlanFile ?? `${planDir}/root.md`,
+    planDir,
+    claudeTimeoutMs: config.claudeTimeoutMs ?? 5 * 60 * 1000,
+    modelBounds: config.modelBounds,
+    agenticProvider: config.agenticProvider,
+    agenticModel: config.agenticModel,
+  };
+
+  type RunOutcome =
+    | { kind: 'procedural'; item: DispatchItem; result: WorkerResult }
+    | { kind: 'ok'; item: DispatchItem; result: WorkerResult }
+    | { kind: 'rate-limited'; item: DispatchItem; hintMs: number; reason: string }
+    | { kind: 'error'; item: DispatchItem; error: unknown };
+
+  const dispatchedTaskPaths = batch.map(b => b.task.path);
+
+  // Phase 1 — run each card concurrently in its own worktree.
+  const outcomes = await Promise.all(
+    batch.map(async (item, i): Promise<RunOutcome> => {
+      const children = dag.childrenOf(item.task.path);
+      const childrenAllDone =
+        item.task.status !== 'DONE' && children.length > 0 && children.every(c => c.status === 'DONE');
+      if (childrenAllDone && config.proceduralRollup) {
+        callbacks.onWorkerStart?.(item.task.path, item.actionType, 'procedural');
+        return { kind: 'procedural', item, result: makeDeterministicStatusUpdate(item, now) };
+      }
+
+      const me = config.agenticProvider === 'codex'
+        ? undefined
+        : selectModelEffort(item.task, item.actionType, config.modelBounds);
+      callbacks.onWorkerStart?.(item.task.path, item.actionType, me ? `${me.model}·${me.effort}` : agenticModelLabel(config));
+      try {
+        await pool.prepare(i);
+        const result = await runAgenticWorker(item, { invoker, fs, git: pool.git(i) }, now, nowMs, {
+          ...agenticConfig,
+          worktreeDir: pool.dir(i),
+          ...(me ? { modelEffort: me } : {}),
+          contextNote: childrenAllDone ? FINALIZE_NOTE : undefined,
+        });
+        return { kind: 'ok', item, result };
+      } catch (err) {
+        if (isRateLimitError(err)) {
+          return { kind: 'rate-limited', item, hintMs: parseRateLimitBackoffHintMs(err, nowMs), reason: extractRateLimitReason(err) };
+        }
+        return { kind: 'error', item, error: err };
+      }
+    }),
+  );
+
+  // Phase 2 — apply to main serially (gate + commit), one card at a time.
+  const commits: string[] = [];
+  const rateLimitedTasks: RateLimitedTask[] = [];
+  const rateLimitReasonCounts = new Map<string, number>();
+  const noChangeTaskPaths: string[] = [];
+  const appliedPaths = new Set<string>();
+  let completed = 0;
+  let failed = 0;
+  let rateLimitFailures = 0;
+  let rateLimitBackoffHintMs = 0;
+
+  for (const o of outcomes) {
+    if (o.kind === 'rate-limited') {
+      failed++;
+      rateLimitFailures++;
+      rateLimitBackoffHintMs = Math.max(rateLimitBackoffHintMs, o.hintMs);
+      rateLimitReasonCounts.set(o.reason, (rateLimitReasonCounts.get(o.reason) ?? 0) + 1);
+      rateLimitedTasks.push({ path: o.item.task.path, reason: o.reason, hintMs: o.hintMs });
+      callbacks.onWorkerError?.(o.item.task.path, new Error(`Rate limited: ${o.reason}`));
+      continue;
+    }
+    if (o.kind === 'error') {
+      failed++;
+      noChangeTaskPaths.push(o.item.task.path);
+      callbacks.onWorkerError?.(o.item.task.path, o.error as Error);
+      continue;
+    }
+
+    const action = o.result.action;
+    if (action.writeSet.length === 0) {
+      completed++;
+      noChangeTaskPaths.push(o.item.task.path);
+      callbacks.onWorkerComplete?.(o.result);
+      continue;
+    }
+
+    // Don't let two cards in the same round clobber overlapping files.
+    if (action.writeSet.some(p => appliedPaths.has(normalizePlanPath(p)))) {
+      failed++;
+      noChangeTaskPaths.push(o.item.task.path);
+      callbacks.onWorkerError?.(
+        o.item.task.path,
+        new Error(`Skipped: write-set overlaps a card already applied this round`),
+      );
+      continue;
+    }
+
+    if (config.strictIntegrity) {
+      const freshNodes = (await buildDAG(fs, planDir)).nodes;
+      const verdict = validateActionIntegrity(action, freshNodes, config);
+      const graphVerdict = verdict.valid
+        ? validateGraphIntegrity(buildSnapshotWithActions(freshNodes, [action]), planDir)
+        : { valid: true, errors: [] as string[] };
+      if (!verdict.valid || !graphVerdict.valid) {
+        failed++;
+        noChangeTaskPaths.push(o.item.task.path);
+        callbacks.onWorkerError?.(
+          o.item.task.path,
+          new Error(`Integrity gate failed in ${action.targetPath}: ${[...verdict.errors, ...graphVerdict.errors].join('; ')}`),
+        );
+        continue; // main untouched; worktree discarded on next reset
+      }
+    }
+
+    if (dryRun) {
+      completed++;
+      callbacks.onWorkerComplete?.(o.result);
+      continue;
+    }
+
+    const files = collectFiles([action]);
+    await writeAllFiles(fs, files);
+    await git.add([...files.keys()]);
+    if ((await git.stagedPaths()).length > 0) {
+      const tag = o.kind === 'procedural' ? ' [procedural]' : '';
+      const message = `[guardian] epoch ${epoch}: ${action.summary}${tag}`;
+      const hash = await git.commit(message, config.quarantineBranch);
+      commits.push(hash);
+      callbacks.onCommit?.(hash, message);
+    }
+    for (const p of files.keys()) appliedPaths.add(normalizePlanPath(p));
+    completed++;
+    callbacks.onWorkerComplete?.(o.result);
+  }
+
+  return base({
+    dispatched: batch.length,
+    completed,
+    failed,
+    rateLimitFailures,
+    rateLimitBackoffHintMs,
+    rateLimitReasons: [...rateLimitReasonCounts.entries()].sort((a, b) => b[1] - a[1]).map(([r]) => r),
+    dispatchedTaskPaths,
+    rateLimitedTasks,
+    commits,
+    noChangeTaskPaths,
+  });
+}
+
 // ── Internal ────────────────────────────────────────────────
 
 /**
@@ -685,6 +1140,10 @@ function getClockMs(config: GuardianConfig): number {
   return Number.isFinite(parsed) ? parsed : Date.now();
 }
 
+function agenticModelLabel(config: GuardianConfig): string | undefined {
+  return config.agenticProvider === 'codex' ? `codex:${config.agenticModel ?? 'default'}` : undefined;
+}
+
 function summarizeBlockedReasons(blockedTasks: ReadonlyMap<string, BlockedTaskState>): string[] {
   const reasonCounts = new Map<string, number>();
   for (const blocked of blockedTasks.values()) {
@@ -705,11 +1164,13 @@ interface QueuedDispatchItem {
 async function buildEpochQueue(
   config: GuardianConfig,
   blockedTasks: ReadonlyMap<string, BlockedTaskState>,
+  settledTasks: ReadonlySet<string> = new Set(),
 ): Promise<QueuedDispatchItem[]> {
   const dag = await buildDAG(config.fs, config.planDir);
   const now = config.clock.now();
   const nowMs = getClockMs(config);
   const candidates = prioritize(dag, now).filter(candidate => {
+    if (settledTasks.has(candidate.task.path)) return false;
     const blocked = blockedTasks.get(candidate.task.path);
     return !blocked || blocked.resumeAtMs <= nowMs;
   });
@@ -769,5 +1230,6 @@ function mergeEpochResults(base: EpochResult, delta: EpochResult): EpochResult {
       prompt: base.totalTokens.prompt + delta.totalTokens.prompt,
       completion: base.totalTokens.completion + delta.totalTokens.completion,
     },
+    noChangeTaskPaths: [...(base.noChangeTaskPaths ?? []), ...(delta.noChangeTaskPaths ?? [])],
   };
 }

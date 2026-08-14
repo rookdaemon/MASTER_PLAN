@@ -50,7 +50,7 @@ export const T_CONTINUITY_DEFAULT = 5000;
 
 // ── Configuration types ──────────────────────────────────────────────────────
 
-export type LlmProvider = "openai" | "anthropic" | "local";
+export type LlmProvider = "openai" | "anthropic" | "openrouter" | "local";
 
 /** Shape of SubstrateConfig.parameters when config.type === "llm" */
 export interface LlmSubstrateParameters {
@@ -133,6 +133,7 @@ export interface ILlmClient {
 const PROVIDER_DEFAULT_ENDPOINTS: Record<LlmProvider, string> = {
   openai: "https://api.openai.com/v1",
   anthropic: "https://api.anthropic.com/v1",
+  openrouter: "https://openrouter.ai/api/v1",
   local: "http://localhost:11434/v1", // Ollama default
 };
 

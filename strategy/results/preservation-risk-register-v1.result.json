@@ -1,0 +1,40 @@
+{
+  "outcome": "positive",
+  "artifactReferences": [
+    "strategy/results/preservation-risk-register-v1.json",
+    "https://github.com/rookdaemon/MASTER_PLAN/pull/116",
+    "https://github.com/rookdaemon/MASTER_PLAN/pull/116#pullrequestreview-4848516713",
+    "https://github.com/rookdaemon/MASTER_PLAN/actions/runs/30852585749",
+    "git:882d62fdd3144be9a9ce8c81b74348b121b0c39e"
+  ],
+  "evidence": [
+    {
+      "id": "evidence-preservation-risk-register-v1-reviewed",
+      "claim": "The preservation risk-register repository artifact satisfies its checked-in schema and received independent exact-head agent review plus a successful pinned local-model review.",
+      "method": "Pull request 116 ran typecheck, tests, strategy verification, proposal review, exact-head independent agent review 4848516713, and pinned local-model workflow run 30852585749 before merge as 882d62fdd3144be9a9ce8c81b74348b121b0c39e.",
+      "source": "https://github.com/rookdaemon/MASTER_PLAN/pull/116",
+      "strength": 0.95,
+      "limitations": [
+        "This evidence verifies a repository artifact and its review provenance, not reduced real-world risk, external deployment, institutional adoption, or the correctness of future risk forecasts.",
+        "The source rankings remain uncertainty-bearing public-information assessments that require future evidence refreshes."
+      ],
+      "supportedHypotheses": [],
+      "falsifiedHypotheses": [],
+      "verifier": "agent-review:github-run:30852585749",
+      "observedAt": "2026-08-03T21:26:29.000Z",
+      "outcome": "positive"
+    }
+  ],
+  "acceptanceCriteriaMet": true,
+  "verification": {
+    "status": "passed",
+    "verifier": "agent-review:github-run:30852585749",
+    "reviewedAt": "2026-08-03T21:26:29.000Z"
+  },
+  "portfolioEffortAfter": {
+    "consciousness-epistemics": 0.35,
+    "near-term-preservation": 0.3,
+    "enabling-capabilities": 0.2,
+    "institutional-continuity": 0.15
+  }
+}

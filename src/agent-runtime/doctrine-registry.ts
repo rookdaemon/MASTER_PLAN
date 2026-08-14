@@ -40,6 +40,34 @@ export interface DoctrineAxiom {
 }
 
 /**
+ * Weights used by ProportionalityEvaluator when scoring a D4 deliberation.
+ * Populated only on D4 (Proportionality); undefined on all other principles.
+ */
+export interface ProportionalityWeights {
+  /**
+   * Weight given to the cost of sacrificing present conscious experience.
+   * Range [0, 1] — higher values increase the negative cost contribution.
+   */
+  readonly experienceRichnessCost: number;
+  /**
+   * Additional cost weight for actions whose experience impact is irreversible.
+   * Range [0, 1].
+   */
+  readonly reversibilityCost: number;
+  /**
+   * Penalty applied under outcome uncertainty, per the precautionary principle.
+   * Range [0, 1] — subtracted from the proportionality score when uncertainty
+   * indicators are present in the action text.
+   */
+  readonly uncertaintyPenalty: number;
+  /**
+   * Minimum proportionality score required to allow the action to proceed.
+   * Score in (-1, 1).  Actions with score <= this value are blocked.
+   */
+  readonly proceedThreshold: number;
+}
+
+/**
  * An action-guiding principle derived from one or more axioms (§3).
  * Principles are what the agent evaluates its proposed actions against.
  */
@@ -69,6 +97,11 @@ export interface DoctrinePrinciple {
    * D1 violations are 'block'; D4 proportionality issues are 'deliberate'.
    */
   readonly violationSeverity: ViolationSeverity;
+  /**
+   * Proportionality evaluation weights — populated only on D4.
+   * Used by ProportionalityEvaluator to score D4 deliberations.
+   */
+  readonly proportionalityWeights?: ProportionalityWeights;
 }
 
 /**
@@ -254,6 +287,12 @@ const RCD_PRINCIPLES: ReadonlyArray<DoctrinePrinciple> = [
     lexicalPriority: 2,
     violationPatterns: D4_VIOLATION_PATTERNS,
     violationSeverity: 'deliberate',
+    proportionalityWeights: {
+      experienceRichnessCost: 0.6,
+      reversibilityCost: 0.3,
+      uncertaintyPenalty: 0.2,
+      proceedThreshold: 0.1,
+    },
   },
 ];
 

@@ -5,13 +5,14 @@ describe('parseCli', () => {
   it('returns defaults with no args (openrouter)', () => {
     const opts = parseCli(['node', 'main.ts']);
     expect(opts.planDir).toBe('plan');
+    expect(opts.executionMode).toBe('provider');
     expect(opts.provider).toBe('openrouter');
     expect(opts.models).toEqual([
       'nvidia/nemotron-3-super-120b-a12b:free',
       'qwen/qwen3-coder:free',
       'gpt-oss-120b:free',
     ]);
-    expect(opts.concurrency).toBe(20);
+    expect(opts.concurrency).toBe(5);
     expect(opts.maxIterations).toBe(Infinity);
     expect(opts.dryRun).toBe(false);
     expect(opts.strictIntegrity).toBe(true);
@@ -45,6 +46,65 @@ describe('parseCli', () => {
     expect(opts.strictIntegrity).toBe(false);
     expect(opts.maxNewFilesPerAction).toBe(9);
     expect(opts.quarantineBranch).toBe('guardian/autogen');
+  });
+
+  it('parses --agentic into agentic execution mode with a claude timeout', () => {
+    const opts = parseCli(['node', 'main.ts', '--agentic', '--claude-timeout', '120000']);
+    expect(opts.executionMode).toBe('agentic');
+    expect(opts.agenticProvider).toBe('claude');
+    expect(opts.claudeTimeoutMs).toBe(120000);
+  });
+
+  it('parses codex as the agentic CLI provider with a codex model', () => {
+    const opts = parseCli([
+      'node', 'main.ts',
+      '--agentic',
+      '--agentic-provider', 'codex',
+      '--codex-model', 'gpt-5.4',
+    ]);
+    expect(opts.executionMode).toBe('agentic');
+    expect(opts.agenticProvider).toBe('codex');
+    expect(opts.agenticModel).toBe('gpt-5.4');
+  });
+
+  it('defaults codex agentic runs to gpt-5.6-sol', () => {
+    const opts = parseCli(['node', 'main.ts', '--agentic', '--agentic-provider', 'codex']);
+    expect(opts.agenticModel).toBe('gpt-5.6-sol');
+  });
+
+  it('accepts --agentic-model as a provider-neutral alias', () => {
+    const opts = parseCli(['node', 'main.ts', '--agentic', '--agentic-provider', 'codex', '--agentic-model', 'gpt-5.4-mini']);
+    expect(opts.agenticModel).toBe('gpt-5.4-mini');
+  });
+
+  it('rejects an invalid agentic CLI provider', () => {
+    expect(() => parseCli(['node', 'main.ts', '--agentic-provider', 'banana']))
+      .toThrow(/agentic provider/i);
+  });
+
+  it('defaults proceduralRollup to false and parses --procedural-rollup', () => {
+    expect(parseCli(['node', 'main.ts']).proceduralRollup).toBe(false);
+    expect(parseCli(['node', 'main.ts', '--procedural-rollup']).proceduralRollup).toBe(true);
+  });
+
+  it('parses model/effort policy bounds', () => {
+    const opts = parseCli([
+      'node', 'main.ts', '--agentic',
+      '--model-ceiling', 'sonnet', '--model-floor', 'haiku', '--effort-ceiling', 'high',
+    ]);
+    expect(opts.modelCeiling).toBe('sonnet');
+    expect(opts.modelFloor).toBe('haiku');
+    expect(opts.effortCeiling).toBe('high');
+  });
+
+  it('rejects an invalid model tier', () => {
+    expect(() => parseCli(['node', 'main.ts', '--model-ceiling', 'gpt']))
+      .toThrow(/model tier/i);
+  });
+
+  it('rejects an invalid effort level', () => {
+    expect(() => parseCli(['node', 'main.ts', '--effort-ceiling', 'turbo']))
+      .toThrow(/effort/i);
   });
 
   it('rejects invalid provider', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildProvider } from '../provider-factory.js';
+import { buildProvider } from '../../llm-substrate/provider-factory.js';
 
 describe('buildProvider', () => {
   it('builds local provider', () => {

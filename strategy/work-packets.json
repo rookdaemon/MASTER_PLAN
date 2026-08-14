@@ -1,0 +1,287 @@
+[
+  {
+    "id": "packet-preservation-risk-register",
+    "nodeId": "capability-near-term-preservation",
+    "title": "Build the first evidence-linked near-term preservation risk register",
+    "portfolio": "near-term-preservation",
+    "supportedDirectives": ["G1", "G3"],
+    "expectedDirectiveDelta": {"G1": 0.2, "G2": 0, "G3": 0.1},
+    "credibleExtinctionPrevention": true,
+    "scope": {"included": ["public evidence review", "ten prioritized risks", "leading indicators", "candidate owners"], "excluded": ["outreach", "publication", "deployment", "spending"]},
+    "budget": {"unit": "person-hours", "limit": 16},
+    "deliverables": ["artifact://preservation/risk-register-v1"],
+    "testsOrPreregistration": ["schema validation", "independent source and ranking review"],
+    "acceptanceCriteria": ["At least ten risks have sources, indicators, uncertainty, reversible responses, and named approval boundaries."],
+    "verificationMethod": "Fresh reviewer checks every source, ranking rationale, and authority classification.",
+    "rollback": "Retain the previous register and retire the superseded assessment with an audit event.",
+    "authorityClass": "autonomous",
+    "authorityReasons": ["public-information analysis and local artifact preparation only"],
+    "owner": "preservation-analyst",
+    "lifecycle": "verified",
+    "attempt": 0,
+    "retrySignature": "preservation-risk-register-v1",
+    "priority": {"impact": 0.9, "urgency": 0.9, "tractability": 0.7, "informationValue": 0.8, "reversibility": 1, "cost": 0.2, "downsideRisk": 0.1},
+    "reviewedAt": "2026-08-03T00:00:00.000Z"
+  },
+  {
+    "id": "packet-consciousness-prediction-registry",
+    "nodeId": "hypothesis-theory-uncertainty",
+    "title": "Create a preregistration-ready registry of discriminating consciousness predictions",
+    "portfolio": "consciousness-epistemics",
+    "supportedDirectives": ["G1", "G2"],
+    "expectedDirectiveDelta": {"G1": 0.1, "G2": 0.05, "G3": 0},
+    "credibleExtinctionPrevention": false,
+    "scope": {"included": ["public literature analysis", "falsifiable prediction schema", "adversarial interpretations"], "excluded": ["human-subject experiment", "AI consciousness declaration", "publication"]},
+    "budget": {"unit": "person-hours", "limit": 20},
+    "deliverables": ["artifact://epistemics/prediction-registry-v1"],
+    "testsOrPreregistration": ["schema test", "blind theory-label consistency review"],
+    "acceptanceCriteria": ["Each prediction states a measurement, pass/fail criterion, confounders, and interpretation agreed or disputed by theory proponents."],
+    "verificationMethod": "An independent domain-focused agent reviews falsifiability and theory neutrality on the exact head, followed by a separate hosted agent repository review. Human escalation is reserved for institutional ethics approval or legal consent before any execution.",
+    "rollback": "Version the registry and preserve rejected predictions with reasons.",
+    "authorityClass": "autonomous",
+    "authorityReasons": ["public-information analysis and branch preparation only"],
+    "owner": "epistemics-analyst",
+    "lifecycle": "verified",
+    "attempt": 0,
+    "retrySignature": "prediction-registry-v1",
+    "priority": {"impact": 0.7, "urgency": 0.6, "tractability": 0.7, "informationValue": 1, "reversibility": 1, "cost": 0.25, "downsideRisk": 0.1},
+    "reviewedAt": "2026-08-03T00:00:00.000Z"
+  },
+  {
+    "id": "packet-durable-compute-fault-model",
+    "nodeId": "capability-safe-durable-computation",
+    "title": "Run a bounded fault-recovery simulation against explicit durability metrics",
+    "portfolio": "enabling-capabilities",
+    "supportedDirectives": ["G1", "G2"],
+    "expectedDirectiveDelta": {"G1": 0.05, "G2": 0.05, "G3": 0},
+    "credibleExtinctionPrevention": false,
+    "scope": {"included": ["local simulation", "failure injection", "recovery metrics"], "excluded": ["hardware operation", "deployment", "claims of physical durability"]},
+    "budget": {"unit": "person-hours", "limit": 12},
+    "deliverables": ["artifact://capabilities/fault-model-result-v1"],
+    "testsOrPreregistration": ["deterministic failure-seed matrix", "property tests for monotonic degradation"],
+    "acceptanceCriteria": ["The result reports positive, negative, or null evidence without interpreting simulation success as physical demonstration."],
+    "verificationMethod": "Independent deterministic replay with the same caller-supplied seeds and timestamps.",
+    "rollback": "Revert the isolated simulation branch and retain the failure log as evidence.",
+    "authorityClass": "autonomous",
+    "authorityReasons": ["local simulation with no hardware or deployment"],
+    "owner": "capabilities-engineer",
+    "lifecycle": "verified",
+    "attempt": 0,
+    "retrySignature": "fault-model-v1",
+    "priority": {"impact": 0.5, "urgency": 0.4, "tractability": 0.9, "informationValue": 0.6, "reversibility": 1, "cost": 0.15, "downsideRisk": 0.05},
+    "reviewedAt": "2026-08-03T00:00:00.000Z"
+  },
+  {
+    "id": "packet-institutional-dependency-map",
+    "nodeId": "capability-institutional-continuity",
+    "title": "Map institutional continuity dependencies and evidence gaps",
+    "portfolio": "institutional-continuity",
+    "supportedDirectives": ["G1", "G3"],
+    "expectedDirectiveDelta": {"G1": 0.05, "G2": 0, "G3": 0.15},
+    "credibleExtinctionPrevention": false,
+    "scope": {"included": ["public-information analysis", "governance failure modes", "funding dependency map"], "excluded": ["outreach", "fundraising", "publication", "governance changes"]},
+    "budget": {"unit": "person-hours", "limit": 12},
+    "deliverables": ["artifact://institutions/dependency-map-v1"],
+    "testsOrPreregistration": ["coverage checklist", "capture and schism scenario review"],
+    "acceptanceCriteria": ["The map distinguishes repository artifacts, evidence strength, readiness, and external outcomes for every dependency."],
+    "verificationMethod": "Fresh reviewer samples sources and challenges capture, succession, and funding assumptions.",
+    "rollback": "Preserve the previous map and record a superseding assessment.",
+    "authorityClass": "autonomous",
+    "authorityReasons": ["public-information analysis only; no outreach or governance mutation"],
+    "owner": "institutional-analyst",
+    "lifecycle": "verified",
+    "attempt": 0,
+    "retrySignature": "institutional-map-v1",
+    "priority": {"impact": 0.5, "urgency": 0.5, "tractability": 0.8, "informationValue": 0.7, "reversibility": 1, "cost": 0.2, "downsideRisk": 0.1},
+    "reviewedAt": "2026-08-03T00:00:00.000Z"
+  },
+  {
+    "id": "packet-indicator-framework-comparison-v1",
+    "nodeId": "hypothesis-indicator-framework",
+    "title": "Compare candidate consciousness indicators against discriminating predictions",
+    "portfolio": "consciousness-epistemics",
+    "supportedDirectives": [
+      "G1",
+      "G2"
+    ],
+    "expectedDirectiveDelta": {
+      "G1": 0.05,
+      "G2": 0.1,
+      "G3": 0
+    },
+    "credibleExtinctionPrevention": false,
+    "scope": {
+      "included": [
+        "public evidence synthesis",
+        "indicator comparison matrix",
+        "explicit uncertainty and confounders"
+      ],
+      "excluded": [
+        "sentience declaration",
+        "human-subject research",
+        "model deployment",
+        "external publication"
+      ]
+    },
+    "budget": {
+      "unit": "person-hours",
+      "limit": 16
+    },
+    "deliverables": [
+      "artifact://epistemics/indicator-framework-comparison-v1"
+    ],
+    "testsOrPreregistration": [
+      "schema validation",
+      "blind consistency review against the prediction registry"
+    ],
+    "acceptanceCriteria": [
+      "Every indicator is linked to discriminating predictions, counterexamples, uncertainty, and a stated falsification condition."
+    ],
+    "verificationMethod": "An independent agent checks source traceability, theory neutrality, and every claimed prediction linkage on the exact artifact.",
+    "rollback": "Retain the previous prediction registry and retire the comparison artifact with an audit event.",
+    "authorityClass": "agent-reviewed",
+    "authorityReasons": [
+      "bounded public-information analysis with no external action or welfare-status declaration"
+    ],
+    "owner": "epistemics-analyst",
+    "retrySignature": "indicator-framework-comparison-v1",
+    "priority": {
+      "impact": 0.75,
+      "urgency": 0.65,
+      "tractability": 0.8,
+      "informationValue": 1,
+      "reversibility": 1,
+      "cost": 0.2,
+      "downsideRisk": 0.1
+    },
+    "lifecycle": "verified",
+    "attempt": 0,
+    "reviewedAt": "2026-08-04T02:38:58.000Z"
+  },
+  {
+    "id": "packet-preservation-mitigation-tabletop-v1",
+    "nodeId": "capability-near-term-preservation",
+    "title": "Test the next highest-priority preservation mitigation",
+    "portfolio": "near-term-preservation",
+    "supportedDirectives": [
+      "G1",
+      "G3"
+    ],
+    "expectedDirectiveDelta": {
+      "G1": 0.1,
+      "G2": 0,
+      "G3": 0.03
+    },
+    "credibleExtinctionPrevention": true,
+    "scope": {
+      "included": [
+        "one risk scenario",
+        "leading-indicator detection",
+        "reversible response tabletop"
+      ],
+      "excluded": [
+        "outreach",
+        "deployment",
+        "spending",
+        "claims of real-world mitigation"
+      ]
+    },
+    "budget": {
+      "unit": "person-hours",
+      "limit": 8
+    },
+    "deliverables": [
+      "artifact://preservation/mitigation-tabletop-v1"
+    ],
+    "testsOrPreregistration": [
+      "scenario selected by checked-in rank",
+      "trigger, response, rollback, and authority-boundary checks"
+    ],
+    "acceptanceCriteria": [
+      "The tabletop records a measurable trigger, bounded response, rollback, failure finding, and explicit distinction between repository evidence and real-world risk reduction."
+    ],
+    "verificationMethod": "An independent agent checks exact baseline traceability, scenario determinism, response boundaries, and that no metric changes without contract-qualified external evidence.",
+    "rollback": "Retain the prior verified risk register and record the tabletop as null or negative evidence.",
+    "authorityClass": "agent-reviewed",
+    "authorityReasons": [
+      "bounded local tabletop with no external intervention"
+    ],
+    "owner": "preservation-analyst",
+    "retrySignature": "preservation-mitigation-tabletop-v1",
+    "priority": {
+      "impact": 0.95,
+      "urgency": 0.9,
+      "tractability": 0.85,
+      "informationValue": 0.8,
+      "reversibility": 1,
+      "cost": 0.1,
+      "downsideRisk": 0.05
+    },
+    "lifecycle": "verified",
+    "attempt": 0,
+    "reviewedAt": "2026-08-04T18:44:27.000Z"
+  },
+  {
+    "id": "packet-preservation-mitigation-tabletop-v2",
+    "nodeId": "capability-near-term-preservation",
+    "title": "Test the next highest-priority preservation mitigation",
+    "portfolio": "near-term-preservation",
+    "supportedDirectives": [
+      "G1",
+      "G3"
+    ],
+    "expectedDirectiveDelta": {
+      "G1": 0.1,
+      "G2": 0,
+      "G3": 0.03
+    },
+    "credibleExtinctionPrevention": true,
+    "scope": {
+      "included": [
+        "one risk scenario",
+        "leading-indicator detection",
+        "reversible response tabletop"
+      ],
+      "excluded": [
+        "outreach",
+        "deployment",
+        "spending",
+        "claims of real-world mitigation"
+      ]
+    },
+    "budget": {
+      "unit": "person-hours",
+      "limit": 8
+    },
+    "deliverables": [
+      "artifact://preservation/mitigation-tabletop-v2"
+    ],
+    "testsOrPreregistration": [
+      "scenario selected by checked-in rank",
+      "trigger, response, rollback, and authority-boundary checks"
+    ],
+    "acceptanceCriteria": [
+      "The tabletop records a measurable trigger, bounded response, rollback, failure finding, and explicit distinction between repository evidence and real-world risk reduction."
+    ],
+    "verificationMethod": "An independent agent checks exact baseline traceability, scenario determinism, response boundaries, and that no metric changes without contract-qualified external evidence.",
+    "rollback": "Retain the prior verified risk register and record the tabletop as null or negative evidence.",
+    "authorityClass": "agent-reviewed",
+    "authorityReasons": [
+      "bounded local tabletop with no external intervention"
+    ],
+    "owner": "preservation-analyst",
+    "retrySignature": "preservation-mitigation-tabletop-v2",
+    "priority": {
+      "impact": 0.95,
+      "urgency": 0.9,
+      "tractability": 0.85,
+      "informationValue": 0.8,
+      "reversibility": 1,
+      "cost": 0.1,
+      "downsideRisk": 0.05
+    },
+    "lifecycle": "eligible",
+    "attempt": 0,
+    "reviewedAt": "2026-08-14T13:42:58.000Z"
+  }
+]
