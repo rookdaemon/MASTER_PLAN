@@ -116,5 +116,15 @@
       "externalMetricChanged": false,
       "metricUpdates": []
     }
+  },
+  {
+    "id": "audit:packet-preservation-mitigation-tabletop-v2:packet-generated:2026-08-14T13:42:58.000Z",
+    "type": "packet-generated",
+    "packetId": "packet-preservation-mitigation-tabletop-v2",
+    "occurredAt": "2026-08-14T13:42:58.000Z",
+    "details": {
+      "source": "diagnosis",
+      "portfolio": "near-term-preservation"
+    }
   }
 ]
