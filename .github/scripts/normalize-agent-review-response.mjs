@@ -42,7 +42,8 @@ function escapeLiteralControlsInsideJsonStrings(text) {
   return repaired;
 }
 
-function parseAgentReviewResponseJson(text) {
+export function parseAgentReviewResponseJson(text) {
+  if (typeof text !== 'string') throw new Error('Agent review response JSON must be text');
   try {
     return JSON.parse(text);
   } catch (originalError) {

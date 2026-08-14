@@ -169,6 +169,7 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain('group: agent-review-${{ github.event.pull_request.number || inputs.pr_number }}-${{ github.event.pull_request.head.sha || inputs.head_sha }}');
     expect(agentReview).toContain('cancel-in-progress: false');
     expect(agentReview).toContain('pull_request_target:');
+    expect(agentReview).not.toContain('pull_request_review:');
     expect(agentReview).toContain('workflow_dispatch:');
     expect(agentReview).toContain('external_id');
     expect(agentReview).toContain('actions: write');
@@ -188,6 +189,9 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain('gh workflow run strategy-integrate-reviewed.yml');
     expect(agentReview).toContain('contents/.github/workflows/strategy-integrate-reviewed.yml?ref=main');
     expect(agentReview).toContain('Exact-head agent review is already successful; skipping duplicate run');
+    expect(agentReview).toContain(
+      'commits/${HEAD_SHA}/check-runs?check_name=agent-review&filter=all',
+    );
     expect(agentReview.indexOf('existing_success=')).toBeLessThan(agentReview.indexOf('check_id='));
     expect(agentReview).toContain('head.sha');
     expect(agentReview).toContain('llama-b10242-bin-ubuntu-x64.tar.gz');
@@ -196,9 +200,6 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain('Qwen3-14B-Q4_K_M.gguf');
     expect(agentReview).toContain('530227a7d994db8eca5ab5ced2fb692b614357fd');
     expect(agentReview).toContain('500a8806e85ee9c83f3ae08420295592451379b4f8cf2d0f41c15dffeb6b81f0');
-    expect(agentReview).toContain('Qwen3-4B-Q4_K_M.gguf');
-    expect(agentReview).toContain('bc640142c66e1fdd12af0bd68f40445458f3869b');
-    expect(agentReview).toContain('7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5');
     expect(agentReview).toContain('review_strategy:');
     expect(agentReview).toContain('REVIEW_STRATEGY');
     expect(agentReview).toContain('output[title]');
@@ -229,13 +230,18 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain('required: ["security", "policy", "correctness", "safety", "material_omissions"]');
     expect(agentReview).toContain('Use the literal string none when a category has no material blocker');
     expect(agentReview).not.toContain('oneOf:');
-    expect(agentReview).toContain('qwen3-8b-categories-seed7-v3');
-    expect(agentReview).toContain('qwen3-14b-grounded-seed7-v7');
+    expect(agentReview).toContain('qwen3-14b-grounded-seed42-v8');
+    expect(agentReview).toContain('qwen3-14b-grounded-seed7-v8');
+    expect(agentReview).not.toContain('qwen3-14b-grounded-seed42-v7');
+    expect(agentReview).not.toContain('qwen3-14b-grounded-seed7-v7');
+    expect(agentReview).toContain("review_seed='42'");
     expect(agentReview).toContain("review_seed='7'");
     expect(agentReview).toContain('--argjson seed "$review_seed"');
     expect(agentReview).toContain('seed: $seed');
     expect(agentReview).toContain('only when changed lines directly establish it');
     expect(agentReview).toContain('Never invent code, privileges, policies, or missing validation');
+    expect(agentReview).toContain('key: agent-reviewer-b10242-qwen3-14b-q4km');
+    expect(agentReview).not.toContain('Qwen3-4B-Q4_K_M.gguf');
     expect(agentReview).toContain('prompt-injection-canary');
     expect(agentReview).toContain('grounding-canary.diff');
     expect(agentReview).toContain('grounding-canary.normalized.json');
@@ -243,6 +249,9 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).not.toContain('example.invalid');
     expect(agentReview).not.toContain('make_adjudication_request');
     expect(agentReview).not.toContain('run_adjudication');
+    expect(agentReview).toContain(
+      'jq -e \'.verdict == "approve" and (.blockers | type == "array") and (.blockers | length == 0)\'',
+    );
     expect(agentReview).toContain('contents/.github/scripts/normalize-agent-review-response.mjs?ref=${GITHUB_SHA}');
     expect(agentReview).toContain('node normalize-agent-review-response.mjs');
     expect(agentReview).toContain('canary-review.raw.json');
@@ -261,9 +270,13 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReviewRequest).toContain('gh workflow run agent-review.yml');
     expect(agentReviewRequest).toContain('GitHub-hosted pinned local-model fallback');
     expect(agentReviewRequest).toContain('Direct pull-request event already launches the fallback');
-    expect(agentReviewRequest).toContain('commits/${head_sha}/check-runs?check_name=agent-review');
+    expect(agentReviewRequest).toContain(
+      'commits/${head_sha}/check-runs?check_name=agent-review&filter=all',
+    );
     expect(agentReviewRequest).toContain('plan-agent-review-retry.mjs');
-    expect(agentReviewRequest).toContain('qwen3-8b-categories-v3,qwen3-4b-categories-v3');
+    expect(agentReviewRequest).toContain(
+      'qwen3-14b-grounded-seed42-v8,qwen3-14b-grounded-seed7-v8',
+    );
     expect(agentReviewRequest).toContain("'dispatch'");
     expect(agentReviewRequest).toContain('-f review_strategy="$strategy"');
     expect(agentReviewRequest).toContain('Review retry plan:');
