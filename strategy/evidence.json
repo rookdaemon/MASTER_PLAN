@@ -478,5 +478,56 @@
     "verifier": "checksum-pinned-guarded-agent-adjudicator:v1",
     "observedAt": "2026-08-05T14:33:30.000Z",
     "outcome": "null"
+  },
+  {
+    "id": "evidence-public-source-crossref-consciousness-metadata-ff3c27cbda5554462af16c5ae87fe7566e44698200605c0c26015004348162de",
+    "claim": "A bounded public metadata snapshot was observed for the consciousness-epistemics portfolio; its semantic implications have not been evaluated.",
+    "method": "Deterministic metadata-only snapshot recorded 20 canonical records and fingerprint ff3c27cbda5554462af16c5ae87fe7566e44698200605c0c26015004348162de; response size was checked against the configured bound.",
+    "source": "https://api.crossref.org/works?query=consciousness&rows=20&sort=indexed&order=desc",
+    "strength": 0.35,
+    "limitations": [
+      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
+      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
+      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
+    ],
+    "supportedHypotheses": [],
+    "falsifiedHypotheses": [],
+    "verifier": "deterministic-public-source-snapshot-observer:v1",
+    "observedAt": "2026-08-14T13:42:58.000Z",
+    "outcome": "null"
+  },
+  {
+    "id": "evidence-public-source-nvd-vulnerability-changes-6b073dc1dae116e20bd99add9b38d829d71d30a1ff3fe7661a3c7411242af2e7",
+    "claim": "A bounded public metadata snapshot was observed for the enabling-capabilities portfolio; its semantic implications have not been evaluated.",
+    "method": "Deterministic metadata-only snapshot recorded 20 canonical records and fingerprint 6b073dc1dae116e20bd99add9b38d829d71d30a1ff3fe7661a3c7411242af2e7; response size was checked against the configured bound.",
+    "source": "https://services.nvd.nist.gov/rest/json/cves/2.0?lastModStartDate={windowStart}&lastModEndDate={now}&resultsPerPage=20",
+    "strength": 0.35,
+    "limitations": [
+      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
+      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
+      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
+    ],
+    "supportedHypotheses": [],
+    "falsifiedHypotheses": [],
+    "verifier": "deterministic-public-source-snapshot-observer:v1",
+    "observedAt": "2026-08-14T13:42:58.000Z",
+    "outcome": "null"
+  },
+  {
+    "id": "evidence-adjudicated-nvd-vulnerability-changes-6b073dc1dae116e20bd99add9b38d829d71d30a1ff3fe7661a3c7411242af2e7-hypothesis-material-durable-compute-update",
+    "claim": "Guarded adjudication found no actionable implication for this bounded update signal: The bounded vulnerability metadata contains a candidate failure class materially relevant to durable-compute fault-model coverage.",
+    "method": "Guarded agent adjudication of 20 bounded canonical metadata records from snapshot 6b073dc1dae116e20bd99add9b38d829d71d30a1ff3fe7661a3c7411242af2e7; raw records were not persisted.",
+    "source": "https://services.nvd.nist.gov/rest/json/cves/2.0?lastModStartDate={windowStart}&lastModEndDate={now}&resultsPerPage=20",
+    "strength": 0,
+    "limitations": [
+      "The assessment covers bounded selected metadata, not the complete source or underlying finding.",
+      "Source records were treated as untrusted data and excluded from committed evidence fields.",
+      "The agent explanation is deliberately excluded so untrusted source text cannot be copied into the evidence ledger."
+    ],
+    "supportedHypotheses": [],
+    "falsifiedHypotheses": [],
+    "verifier": "checksum-pinned-guarded-agent-adjudicator:v1",
+    "observedAt": "2026-08-14T13:42:58.000Z",
+    "outcome": "null"
   }
 ]
