@@ -4,6 +4,7 @@ import { runCandidateGenerationCli } from '../cli/generate-candidates.js';
 import { NodeFileSystem } from '../runtime-adapters.js';
 import { InMemoryFileSystem } from '../testing/in-memory-adapters.js';
 import { advanceTimestamp, nextRepositoryTimestamp } from './repository-test-time.js';
+import { isVersionedPacketFamilyMember } from './repository-test-state.js';
 
 async function repositorySnapshot(): Promise<Record<string, string>> {
   const source = new NodeFileSystem('.');
@@ -14,19 +15,15 @@ async function repositorySnapshot(): Promise<Record<string, string>> {
   const snapshot = Object.fromEntries(await Promise.all(paths.map(async (path) => [path, await source.readText(path)])));
   // Reconstruct the state immediately before the two candidates under test. The repository snapshot
   // may already contain them after a successful live cycle; unrelated historical work stays intact.
-  const generatedPacketIds = new Set([
-    'packet-indicator-framework-comparison-v1',
-    'packet-preservation-mitigation-tabletop-v1',
-  ]);
   snapshot['strategy/work-packets.json'] = `${JSON.stringify(
     (JSON.parse(snapshot['strategy/work-packets.json']) as Array<{ id: string }>).filter((packet) =>
-      !generatedPacketIds.has(packet.id)),
+      !isVersionedPacketFamilyMember(packet.id)),
     null,
     2,
   )}\n`;
   snapshot['strategy/audit-log.json'] = `${JSON.stringify(
     (JSON.parse(snapshot['strategy/audit-log.json']) as Array<{ packetId?: string }>).filter((event) =>
-      !event.packetId || !generatedPacketIds.has(event.packetId)),
+      !event.packetId || !isVersionedPacketFamilyMember(event.packetId)),
     null,
     2,
   )}\n`;
