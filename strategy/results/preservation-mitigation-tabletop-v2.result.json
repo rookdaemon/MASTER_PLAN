@@ -18,7 +18,7 @@
       ],
       "supportedHypotheses": [],
       "falsifiedHypotheses": [],
-      "verifier": "deterministic-packet-executor:v1",
+      "verifier": "github-hosted-agent-review:run:31966214145:head:c247c2538ab3a9b7c13874fdba2491a9ef18df3b",
       "observedAt": "2026-08-16T18:58:33.000Z",
       "outcome": "null"
     }
@@ -29,5 +29,10 @@
     "near-term-preservation": 0.3,
     "enabling-capabilities": 0.2,
     "institutional-continuity": 0.15
+  },
+  "verification": {
+    "status": "passed",
+    "verifier": "github-hosted-agent-review:run:31966214145:head:c247c2538ab3a9b7c13874fdba2491a9ef18df3b",
+    "reviewedAt": "2026-08-16T19:13:28Z"
   }
 }

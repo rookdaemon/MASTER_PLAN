@@ -280,7 +280,7 @@
       "cost": 0.1,
       "downsideRisk": 0.05
     },
-    "lifecycle": "eligible",
+    "lifecycle": "verified",
     "attempt": 0,
     "reviewedAt": "2026-08-14T13:42:58.000Z"
   }
