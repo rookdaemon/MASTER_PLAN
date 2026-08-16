@@ -1,78 +1,67 @@
-# MASTER_PLAN — Project Status & Operating Model
+# MASTER_PLAN v2 — Status and operating model
 
-**As of the v1.0 freeze (2026-06-09).** Read this before restarting any agent.
+As of 2026-08-04, the v2 strategy/controller operates through continuous automated stewardship.
+Implementation readiness is not real-world outcome attainment.
 
-## TL;DR
+## Current controls
 
-This project has three parts that were previously conflated. They are now separated:
+- Operating mode: **automated stewardship**
+- Historical calibration retained: **20 automated shadow records with agent reviews; no operating gate**
+- Automated results independently agent-reviewed: **6**
+- Human role: **servant leader for exceptional escalation**
+- Branch protection applied and verified: **yes**
+- Repository auto-merge enabled: **yes**
+- Safe auto-merge: **enabled for routine code/test changes**
 
-1. **The doctrine + roadmap** (`plan/`, `docs/`) — a finished, frozen **document**. Tag `plan-v1.0`.
-2. **The simulation** (`src/simulation/`, `src/simulation-ui/`) — the **living, runnable** demonstration of the thesis.
-3. **The cognitive stack** (`src/conscious-core/`, `memory/`, `intrinsic-motivation/`, …) — a real, tested **library**.
+The checked-in [branch-protection policy](strategy/branch-protection.json) defines the controls for
+`main`. Routine, bounded, backward-compatible code/test changes with behavior-covering tests, plus
+bounded machine-generated evidence-only updates, auto-merge after deterministic CI without an
+agent-review gate. Protected or otherwise non-routine proposals receive independent agent review
+and an agent-controlled merge. The human is not a routine approval gate and is
+contacted only for an evidence-backed issue that automation intrinsically cannot perform.
 
-The always-on "conscious agent" maintainer is **stopped**. It is not how this project makes progress.
+## What exists
 
-## Why the project stalled (the honest version)
+- `strategy/`: constitutional G1–G3 core, typed graph, source-limited evidence records, 35/30/20/15
+  portfolio, bounded work packets, separate shadow review records, decisions, generated roadmap,
+  and the 106-card v1 audit.
+- `src/master-plan-controller/`: pure graph/evidence/gate evaluation, lexical G1 ranking, bounded
+  decomposition, lifecycle/audit integration, crash recovery, authority classification, rollout
+  gates, verify-before-integrate evidence handling, configurable review freshness, strict public
+  contract validation, credential-independent live-control observation, and injected environment
+  ports with in-memory implementations. Caller-timestamped weekly and quarterly review logic records
+  portfolio drift, evidence quality and staleness, and constitutional risks without mutating doctrine.
+  Versioned recurring packet families and deterministic production handlers cover all four active
+  portfolios while suppressing duplicate active or blocked work.
+- `.github/workflows/`: blocking typecheck/test/strategy checks, proposal review, and a narrowly
+  scoped routine-code workflow, scheduled periodic strategy review, and an agent-controlled
+  protected-change path.
+- `src/simulation/`, `src/simulation-ui/`, and the cognitive stack: candidate reusable components.
 
-The plan was maintained by an always-on `agent-runtime` service that ran an 8-phase
-"conscious" tick loop every 5 minutes on Claude Sonnet. It was expensive, so it was
-rewritten as `plan-guardian` on free models. The cheap version then ran **~8,670 epochs
-in a day for ~$0 and still produced only churn** — re-touching the same files, appending
-timestamps, decomposing `[PLAN]` nodes into more `[PLAN]` nodes.
+## Automated operating procedure
 
-**Conclusion: cost was the trigger, not the disease.** The disease was a maintenance loop
-with no convergence criterion and no real-world grounding — it generated the *appearance*
-of progress (markdown edits) instead of progress. Making it cheaper just let it spin
-its wheels for free. A roadmap is a document to be revised deliberately, not a database
-to be churned continuously.
+1. Scheduled cycles observe configured external state, deduplicate snapshots, integrate evidence,
+   and update affected hypotheses before diagnosis.
+2. Historical shadow records preserve initial automated calibration and its limitations. No record
+   count or human approval is required to operate.
+3. The automated operating body executes one bounded packet at a time; every result receives fresh
+   independent agent review before integration.
+4. Routine code/test changes auto-merge after classification, tests, and protected controls; no agent or human review is required.
+   Protected changes use an agent-controlled merge.
+5. Automation diagnoses failures, retries bounded alternatives, and records evidence without
+   transferring routine work to the human.
+6. Escalation is permitted only for owner-held credentials, physical presence, legal consent, or
+   unresolved constitutional conflict after at least two documented automated attempts.
+7. The escalation request contains evidence and asks the servant leader for exactly one bounded
+   decision. A required repository change is isolated to one auditable commit.
+8. Portfolio review runs weekly; weights, evidence standards, and constitutional risks receive
+   quarterly independent agent review.
 
-## What changed in the v1.0 freeze
+When no packet is eligible, the controller waits for evidence or an automated dependency. It does
+not create decomposition or contact the human merely to simulate progress.
 
-- **Rescued** `src/simulation-ui/run.ts` (was untracked — the most demo-able artifact, nearly lost).
-- **Archived** tier `0.7.3` — 747 files, 88% of the corpus, degenerate auto-decomposition
-  (leaves like *"read a file into a string variable"*). Moved to `archive/plan/`. The live
-  plan tree dropped from **853 → 106 coherent files**.
-- **Stopped** the maintainer service. The systemd unit is moved to
-  `archive/master-plan-agent.service.disabled`.
-  > ⚠️ The service also runs on a deployment host. On that host run:
-  > `sudo systemctl disable --now master-plan-agent`
-- **Tagged** the frozen doctrine + roadmap as `plan-v1.0`.
+## Preserved v1 history
 
-## The operating model going forward
-
-- **Plan / doctrine** (`plan/`, `docs/`): treat as a versioned document. Revise *deliberately*
-  by hand (with AI assistance) and re-tag (`plan-v1.1`, …). Do **not** point a continuous
-  agent at it.
-- **Simulation** (`src/simulation-ui/`): the living center. Run it, watch it, extend it.
-  ```bash
-  npx tsx src/simulation-ui/run.ts        # browser UI on http://localhost:1339
-  ```
-  Scenarios: Village (5 NPCs), Colony (6 colonists). No LLM required — pure cognitive stack.
-- **Cognitive stack** (`src/*`): a real library. 206 test files. `npm test` to verify.
-
-## If you ever want a continuous "mapping" agent again
-
-Do **not** restart `agent-runtime` or `plan-guardian` as-is. The guardian *engine*
-(`src/plan-guardian/` — DAG, priority, sanity-pass, model circuit-breaker) is sound, but
-only re-found it with all four of these, or it will churn again:
-
-1. **Bounded frontier** — operate on a small, explicitly chosen set of leaf tasks, never the whole tree.
-2. **Artifact-or-nothing** — an action counts only if it produces a *verifiable* artifact
-   (code + passing test, or a researched claim with a citation). A timestamp is not an artifact.
-3. **Hard convergence gate** — a node is `[DONE]` when an artifact satisfies its acceptance
-   criteria, and `[DONE]` is never reopened. Cap decomposition depth.
-4. **Cheap cadence + human review** — run as a scheduled nightly batch (cron, N tasks on free
-   models), not an always-on service. The human reviewing the morning diff is the convergence signal.
-
-## Repository map
-
-| Path | What it is | Status |
-|---|---|---|
-| `plan/` (106 files) | Doctrine + 7-tier roadmap, tiers 0.0–0.7 (minus 0.7.3) | **Frozen — keep** |
-| `docs/` | Per-topic architecture docs + the Consciousness Credo | **Keep** |
-| `src/simulation/`, `src/simulation-ui/` | Runnable multi-agent NPC simulation + browser UI | **Living — keep** |
-| `src/conscious-core/`, `memory/`, `intrinsic-motivation/`, `personality/`, `emotion-appraisal/`, `llm-substrate/` | Real, tested cognitive stack | **Keep** |
-| `src/plan-guardian/` | Plan-maintenance engine (sound infra) | **Dormant — re-found before reuse** |
-| `src/agent-runtime/` | Always-on "conscious agent" | **Stopped — keep as library only** |
-| `archive/plan/` (747 files) | Degenerate tier 0.7.3 | **Archived** |
-| `archive/master-plan-agent.service.disabled` | The always-on systemd unit | **Disabled** |
+The `plan-v1.0` tag and all current `plan/` cards remain intact. `strategy/legacy-audit.json`
+separates repository artifact completion, supporting evidence, organizational readiness, and
+real-world outcome attainment for every card. The previous always-on maintainer remains stopped.

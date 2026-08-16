@@ -21,7 +21,7 @@ import { buildCodexArgs, parseCodexOutput } from './codex-invoker.js';
 import { buildAgenticSystemPrompt } from './prompts.js';
 import { normalizePlanPath } from './actions.js';
 import { selectModelEffort, type ModelEffort, type ModelPolicyBounds, type ModelTier } from './agentic-model-policy.js';
-import type { AgenticProvider } from './cli.js';
+import type { AgenticProvider, EffortLevel } from './cli.js';
 
 export interface AgenticWorkerDeps {
   invoker: ClaudeInvoker;
@@ -47,6 +47,8 @@ export interface AgenticWorkerConfig {
   agenticProvider?: AgenticProvider;
   /** Optional provider-specific model id. Used by Codex as `-m`. */
   agenticModel?: string;
+  /** Exact Codex reasoning effort. Used as `model_reasoning_effort`. */
+  codexEffort?: EffortLevel;
   /** Extra context appended to the user turn (e.g. a completion-review note). */
   contextNote?: string;
 }
@@ -86,10 +88,12 @@ export async function runAgenticWorker(
             cardPath: item.task.path,
             rootPlanFile: config.rootPlanFile,
             model: config.agenticModel,
+            reasoningEffort: config.codexEffort,
             cwd: cwd ?? '.',
             contextNote: config.contextNote,
           });
-          return { ...invocation, modelTag: `codex:${config.agenticModel ?? 'default'}` };
+          const effortTag = config.codexEffort ? `\u00b7${config.codexEffort}` : '';
+          return { ...invocation, modelTag: `codex:${config.agenticModel ?? 'default'}${effortTag}` };
         })()
       : (() => {
           const { model, effort } = config.modelEffort ?? selectModelEffort(item.task, item.actionType, config.modelBounds);

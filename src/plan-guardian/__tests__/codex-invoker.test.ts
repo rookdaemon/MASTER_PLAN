@@ -15,6 +15,7 @@ describe('buildCodexArgs', () => {
       cardPath: 'plan/0.1-foo.md',
       rootPlanFile: 'plan/root.md',
       model: 'gpt-5.4',
+      reasoningEffort: 'xhigh',
       cwd: '/repo/.guardian/wt/0',
     });
 
@@ -29,6 +30,8 @@ describe('buildCodexArgs', () => {
       '--ephemeral',
       '-m',
       'gpt-5.4',
+      '-c',
+      'model_reasoning_effort="xhigh"',
       '-C',
       '/repo/.guardian/wt/0',
       '-',
@@ -47,6 +50,7 @@ describe('buildCodexArgs', () => {
       cwd: '.',
     });
     expect(invocation.args).not.toContain('-m');
+    expect(invocation.args).not.toContain('-c');
   });
 });
 

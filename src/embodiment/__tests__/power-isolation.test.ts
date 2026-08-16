@@ -28,11 +28,14 @@ const BACKUP_RUNTIME_MS = BACKUP_RUNTIME_MINUTES * 60 * 1000;
 
 describe("PowerIsolation", () => {
   let piu: PowerIsolation;
+  let nowMs: number;
 
   beforeEach(() => {
-    piu = new PowerIsolation({
-      batteryRuntimeMinutes: BACKUP_RUNTIME_MINUTES,
-    });
+    nowMs = 1_000;
+    piu = new PowerIsolation(
+      { batteryRuntimeMinutes: BACKUP_RUNTIME_MINUTES },
+      { nowMs: () => nowMs },
+    );
   });
 
   describe("initial state (nominal)", () => {
@@ -124,6 +127,14 @@ describe("PowerIsolation", () => {
   });
 
   describe("battery drain invariants", () => {
+    it("uses an injected clock for exact deterministic drain calculations", () => {
+      piu.isolateConsciousnessPower();
+      expect(piu.getBackupRemaining()).toBe(BACKUP_RUNTIME_MS);
+
+      nowMs += BACKUP_RUNTIME_MS / 2;
+      expect(piu.getBackupRemaining()).toBe(BACKUP_RUNTIME_MS / 2);
+    });
+
     it("battery percent decreases while isolated", () => {
       piu.isolateConsciousnessPower();
       piu.setBatteryPercent(80); // simulate partial drain

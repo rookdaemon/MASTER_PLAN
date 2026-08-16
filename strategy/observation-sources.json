@@ -1,0 +1,67 @@
+{
+  "sources": [
+    {
+      "kind": "github-repository-controls",
+      "branch": "main",
+      "hypothesisId": "hypothesis-live-stewardship-controls-aligned",
+      "portfolio": "institutional-continuity"
+    },
+    {
+      "kind": "public-source-snapshot",
+      "id": "crossref-consciousness-metadata",
+      "portfolio": "consciousness-epistemics",
+      "url": "https://api.crossref.org/works?query=consciousness&rows=20&sort=indexed&order=desc",
+      "format": "json",
+      "lookbackMs": 604800000,
+      "maximumResponseBytes": 524288,
+      "itemsPath": "message.items",
+      "selectedFields": ["DOI", "title.0", "indexed.timestamp", "URL"],
+      "maximumItems": 20,
+      "adjudication": {
+        "maximumInputCharacters": 48000,
+        "targets": [{
+          "hypothesisId": "hypothesis-material-consciousness-update",
+          "proposition": "The bounded metadata contains a candidate research update materially relevant to registered discriminating consciousness predictions or calibrated indicator assessment.",
+          "allowedOutcomes": ["positive", "null"]
+        }]
+      }
+    },
+    {
+      "kind": "public-source-snapshot",
+      "id": "who-disease-outbreak-news",
+      "portfolio": "near-term-preservation",
+      "url": "https://www.who.int/emergencies/disease-outbreak-news",
+      "format": "text",
+      "lookbackMs": 604800000,
+      "maximumResponseBytes": 524288,
+      "adjudication": {
+        "maximumInputCharacters": 48000,
+        "targets": [{
+          "hypothesisId": "hypothesis-material-preservation-update",
+          "proposition": "The bounded source records contain a candidate change material enough to re-evaluate near-term preservation risk priorities.",
+          "allowedOutcomes": ["positive", "null"]
+        }]
+      }
+    },
+    {
+      "kind": "public-source-snapshot",
+      "id": "nvd-vulnerability-changes",
+      "portfolio": "enabling-capabilities",
+      "url": "https://services.nvd.nist.gov/rest/json/cves/2.0?lastModStartDate={windowStart}&lastModEndDate={now}&resultsPerPage=20",
+      "format": "json",
+      "lookbackMs": 604800000,
+      "maximumResponseBytes": 524288,
+      "itemsPath": "vulnerabilities",
+      "selectedFields": ["cve.id", "cve.lastModified", "cve.vulnStatus"],
+      "maximumItems": 20,
+      "adjudication": {
+        "maximumInputCharacters": 48000,
+        "targets": [{
+          "hypothesisId": "hypothesis-material-durable-compute-update",
+          "proposition": "The bounded vulnerability metadata contains a candidate failure class materially relevant to durable-compute fault-model coverage.",
+          "allowedOutcomes": ["positive", "null"]
+        }]
+      }
+    }
+  ]
+}

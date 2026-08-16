@@ -67,6 +67,9 @@ import { ProposalService } from './proposal-service.js';
 
 export type OnTickCallback = (snap: DashboardSnapshot) => void;
 
+/** Injectable wall-clock boundary used by the loop and its derived records. */
+export type AgentLoopClock = () => number;
+
 /** Maximum number of recent semantic memory topics to pass to assembleDriveContext. */
 const MAX_RECENT_MEMORY_TOPICS = 10;
 
@@ -115,7 +118,7 @@ export class AgentLoop implements IAgentLoop {
   private _phaseTimings: Map<string, number> = new Map();
 
   // ── Drive system integration ────────────────────────────────
-  private _lastSocialInteractionAt = Date.now();
+  private _lastSocialInteractionAt: number;
   private _activityLog: ActivityRecord[] = [];
   private _driveInitiatedGoals: DriveGoalCandidate[] = [];
   private _goalCoherenceEngine: IGoalCoherenceEngine | null = null;
@@ -158,8 +161,10 @@ export class AgentLoop implements IAgentLoop {
     private readonly _adapter: IEnvironmentAdapter,
     private readonly _budgetMonitor: ICognitiveBudgetMonitor,
     llm?: IInferenceProvider,
+    private readonly _clock: AgentLoopClock = Date.now,
   ) {
     this._llm = llm ?? null;
+    this._lastSocialInteractionAt = this._clock();
     // If the ethical engine supports constraint checking, expose it for tool-level enforcement
     if ('checkConstraints' in this._ethicalEngine) {
       this._constraintEngine = this._ethicalEngine as import('./constraint-engine.js').ConstraintAwareDeliberationEngine;
@@ -185,8 +190,8 @@ export class AgentLoop implements IAgentLoop {
     this._config = config;
     this._running = true;
     this._stopRequested = false;
-    this._loopStartMs = Date.now();
-    this._lastCheckpointMs = Date.now();
+    this._loopStartMs = this._clock();
+    this._lastCheckpointMs = this._clock();
     this._cycleCount = 0;
 
     // Start the experience stream; the stream handle is stopped on shutdown
@@ -233,8 +238,8 @@ export class AgentLoop implements IAgentLoop {
               derivedFrom: [],
               consistentWith: [],
               conflictsWith: [],
-              createdAt: Date.now(),
-              lastVerified: Date.now(),
+              createdAt: this._clock(),
+              lastVerified: this._clock(),
               experientialBasis: null,
               type: 'instrumental',
             });
@@ -244,7 +249,7 @@ export class AgentLoop implements IAgentLoop {
         // Write marker so seeds are never re-planted
         const markerDir = _dirname(seedMarker);
         if (!_exists(markerDir)) _mkdir(markerDir, { recursive: true });
-        _write(seedMarker, new Date().toISOString(), 'utf-8');
+        _write(seedMarker, new Date(this._clock()).toISOString(), 'utf-8');
         this._debugLog?.log('lifecycle', `First run — seeded initial goals: ${seedGoals.map(g => g.id).join(', ')}`);
       } else {
         this._debugLog?.log('lifecycle', 'Seeds already planted — skipping seed goals');
@@ -267,7 +272,7 @@ export class AgentLoop implements IAgentLoop {
       });
 
       while (!this._stopRequested) {
-        const tickStart = Date.now();
+        const tickStart = this._clock();
         this._budgetMonitor.resetTick();
         this._debugLog?.tickStart(this._cycleCount);
 
@@ -297,7 +302,7 @@ export class AgentLoop implements IAgentLoop {
           throw tickErr;
         }
 
-        const tickMs = Date.now() - tickStart;
+        const tickMs = this._clock() - tickStart;
         this._tickDurationsMs.push(tickMs);
         this._totalCycles++;
 
@@ -317,7 +322,7 @@ export class AgentLoop implements IAgentLoop {
         }
 
         // YIELD: time-based identity checkpoint
-        const now = Date.now();
+        const now = this._clock();
         if (now - this._lastCheckpointMs >= this._config.checkpointIntervalMs) {
           this._identityManager.checkpoint();
           this._lastCheckpointMs = now;
@@ -335,7 +340,7 @@ export class AgentLoop implements IAgentLoop {
       this._running = false;
       this._resolveLoopStopped?.();
       this._resolveLoopStopped = null;
-      this._totalUptimeMs = Date.now() - this._loopStartMs;
+      this._totalUptimeMs = this._clock() - this._loopStartMs;
       stream.stop();
       this._debugLog?.log('lifecycle', `Agent ${config.agentId} loop exited`, {
         totalCycles: this._totalCycles,
@@ -378,7 +383,7 @@ export class AgentLoop implements IAgentLoop {
   getLoopMetrics(): LoopMetrics {
     const n = this._tickDurationsMs.length;
     const uptimeMs = this._running
-      ? Date.now() - this._loopStartMs
+      ? this._clock() - this._loopStartMs
       : this._totalUptimeMs;
 
     return {
@@ -570,7 +575,7 @@ export class AgentLoop implements IAgentLoop {
         source: 'internal',
         modality: 'idle',
         payload: null,
-        timestamp: Date.now(),
+        timestamp: this._clock(),
       };
       primaryPercept = this._perception.ingest(idleSensor);
       expState = this._core.processPercept(primaryPercept);
@@ -586,7 +591,7 @@ export class AgentLoop implements IAgentLoop {
     if (rawInputs.length > 0) {
       const source = rawInputs[0].adapterId;
       if (source !== 'internal') {
-        this._lastSocialInteractionAt = Date.now();
+        this._lastSocialInteractionAt = this._clock();
       }
     }
 
@@ -661,7 +666,7 @@ export class AgentLoop implements IAgentLoop {
         activeSubtaskDepth,
         recentMemoryTopics,
         personality: this._drivePersonality,
-        now: Date.now(),
+        now: this._clock(),
       });
 
       const driveResult = this._driveSystem.tick(expState, driveContext);
@@ -713,14 +718,14 @@ export class AgentLoop implements IAgentLoop {
               newCoherenceScore: 0,
               conflictsIntroduced: [],
               reason: `Duplicate goal already exists for drive "${candidate.sourceDrive}"`,
-            }, Date.now());
+            }, this._clock());
             dl?.log('drive', `Drive goal deduplicated: ${candidate.sourceDrive}`);
             continue;
           }
 
           const agencyGoal = driveGoalCandidateToAgencyGoal(candidate);
           const addResult = this._goalCoherenceEngine.addGoal(agencyGoal);
-          this._driveSystem.notifyGoalResult(candidate, addResult, Date.now());
+          this._driveSystem.notifyGoalResult(candidate, addResult, this._clock());
 
           if (addResult.success) {
             this._driveInitiatedGoals.push(candidate);
@@ -786,7 +791,7 @@ export class AgentLoop implements IAgentLoop {
     });
 
     const deliberationContext: EthicalDeliberationContext = {
-      situationPercept: primaryPercept ?? _idlePercept(),
+      situationPercept: primaryPercept ?? _idlePercept(this._clock()),
       currentExperientialState: expState,
       affectedEntities: [],   // populated by ExperienceAlignmentAdapter in full system
       ethicalDimensions: [],  // populated when situation has identified ethical dimensions
@@ -825,8 +830,9 @@ export class AgentLoop implements IAgentLoop {
         });
         dl?.log('deliberation', `D4 deliberation record stored: ${rec.id}`, {
           decision: rec.decision,
-          violationCount: rec.violationCount,
-          escalated: rec.escalated,
+          entryId: rec.entryId,
+          score: rec.evaluation.score,
+          decisionReason: rec.decisionReason,
         });
       }
     }
@@ -868,7 +874,7 @@ export class AgentLoop implements IAgentLoop {
 
         // Log incoming message to per-peer chat history (persistent file)
         if (peerName && this._chatLog) {
-          this._chatLog.append({ role: 'peer', peer: peerName, text: raw.text, timestamp: Date.now() });
+          this._chatLog.append({ role: 'peer', peer: peerName, text: raw.text, timestamp: this._clock() });
         }
 
         // Build prompt with peer conversation context from persistent log
@@ -905,7 +911,7 @@ export class AgentLoop implements IAgentLoop {
 
         const enrichedPrompt = buildSystemPrompt(this._systemPrompt, expState, metricsAtOnset, {
           cycleCount: this._cycleCount,
-          uptimeMs: Date.now() - this._loopStartMs,
+          uptimeMs: this._clock() - this._loopStartMs,
           peerSummaries: this._chatLog?.allPeerSummaries() ?? undefined,
           digestSection: peerDigestSection || undefined,
         }) + contextPrefix;
@@ -959,7 +965,7 @@ export class AgentLoop implements IAgentLoop {
 
         // Log outgoing response to per-peer chat history (persistent file)
         if (peerName && this._chatLog && text) {
-          this._chatLog.append({ role: 'self', peer: peerName, text, timestamp: Date.now() });
+          this._chatLog.append({ role: 'self', peer: peerName, text, timestamp: this._clock() });
         }
         dl?.log('llm', `LLM conversational response (${text.length} chars)`);
       } else if (this._llm && this._driveInitiatedGoals.length > 0) {
@@ -970,7 +976,7 @@ export class AgentLoop implements IAgentLoop {
         // so it doesn't immediately re-fire next tick
         const socialState = this._driveSystem.getDriveStates().get('social');
         if (socialState && socialState.strength === 0) {
-          this._lastSocialInteractionAt = Date.now();
+          this._lastSocialInteractionAt = this._clock();
         }
         // Valence recovery: successfully addressing drives produces positive valence
         const satiatedCount = [...this._driveSystem.getDriveStates().values()]
@@ -1009,7 +1015,7 @@ export class AgentLoop implements IAgentLoop {
         // Drive-initiated tool loop may have sent messages via send_message —
         // those count as social activity.
         if (this._driveInitiatedGoals.length > 0) {
-          this._lastSocialInteractionAt = Date.now();
+          this._lastSocialInteractionAt = this._clock();
         }
       }
     }
@@ -1038,7 +1044,7 @@ export class AgentLoop implements IAgentLoop {
     // Track activity for drive system (boredom / mastery evaluation)
     const isDriveAction = this._driveInitiatedGoals.length > 0;
     this._activityLog.push({
-      timestamp: Date.now(),
+      timestamp: this._clock(),
       description: `${ethicalJudgment.decision.action.type} (cycle ${this._cycleCount})`,
       novelty: rawInputs.length > 0 ? 0.6 : (isDriveAction ? 0.4 : 0.1),
       arousal: expState.arousal,
@@ -1280,7 +1286,7 @@ export class AgentLoop implements IAgentLoop {
 
     const enrichedPrompt = buildSystemPrompt(driveSystemPrompt(), expState, metricsAtOnset, {
       cycleCount: this._cycleCount,
-      uptimeMs: Date.now() - this._loopStartMs,
+      uptimeMs: this._clock() - this._loopStartMs,
       peerSummaries: this._chatLog?.allPeerSummaries() ?? undefined,
       digestSection: digestSection || undefined,
     });
@@ -1408,11 +1414,11 @@ export class AgentLoop implements IAgentLoop {
 // ── Pure helper functions (no side-effects) ───────────────────
 
 /** Synthesises a minimal idle percept when no input is available on the very first tick. */
-function _idlePercept(): import('../conscious-core/types.js').Percept {
+function _idlePercept(timestamp: number): import('../conscious-core/types.js').Percept {
   return {
     modality: 'idle',
     features: {},
-    timestamp: Date.now(),
+    timestamp,
   };
 }
 

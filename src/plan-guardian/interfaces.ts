@@ -173,6 +173,8 @@ export interface GuardianConfig {
   agenticProvider?: import('./cli.js').AgenticProvider;
   /** Optional provider-specific model id for the agentic CLI. */
   agenticModel?: string;
+  /** Exact Codex reasoning effort passed through to `codex exec`. */
+  codexEffort?: import('./cli.js').EffortLevel;
   /** Agentic CLI invoker — required when executionMode === 'agentic'. */
   claudeInvoker?: import('./claude-invoker.js').ClaudeInvoker;
   /** Plan root file passed to the CLI as whole-plan context (agentic mode). */

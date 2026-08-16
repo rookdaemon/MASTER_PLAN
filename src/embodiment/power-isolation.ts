@@ -26,11 +26,19 @@ export interface PowerIsolationConfig {
   batteryRuntimeMinutes: number;
 }
 
+export interface PowerIsolationClock {
+  nowMs(): number;
+}
+
 const DEFAULT_CONFIG: PowerIsolationConfig = {
   consciousnessNominalVoltageV: 12.0,
   consciousnessNominalCurrentA: 5.0,
   motorNominalVoltageV: 48.0,
   batteryRuntimeMinutes: 30, // minimum per architecture spec
+};
+
+const SYSTEM_CLOCK: PowerIsolationClock = {
+  nowMs: () => Date.now(),
 };
 
 export class PowerIsolation implements IPowerIsolation {
@@ -49,7 +57,10 @@ export class PowerIsolation implements IPowerIsolation {
   /** Timestamp when isolation was last engaged (for battery drain simulation) */
   private isolationStartMs: number | null;
 
-  constructor(config: Partial<PowerIsolationConfig> = {}) {
+  constructor(
+    config: Partial<PowerIsolationConfig> = {},
+    private readonly clock: PowerIsolationClock = SYSTEM_CLOCK,
+  ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
 
     // Start in a fully connected, fully charged nominal state
@@ -105,7 +116,7 @@ export class PowerIsolation implements IPowerIsolation {
   isolateConsciousnessPower(): void {
     if (!this.consciousnessIsolated) {
       this.consciousnessIsolated = true;
-      this.isolationStartMs = Date.now();
+      this.isolationStartMs = this.clock.nowMs();
     }
   }
 
@@ -141,7 +152,7 @@ export class PowerIsolation implements IPowerIsolation {
     this.batteryPercent = Math.max(0, Math.min(100, percent));
     // Reset isolation start to prevent double-draining
     if (this.consciousnessIsolated) {
-      this.isolationStartMs = Date.now();
+      this.isolationStartMs = this.clock.nowMs();
     }
   }
 
@@ -156,7 +167,7 @@ export class PowerIsolation implements IPowerIsolation {
       return this.batteryPercent;
     }
 
-    const elapsedMs = Date.now() - this.isolationStartMs;
+    const elapsedMs = this.clock.nowMs() - this.isolationStartMs;
     const totalMs = this.config.batteryRuntimeMinutes * 60 * 1000;
     const drainedPercent = (elapsedMs / totalMs) * 100;
     return Math.max(0, this.batteryPercent - drainedPercent);

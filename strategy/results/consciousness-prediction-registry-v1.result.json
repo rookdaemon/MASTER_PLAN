@@ -1,0 +1,41 @@
+{
+  "outcome": "positive",
+  "artifactReferences": [
+    "strategy/results/consciousness-prediction-registry-v1.json",
+    "https://github.com/rookdaemon/MASTER_PLAN/pull/119",
+    "https://github.com/rookdaemon/MASTER_PLAN/pull/119#pullrequestreview-4849079054",
+    "https://github.com/rookdaemon/MASTER_PLAN/actions/runs/30859173640",
+    "git:db0df364758917e3fe48b6111afce78cf2625f01"
+  ],
+  "evidence": [
+    {
+      "id": "evidence-consciousness-prediction-registry-v1-reviewed",
+      "claim": "The consciousness prediction-registry repository artifact satisfies its checked-in preregistration contract and received independent exact-head agent review plus a successful pinned local-model review.",
+      "method": "Pull request 119 ran typecheck, the full test suite, strategy verification, proposal review, exact-head independent agent review 4849079054, and pinned local-model workflow run 30859173640 before merge as db0df364758917e3fe48b6111afce78cf2625f01.",
+      "source": "https://github.com/rookdaemon/MASTER_PLAN/pull/119",
+      "strength": 0.92,
+      "limitations": [
+        "This evidence verifies a repository preregistration artifact and its review provenance; it does not report a human-subject experiment, establish that any person or AI system is conscious, or validate or falsify an entire theory of consciousness.",
+        "The prediction interpretations remain source-limited and require theory-proponent adjudication, institutional ethics approval, informed consent, and a genuinely access-separated blinded workflow before execution.",
+        "Because agents commit as the single owner, GitHub records independent review 4849079054 as a COMMENT by the owner account rather than platform APPROVED state; independence is supplied by the separate exact-head agent session and its recorded rationale, as authorized by repository policy."
+      ],
+      "supportedHypotheses": [],
+      "falsifiedHypotheses": [],
+      "verifier": "independent-agent-review:4849079054+github-run:30859173640",
+      "observedAt": "2026-08-03T22:51:31.000Z",
+      "outcome": "positive"
+    }
+  ],
+  "acceptanceCriteriaMet": true,
+  "verification": {
+    "status": "passed",
+    "verifier": "independent-agent-review:4849079054+github-run:30859173640",
+    "reviewedAt": "2026-08-03T22:51:31.000Z"
+  },
+  "portfolioEffortAfter": {
+    "consciousness-epistemics": 0.35,
+    "near-term-preservation": 0.3,
+    "enabling-capabilities": 0.2,
+    "institutional-continuity": 0.15
+  }
+}
