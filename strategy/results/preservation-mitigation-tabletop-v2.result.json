@@ -1,0 +1,33 @@
+{
+  "outcome": "null",
+  "artifactReferences": [
+    "strategy/results/preservation-mitigation-tabletop-v2.json",
+    "strategy/results/preservation-risk-register-v1.json"
+  ],
+  "evidence": [
+    {
+      "id": "evidence-preservation-mitigation-tabletop-v2-executed",
+      "claim": "A deterministic tabletop specified a measurable trigger and reversible response for ranked risk risk-advanced-ai.",
+      "method": "Deterministic transformation of checked-in, independently reviewed repository evidence.",
+      "source": "strategy/results/preservation-mitigation-tabletop-v2.json",
+      "strength": 0.55,
+      "limitations": [
+        "The tabletop is a repository artifact and does not establish real-world risk reduction.",
+        "The contracted metric remains unchanged until qualifying external outcome evidence is independently reviewed.",
+        "Independent agent review is required before this result can be integrated."
+      ],
+      "supportedHypotheses": [],
+      "falsifiedHypotheses": [],
+      "verifier": "deterministic-packet-executor:v1",
+      "observedAt": "2026-08-16T18:58:33.000Z",
+      "outcome": "null"
+    }
+  ],
+  "acceptanceCriteriaMet": true,
+  "portfolioEffortAfter": {
+    "consciousness-epistemics": 0.35,
+    "near-term-preservation": 0.3,
+    "enabling-capabilities": 0.2,
+    "institutional-continuity": 0.15
+  }
+}
