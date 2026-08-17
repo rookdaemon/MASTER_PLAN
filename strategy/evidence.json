@@ -155,5 +155,22 @@
     "verifier": "strategy-rebaseline-independent-review-required",
     "observedAt": "2026-08-17T00:00:00.000Z",
     "outcome": "positive"
+  },
+  {
+    "id": "evidence-preservation-ai-mitigation-tabletop",
+    "claim": "A deterministic, independently reviewed tabletop specifies a measurable advanced-AI risk trigger, a bounded evidence-registry response, an explicit rollback, and an authority boundary.",
+    "method": "Deterministic transformation of checked-in public-source risk evidence followed by GitHub-hosted independent agent review.",
+    "source": "strategy/findings/preservation-risks.json",
+    "strength": 0.55,
+    "limitations": [
+      "The tabletop is a repository artifact and does not establish real-world risk reduction.",
+      "No contracted outcome metric changed because no qualifying external outcome evidence was produced.",
+      "The response remains a proposed public-evidence process, not an authorization for deployment or restricted access."
+    ],
+    "supportedHypotheses": [],
+    "falsifiedHypotheses": [],
+    "verifier": "github-hosted-agent-review:run:31966214145:head:c247c2538ab3a9b7c13874fdba2491a9ef18df3b",
+    "observedAt": "2026-08-16T18:58:33.000Z",
+    "outcome": "null"
   }
 ]

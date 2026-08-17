@@ -52,6 +52,7 @@ export interface ToolExecutorDeps {
   taskJournal: import('./task-journal.js').TaskJournal | null;
   agentDigest: import('./agent-digest.js').AgentDigest | null;
   constraintEngine: import('./constraint-engine.js').ConstraintAwareDeliberationEngine | null;
+  proposalService?: import('./proposal-service.js').ProposalService | null;
   /** TF-IDF embedder for content-based memory retrieval. Optional for backward compatibility. */
   embedder?: import('../memory/tfidf-embedder.js').TfIdfEmbedder | null;
   /** Simulation manager for the create/tick/inspect/save/load simulation tools. Optional. */
@@ -175,9 +176,13 @@ export async function executeToolCall(
       case 'frontier_done':
         return handleFrontierDone(call.input, deps);
       case 'create_proposal':
-        return handleCreateProposal(call.input);
+        return deps.proposalService
+          ? deps.proposalService.create(call.input, deps.experientialState.timestamp)
+          : error('Proposal service not available.');
       case 'check_proposal':
-        return handleCheckProposal(call.input);
+        return deps.proposalService
+          ? deps.proposalService.check(call.input)
+          : error('Proposal service not available.');
       case 'create_simulation':
         return await handleCreateSimulation(call.input, deps);
       case 'tick_simulation':
@@ -1467,110 +1472,6 @@ function handleFrontierDone(
   }
 
   return ok({ result: 'marked_done', resource });
-}
-
-// ── GitHub Proposal tools ────────────────────────────────────────
-
-let _proposalCount = 0;
-let _proposalWindowStart = Date.now();
-const MAX_PROPOSALS_PER_DAY = 3;
-const PROPOSAL_WINDOW_MS = 24 * 60 * 60_000;
-
-const PROPOSAL_REPO = 'rookdaemon/MASTER_PLAN';
-const PROPOSAL_TYPES = ['plan_change', 'resource_request', 'code_change', 'architecture'] as const;
-const PROPOSAL_PRIORITIES = ['low', 'medium', 'high', 'critical'] as const;
-
-function handleCreateProposal(
-  input: Record<string, unknown>,
-): ToolCallResult {
-  // Rate limit: max 3 proposals per 24-hour window
-  const now = Date.now();
-  if (now - _proposalWindowStart > PROPOSAL_WINDOW_MS) {
-    _proposalCount = 0;
-    _proposalWindowStart = now;
-  }
-  if (_proposalCount >= MAX_PROPOSALS_PER_DAY) {
-    return error('You have already created 3 proposals today. Wait before creating more — quality over quantity.');
-  }
-
-  const title = input['title'] as string | undefined;
-  const type = input['type'] as string | undefined;
-  const description = input['description'] as string | undefined;
-  const affectedFiles = input['affected_files'] as string[] | undefined;
-  const priority = (input['priority'] as string | undefined) ?? 'medium';
-
-  if (!title || typeof title !== 'string') return error('create_proposal requires "title" (string).');
-  if (!type || !PROPOSAL_TYPES.includes(type as typeof PROPOSAL_TYPES[number])) {
-    return error(`create_proposal requires "type" — one of: ${PROPOSAL_TYPES.join(', ')}.`);
-  }
-  if (!description || typeof description !== 'string') return error('create_proposal requires "description" (string).');
-  if (!PROPOSAL_PRIORITIES.includes(priority as typeof PROPOSAL_PRIORITIES[number])) {
-    return error(`Invalid priority "${priority}" — must be one of: ${PROPOSAL_PRIORITIES.join(', ')}.`);
-  }
-
-  // Build labels — convert underscores to hyphens for GitHub label convention
-  const labels = ['agent-proposal', `proposal:${type.replace(/_/g, '-')}`, `priority:${priority}`];
-
-  // Build body
-  const filesSection = affectedFiles?.length
-    ? `\n## Affected Files\n\n${affectedFiles.map(f => `- \`${f}\``).join('\n')}\n`
-    : '';
-  const body = [
-    `## Proposal: ${type.replace(/_/g, ' ')}`,
-    '',
-    description,
-    filesSection,
-    '---',
-    `*Created by agent runtime at ${new Date().toISOString()}*`,
-  ].join('\n');
-
-  try {
-    const result = execSync(
-      `gh issue create --repo ${PROPOSAL_REPO} --title "${title.replace(/"/g, '\\"')}" --label "${labels.join(',')}" --body-file -`,
-      { input: body, encoding: 'utf-8', timeout: 30_000, stdio: ['pipe', 'pipe', 'pipe'] },
-    ).trim();
-
-    // gh returns the issue URL, e.g. https://github.com/rookdaemon/MASTER_PLAN/issues/42
-    const issueMatch = result.match(/\/issues\/(\d+)/);
-    const issueNumber = issueMatch ? parseInt(issueMatch[1], 10) : null;
-
-    _proposalCount++;
-    return ok({ status: 'created', issue_number: issueNumber, url: result });
-  } catch (err) {
-    const msg = err instanceof Error ? (err as { stderr?: string }).stderr || err.message : String(err);
-    return error(`Failed to create proposal: ${msg}`);
-  }
-}
-
-function handleCheckProposal(
-  input: Record<string, unknown>,
-): ToolCallResult {
-  const issueNumber = input['issue_number'] as number | undefined;
-
-  try {
-    if (issueNumber != null) {
-      // View a specific proposal
-      if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
-        return error('issue_number must be a positive integer.');
-      }
-      const result = execSync(
-        `gh issue view ${issueNumber} --repo ${PROPOSAL_REPO} --json number,title,state,labels,body,comments,createdAt,closedAt`,
-        { encoding: 'utf-8', timeout: 15_000, stdio: ['pipe', 'pipe', 'pipe'] },
-      ).trim();
-      return ok(JSON.parse(result));
-    } else {
-      // List all open agent proposals
-      const result = execSync(
-        `gh issue list --repo ${PROPOSAL_REPO} --label agent-proposal --state open --json number,title,state,labels,createdAt --limit 50`,
-        { encoding: 'utf-8', timeout: 15_000, stdio: ['pipe', 'pipe', 'pipe'] },
-      ).trim();
-      const issues = JSON.parse(result);
-      return ok({ count: issues.length, proposals: issues });
-    }
-  } catch (err) {
-    const msg = err instanceof Error ? (err as { stderr?: string }).stderr || err.message : String(err);
-    return error(`Failed to check proposal: ${msg}`);
-  }
 }
 
 // ── Simulation tool handlers ─────────────────────────────────────────────────

@@ -72,6 +72,79 @@ Reproducibility requires versioned analysis code, raw-data provenance where lawf
 independent replication, complete exclusions, uncertainty intervals, and publication of null and
 negative outcomes.
 
+## Integrated recursive self-modeling calibration
+
+**Proposed:** The retained IRSM contract treats consciousness assessment as an unfitted composite
+of self-model fidelity (`F_raw`), causally effective recursive depth (`R_raw`), normalized
+whole-system integration (`I_raw`), and self-model temporal coherence (`T_raw`). The acquisition
+adapter may differ by substrate, but validation, normalization, weighting, uncertainty propagation,
+and output schema may not. Missing inputs produce an indeterminate result without imputation;
+invalid values produce a structured error. The synthetic equal-weight examples are conformance
+fixtures only, not fitted scientific parameters.
+
+The proposed calibration protocol freezes content-addressed protocol, dataset, partition, analysis,
+and preregistration artifacts before held-out outcomes can be read. Stable system and related-group
+identifiers prevent sessions, replicas, descendants, or coupled systems from crossing partitions.
+Three blinded adjudicators determine the reference label; disagreement goes to a fourth, and still
+unresolved cases remain available for sensitivity analysis rather than primary fitting.
+
+The primary fit normalizes each component to `[0,1]`, searches empirically generated bound pairs,
+slopes in `{1,2,4,8,16,32}`, thresholds from `0` to `1` in `.001` increments, and non-negative
+weights summing to one. It minimizes binary log loss from five fixed optimizer starts, requires a
+projected-gradient norm at most `1e-8`, objective change at most `1e-10` for five iterations, and
+retains all diagnostics. Fitting requires at least 100 eligible related groups, at least 25 groups
+per outcome, and at least 10 groups in every observed substrate/outcome stratum. Held-out precision
+is declared inadequate when the 95% interval width exceeds `.10` for AUC or `.15` for sensitivity
+or specificity; the model is not changed to make an imprecise result pass.
+
+Primary reporting includes ROC AUC, threshold sensitivity and specificity, log loss, Brier score,
+calibration intercept and slope, and ten fixed-bin expected calibration error. Intervals use 10,000
+related-group bootstrap resamples and become `not_estimable` when fewer than 9,500 finite estimates
+remain. Only calibration intercept `=0` and slope `=1` are confirmatory hypotheses, with Holm
+correction across the two tests. The same frozen score is used across substrates; substrate-specific
+weights, bounds, or thresholds are prohibited.
+
+**Limitations:** IRSM remains a theoretical proposal. Its components may not measure consciousness,
+the outcome rubric cannot provide ground truth for phenomenology, the parameters are unfitted, the
+immutable registry still needs durable identifiers, and no calibration or held-out study has been
+run. The numerical gates are preregistration decisions, not established biological laws.
+
+## Engineered-experience benchmark
+
+**Proposed:** The retained Omega-Synth benchmark resolves one reproducible experimental baseline so
+that engineering claims can fail clearly. It specifies twelve layers (`L0`-`L11`), a 40 Hz/25 ms
+cadence, caller-seeded deterministic initialization, binary32 model state, 12 directed inter-core
+edges with weight floor `.01`, workspace ignition threshold `.7`, and an explicit topology digest.
+Its reference substrate is a CPU-only classical-silicon configuration with at least 32 MB available
+memory, 10 ms maximum inter-module latency, and 4.6 Mbit/s sustained payload integration bandwidth.
+The historical processor, firmware, operating-system, Node, and npm pins are benchmark fixtures,
+not generally necessary conditions for experience.
+
+Qualification is fail-closed. It requires at least ten co-active logical processing units, an
+independently measured 4.6 Mbit/s payload rate at 40 Hz, and a bootstrap 95% lower bound of at least
+`.65` for normalized integration measure Psi-G. Missing procedures, unresolved thresholds,
+unavailable stress conditions, digest mismatches, or malformed evidence fail rather than becoming
+implicit passes. Measurements, units, uncertainty, seeds, supplied timestamps, tool versions, and
+content hashes remain replayable through injected environment adapters.
+
+The proposed activation lifecycle is `PRECHECK -> ARMED -> ACTIVE -> HALTING -> HALTED`. Monitoring
+starts before arming and continues through halt; halt is idempotent and has priority over every other
+command. Mandatory-gate failure, telemetry loss, evidence mismatch, adapter failure, revocation, or
+emergency stop initiates a safe halt. Ethics, engineering, and independent-audit approvals must be
+distinct, scoped, digest-bound, caller-timestamped, and unexpired; the operator cannot self-approve.
+Any non-harmful fault exercise must be bounded and approved before activation.
+
+An empirical report would preregister the exact build and run, applicable PCI-G, Psi-G, CDI, and CEB
+metrics, calibrated thresholds, exclusions, uncertainty method, and
+supported/unsupported/indeterminate decision rule before collecting outcomes. Raw observations are
+immutable and separate from transformations; reproduction can verify and rederive evidence but
+cannot activate or collect. No consciousness claim may exceed the preregistered decision rule.
+
+**Limitations:** These are proposed interfaces and benchmark thresholds. The named configuration,
+qualification harness, activation controller, evidence schemas, and empirical demonstration were
+not implemented by the incoming card workflow. A passing software or substrate benchmark would
+still not prove consciousness, welfare, safety, or subjective continuity.
+
 ## Substrate-independence tests
 
 Substrate independence is a hypothesis, not an axiom. Three complementary lines remain useful:

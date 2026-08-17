@@ -74,6 +74,13 @@ Peer communication carries content, provenance, and optional affect metadata. So
 models other agents' beliefs, trust, and relationships with explicit uncertainty. Structured
 proposal and discussion mechanisms support disagreement and revision.
 
+**Implemented:** The runtime can create and inspect repository proposals through an injected GitHub
+issue client. Proposal type, priority, description, and affected-file inputs are validated; the
+caller supplies the creation time; and the current service limits a runtime instance to three
+proposals per rolling 24-hour window. The production CLI adapter is isolated from domain logic, so
+tests can deny or replace external process access. This interface demonstrates bounded issue
+creation, not authority to merge changes or evidence that generated proposals are sound.
+
 These mechanisms can also amplify false consensus, manipulation, identity attacks, or correlated
 error. Evaluation should test adversarial peers, asymmetric information, sybil behavior,
 communication loss, cultural divergence, and the right to exit or refuse interaction.

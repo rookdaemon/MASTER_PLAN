@@ -531,8 +531,7 @@
   ],
   "mitigationTabletop": {
     "selection": {
-      "ordering": "ascending-risk-rank",
-      "versionIndex": 0
+      "ordering": "ascending-risk-rank"
     },
     "findings": [
       {
@@ -545,10 +544,27 @@
         "rollback": "Retire the dashboard version, preserve its evidence record, and restore the last verified indicator definitions",
         "authorityBoundary": "The automated body may monitor public data and draft bounded options. Any credentialed access, outreach, spending, physical action, or legal commitment requires a separately classified packet; human escalation is allowed only when a documented owner-only capability remains truly unautomatable.",
         "disposition": "requires-external-observation"
+      },
+      {
+        "riskId": "risk-advanced-ai",
+        "rank": 2,
+        "scenario": "Observe whether capability gains in high-risk domains coincide with measured safeguard failures and autonomous operation: capability improvement outpacing independent evaluation, incident reporting, and defense in depth.",
+        "observationCadence": "monthly evidence scan and on each international report update",
+        "measurableTrigger": "A verified high-severity incident, a new dangerous-capability evaluation, or material safeguard regression",
+        "boundedResponse": "Maintain an evidence-separated capability, incident, and safeguard registry with preregistered update criteria",
+        "rollback": "Revert disputed classifications to unverified and preserve the challenged evidence and reviewer rationale",
+        "authorityBoundary": "Automation may analyze public evidence, test local non-deployed controls, and prepare reviewable changes. It may not access restricted systems, release hazardous capability details, or deploy autonomous agents without a bounded authority assessment; humans are an exceptional escalation endpoint, not routine operators.",
+        "disposition": "requires-external-observation",
+        "reviewEvidence": {
+          "observedAt": "2026-08-16T18:58:33.000Z",
+          "reviewedAt": "2026-08-16T19:13:28.000Z",
+          "verifier": "github-hosted-agent-review:run:31966214145:head:c247c2538ab3a9b7c13874fdba2491a9ef18df3b",
+          "status": "passed"
+        }
       }
     ],
     "summary": {
-      "testedRiskCount": 1,
+      "testedRiskCount": 2,
       "realWorldRiskReductionClaimed": false,
       "metricMeasurementProduced": false
     }

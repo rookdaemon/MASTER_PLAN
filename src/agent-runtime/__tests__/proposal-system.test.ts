@@ -9,24 +9,14 @@
  *   4. Check specific proposal by issue number
  *   5. List all open proposals
  *
- * All GitHub CLI calls are mocked via child_process.execSync.
+ * GitHub operations are supplied through a fake issue client.
  */
 
-import { describe, it, expect, vi, beforeEach, beforeAll, afterAll, type MockInstance } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { executeToolCall } from '../tool-executor.js';
 import type { ToolExecutorDeps } from '../tool-executor.js';
-
-// ── Mock child_process.execSync ─────────────────────────────────────────
-
-const { execSyncMock } = vi.hoisted(() => {
-  const execSyncMock = vi.fn();
-  return { execSyncMock };
-});
-
-vi.mock('node:child_process', async () => {
-  const actual = await vi.importActual<typeof import('node:child_process')>('node:child_process');
-  return { ...actual, execSync: execSyncMock };
-});
+import type { GitHubIssueClient } from '../github-issue-client.js';
+import { ProposalService } from '../proposal-service.js';
 
 // ── Mock node:fs so write_file / read_file don't touch disk ─────────────
 
@@ -46,7 +36,12 @@ vi.mock('node:fs', async () => {
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
-function makeDeps(): ToolExecutorDeps {
+const createIssue = vi.fn();
+const viewIssue = vi.fn();
+const listOpenIssues = vi.fn();
+const issueClient: GitHubIssueClient = { createIssue, viewIssue, listOpenIssues };
+
+function makeDeps(now = 1_800_000_000_000): ToolExecutorDeps {
   return {
     memorySystem: null,
     driveSystem: { recordActivity: () => {} } as any,
@@ -57,7 +52,7 @@ function makeDeps(): ToolExecutorDeps {
       arousal: 0.3,
       dominantEmotion: 'neutral',
       unityIndex: 0.8,
-      timestamp: Date.now(),
+      timestamp: now,
     } as any,
     goals: [],
     activityLog: [],
@@ -69,6 +64,7 @@ function makeDeps(): ToolExecutorDeps {
     taskJournal: null,
     agentDigest: null,
     constraintEngine: null,
+    proposalService: new ProposalService(issueClient),
   };
 }
 
@@ -77,25 +73,9 @@ const GH_ISSUE_URL = 'https://github.com/rookdaemon/MASTER_PLAN/issues/42';
 // ── Tests ────────────────────────────────────────────────────────────────
 
 describe('Proposal System', () => {
-  // Use fake timers for the entire suite — the module-level rate limit state
-  // (_proposalCount, _proposalWindowStart) persists across tests, so we must
-  // keep the fake clock monotonically advancing (never reset it mid-suite).
-  beforeAll(() => {
-    vi.useFakeTimers();
-  });
-
-  afterAll(() => {
-    vi.useRealTimers();
-  });
-
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: gh issue create returns a URL
-    execSyncMock.mockReturnValue(GH_ISSUE_URL);
-    // Advance 25 hours to guarantee a fresh rate-limit window for each test.
-    // Because fake timers accumulate monotonically, this always moves past
-    // the previous test's window start.
-    vi.advanceTimersByTime(25 * 60 * 60 * 1000);
+    createIssue.mockReturnValue(GH_ISSUE_URL);
   });
 
   describe('Scenario 1: Successful proposal creation', () => {
@@ -119,12 +99,10 @@ describe('Proposal System', () => {
       expect(parsed.url).toBe(GH_ISSUE_URL);
 
       // Verify gh was called with correct labels
-      expect(execSyncMock).toHaveBeenCalledTimes(1);
-      const ghCall = execSyncMock.mock.calls[0][0] as string;
-      expect(ghCall).toContain('--repo rookdaemon/MASTER_PLAN');
-      expect(ghCall).toContain('agent-proposal');
-      expect(ghCall).toContain('proposal:code-change');
-      expect(ghCall).toContain('priority:medium'); // default priority
+      expect(createIssue).toHaveBeenCalledWith(expect.objectContaining({
+        repo: 'rookdaemon/MASTER_PLAN',
+        labels: ['agent-proposal', 'proposal:code_change', 'priority:medium'],
+      }));
     });
   });
 
@@ -164,7 +142,7 @@ describe('Proposal System', () => {
       expect(blocked.is_error).toBe(true);
       expect(blocked.content).toMatch(/already created 3 proposals/i);
       // gh should have been called only 3 times, not 4
-      expect(execSyncMock).toHaveBeenCalledTimes(3);
+      expect(createIssue).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -188,7 +166,10 @@ describe('Proposal System', () => {
       }
 
       // Advance past the 24-hour window
-      vi.advanceTimersByTime(25 * 60 * 60 * 1000);
+      deps.experientialState = {
+        ...deps.experientialState,
+        timestamp: deps.experientialState.timestamp + 25 * 60 * 60 * 1000,
+      };
 
       // This should succeed because the window has reset
       const result = await executeToolCall(
@@ -215,13 +196,13 @@ describe('Proposal System', () => {
         number: 42,
         title: 'Add memory compaction',
         state: 'OPEN',
-        labels: [{ name: 'agent-proposal' }, { name: 'proposal:code-change' }],
+        labels: [{ name: 'agent-proposal' }, { name: 'proposal:code_change' }],
         body: 'Memory store grows unbounded...',
         comments: [],
         createdAt: '2026-03-31T00:00:00Z',
         closedAt: null,
       };
-      execSyncMock.mockReturnValue(JSON.stringify(issueData));
+      viewIssue.mockReturnValue(issueData);
 
       const result = await executeToolCall(
         {
@@ -238,9 +219,7 @@ describe('Proposal System', () => {
       expect(parsed.state).toBe('OPEN');
       expect(parsed.body).toContain('Memory store grows unbounded');
 
-      const ghCall = execSyncMock.mock.calls[0][0] as string;
-      expect(ghCall).toContain('gh issue view 42');
-      expect(ghCall).toContain('--repo rookdaemon/MASTER_PLAN');
+      expect(viewIssue).toHaveBeenCalledWith('rookdaemon/MASTER_PLAN', 42);
     });
   });
 
@@ -250,7 +229,7 @@ describe('Proposal System', () => {
         { number: 41, title: 'Proposal A', state: 'OPEN', labels: [{ name: 'agent-proposal' }], createdAt: '2026-03-30T00:00:00Z' },
         { number: 42, title: 'Proposal B', state: 'OPEN', labels: [{ name: 'agent-proposal' }], createdAt: '2026-03-31T00:00:00Z' },
       ];
-      execSyncMock.mockReturnValue(JSON.stringify(issueList));
+      listOpenIssues.mockReturnValue(issueList);
 
       const result = await executeToolCall(
         {
@@ -267,10 +246,7 @@ describe('Proposal System', () => {
       expect(parsed.proposals[0].number).toBe(41);
       expect(parsed.proposals[1].number).toBe(42);
 
-      const ghCall = execSyncMock.mock.calls[0][0] as string;
-      expect(ghCall).toContain('gh issue list');
-      expect(ghCall).toContain('--label agent-proposal');
-      expect(ghCall).toContain('--state open');
+      expect(listOpenIssues).toHaveBeenCalledWith('rookdaemon/MASTER_PLAN', 'agent-proposal');
     });
   });
 
@@ -355,7 +331,10 @@ describe('Proposal System', () => {
       }
 
       // Advance by exactly 86_400_000ms (24h)
-      vi.advanceTimersByTime(86_400_001);
+      deps.experientialState = {
+        ...deps.experientialState,
+        timestamp: deps.experientialState.timestamp + 86_400_000,
+      };
 
       const result = await executeToolCall(
         { name: 'create_proposal', input: { title: 'After window', type: 'code_change', description: 'Reset' } },
@@ -376,9 +355,8 @@ describe('Proposal System', () => {
         );
       }
 
-      for (const call of execSyncMock.mock.calls) {
-        const cmd = call[0] as string;
-        expect(cmd).toContain('agent-proposal');
+      for (const call of createIssue.mock.calls) {
+        expect(call[0].labels).toContain('agent-proposal');
       }
     });
   });
