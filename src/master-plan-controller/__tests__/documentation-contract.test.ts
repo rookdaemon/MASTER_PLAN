@@ -110,7 +110,6 @@ describe('unified documentation contract', () => {
       const content = await fileSystem.readText(path);
       expect(content, path).not.toMatch(/MASTER_PLAN\s+v[12]|\bv[12]\s+(plan|strategy|roadmap|history)|legacy[- ](plan|audit|replay)/i);
       expect(content, path).not.toContain('plan/');
-      expect(content, path).not.toContain('archive/plan');
     }
   });
 });

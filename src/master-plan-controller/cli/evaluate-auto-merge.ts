@@ -3,7 +3,7 @@ import { classifyChange } from '../change-classifier.js';
 import { ProcessGit, ProcessGitHub } from '../process-adapters.js';
 import { NodeFileSystem, NodeProcess } from '../runtime-adapters.js';
 import { argumentValue, NodeCliRuntime } from './runtime.js';
-import { safeAutoMergeFeatureEnabled } from '../rollout.js';
+import { safeAutoMergeFeatureEnabled } from '../auto-merge-gate.js';
 
 interface BranchProtectionFile {
   branch: string;

@@ -99,7 +99,7 @@ describe('CycleRunner end-to-end with injected ports', () => {
     expect((await store.load()).governance.reviewedResultCount).toBe(0);
   });
 
-  it('does not count a stale or self review toward supervised rollout', async () => {
+  it('does not count a stale or self review as an independently reviewed result', async () => {
     for (const verification of [
       { status: 'passed' as const, verifier: 'owner', reviewedAt: NOW },
       { status: 'passed' as const, verifier: 'reviewer', reviewedAt: '2026-08-03T09:00:00.000Z' },

@@ -1,5 +1,6 @@
 export * from './authority.js';
 export * from './auto-merge-service.js';
+export * from './auto-merge-gate.js';
 export * from './await-pr-merge.js';
 export * from './change-classifier.js';
 export * from './guardian.js';
@@ -20,7 +21,6 @@ export * from './periodic-review.js';
 export * from './repository-strategy.js';
 export * from './repository-observation.js';
 export * from './roadmap.js';
-export * from './rollout.js';
 export * from './runtime-adapters.js';
 export * from './strategy-validation.js';
 export * from './runner.js';

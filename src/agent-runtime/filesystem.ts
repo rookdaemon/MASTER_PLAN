@@ -57,24 +57,31 @@ export class NodeFileSystem implements IFileSystem {
 export class InMemoryFileSystem implements IFileSystem {
   private _files = new Map<string, string>();
 
+  private normalizePath(path: string): string {
+    return path.replaceAll('\\', '/');
+  }
+
   async readFile(path: string, _encoding: string): Promise<string> {
-    const content = this._files.get(path);
+    const content = this._files.get(this.normalizePath(path));
     if (content === undefined) {
       throw new Error(`ENOENT: no such file or directory, open '${path}'`);
     }
     return content;
   }
   async writeFile(path: string, content: string, _encoding: string): Promise<void> {
-    this._files.set(path, content);
+    this._files.set(this.normalizePath(path), content);
   }
   exists(path: string): boolean {
-    return this._files.has(path);
+    return this._files.has(this.normalizePath(path));
   }
   async mkdir(_path: string, _options?: { recursive: boolean }): Promise<void> {
     // No-op for in-memory implementation
   }
   async listFiles(dirPath: string): Promise<string[]> {
-    const prefix = dirPath.endsWith('/') ? dirPath : `${dirPath}/`;
+    const normalizedDirectory = this.normalizePath(dirPath);
+    const prefix = normalizedDirectory.endsWith('/')
+      ? normalizedDirectory
+      : `${normalizedDirectory}/`;
     const names: string[] = [];
     for (const key of this._files.keys()) {
       if (key.startsWith(prefix)) {

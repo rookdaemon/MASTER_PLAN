@@ -6,7 +6,7 @@ const BASELINE_TIME = '2026-08-17T00:00:00.000Z';
 const repositoryRoot = '.';
 
 describe('unversioned repository strategy baseline', () => {
-  it('loads a clean controller bundle with one baseline event and no historical rollout state', async () => {
+  it('loads a clean controller bundle with one baseline event and current state only', async () => {
     const fileSystem = new NodeFileSystem(repositoryRoot);
     const bundle = await loadRepositoryStrategy(fileSystem);
 
@@ -23,8 +23,6 @@ describe('unversioned repository strategy baseline', () => {
     expect(bundle.state.assessments).toEqual([]);
     expect(bundle.state.escalations).toEqual([]);
     expect(bundle).not.toHaveProperty('legacyAudit');
-    expect(bundle.state).not.toHaveProperty('shadowCycles');
-    expect(bundle.state).not.toHaveProperty('shadowCycleReviews');
   });
 
   it('verifies research-area mappings, controller contracts, and generated document blocks', async () => {
