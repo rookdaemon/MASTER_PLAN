@@ -145,9 +145,17 @@ jobs:
           test "$(jq -r '.head.sha' <<< "$pr_json")" = "$HEAD_SHA"
           base_sha="$(jq -r '.base.sha' <<< "$pr_json")"
           review_repo="${RUNNER_TEMP}/master-plan-review-source"
-          gh repo clone "$GITHUB_REPOSITORY" "$review_repo" -- --filter=blob:none --no-checkout
-          git -C "$review_repo" fetch --no-tags --depth=1 origin \
-            "$base_sha" "$HEAD_SHA"
+          mkdir -p "$review_repo"
+          git -C "$review_repo" init
+          git -C "$review_repo" remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          for fetch_attempt in $(seq 1 3); do
+            if git -C "$review_repo" fetch --no-tags --depth=1 origin \
+              "$base_sha" "$HEAD_SHA"; then
+              break
+            fi
+            test "$fetch_attempt" -lt 3
+            sleep 10
+          done
           test "$(git -C "$review_repo" rev-parse "$base_sha^{commit}")" = "$base_sha"
           test "$(git -C "$review_repo" rev-parse "$HEAD_SHA^{commit}")" = "$HEAD_SHA"
           {

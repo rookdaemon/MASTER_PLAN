@@ -8,7 +8,7 @@ export interface ProposalPolicyAssessment {
   reasons: string[];
 }
 
-export const MAX_PROTECTED_COMMIT_COUNT = 8;
+export const MAX_PROTECTED_COMMIT_COUNT = 9;
 
 export function retainsExistingEvidence(baseText: string, headText: string): boolean {
   try {
@@ -58,7 +58,7 @@ export function assessProposalPolicy(
       agentReviewRequired: true,
       reasons: validCommitCount
         ? ['Protected changes require independent agent review and an agent-controlled merge']
-        : ['A protected change must contain at most eight commits'],
+        : ['A protected change must contain at most nine commits'],
     };
   }
 

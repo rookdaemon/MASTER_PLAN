@@ -50,7 +50,7 @@ describe('blocking CI and governed workflows', () => {
       repositoryAutoMergeEnabled: true,
       safeAutoMergeVariableEnabled: true,
       workflowPullRequestCreationEnabled: true,
-      highRiskPolicy: { maximumCommitCount: 8, mergeMode: 'agent-controlled' },
+      highRiskPolicy: { maximumCommitCount: 9, mergeMode: 'agent-controlled' },
       agentReview: {
         provider: 'github-agent-reviewers', automatic: true, reviewOnPush: true,
         fallback: 'github-hosted-pinned-local-model',
@@ -143,7 +143,7 @@ describe('blocking CI and governed workflows', () => {
     expect(mergePolicy).toContain('base_evidence');
     expect(mergePolicy).toContain('jq -n -e --slurpfile base');
     expect(mergePolicy).toContain('all($base[0][]; . as $existing | any($head[0][]; . == $existing))');
-    expect(mergePolicy).toContain('test "$commit_count" -le 8');
+    expect(mergePolicy).toContain('test "$commit_count" -le 9');
     expect(mergePolicy).toContain('check_name=agent-review');
     expect(mergePolicy).toContain('agent-review:pr:${PR_NUMBER}:head:${HEAD_SHA}:');
     expect(mergePolicy).toContain('.event == "pull_request_target" or (.event == "workflow_dispatch" and .head_branch == "main")');
@@ -224,7 +224,11 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain('" unchanged guard context"');
     expect(agentReview).toContain('{kind: "context", text: " unchanged guard context"}');
     expect(agentReview).not.toContain("Accept: application/vnd.github.diff");
-    expect(agentReview).toContain('gh repo clone "$GITHUB_REPOSITORY" "$review_repo"');
+    expect(agentReview).not.toContain('gh repo clone');
+    expect(agentReview).toContain('git -C "$review_repo" init');
+    expect(agentReview).toContain(
+      'git -C "$review_repo" remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"',
+    );
     expect(agentReview).toContain('git -C "$review_repo" fetch --no-tags --depth=1 origin');
     expect(agentReview).toContain('"$base_sha" "$HEAD_SHA"');
     expect(agentReview).toContain('COMPLETE_CHANGE_TOTALS');
