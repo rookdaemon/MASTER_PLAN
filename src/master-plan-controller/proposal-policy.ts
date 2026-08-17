@@ -8,6 +8,8 @@ export interface ProposalPolicyAssessment {
   reasons: string[];
 }
 
+export const MAX_PROTECTED_COMMIT_COUNT = 8;
+
 export function retainsExistingEvidence(baseText: string, headText: string): boolean {
   try {
     const base = JSON.parse(baseText) as unknown;
@@ -46,7 +48,9 @@ export function assessProposalPolicy(
 
   const protectedChange = classification.authority.authorityClass !== 'autonomous';
   if (protectedChange) {
-    const validCommitCount = Number.isSafeInteger(commitCount) && commitCount === 1;
+    const validCommitCount = Number.isSafeInteger(commitCount) &&
+      commitCount >= 1 &&
+      commitCount <= MAX_PROTECTED_COMMIT_COUNT;
     return {
       allowed: validCommitCount,
       risk: 'protected',
@@ -54,7 +58,7 @@ export function assessProposalPolicy(
       agentReviewRequired: true,
       reasons: validCommitCount
         ? ['Protected changes require independent agent review and an agent-controlled merge']
-        : ['A protected change must be confined to exactly one commit'],
+        : ['A protected change must contain at most eight commits'],
     };
   }
 

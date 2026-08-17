@@ -50,7 +50,7 @@ describe('blocking CI and governed workflows', () => {
       repositoryAutoMergeEnabled: true,
       safeAutoMergeVariableEnabled: true,
       workflowPullRequestCreationEnabled: true,
-      highRiskPolicy: { maximumCommitCount: 1, mergeMode: 'agent-controlled' },
+      highRiskPolicy: { maximumCommitCount: 8, mergeMode: 'agent-controlled' },
       agentReview: {
         provider: 'github-agent-reviewers', automatic: true, reviewOnPush: true,
         fallback: 'github-hosted-pinned-local-model',
@@ -88,7 +88,7 @@ describe('blocking CI and governed workflows', () => {
     expect(readme).not.toMatch(/MASTER_PLAN v[12]|v[12] MASTER_PLAN/i);
   });
 
-  it('enforces one-commit protected proposals and automatic routine merge without a label', async () => {
+  it('enforces bounded protected proposals and automatic routine merge without a label', async () => {
     const proposal = await fileSystem.readText('.github/workflows/proposal-review.yml');
     const safeMerge = await fileSystem.readText('.github/workflows/safe-auto-merge.yml');
     const mergeRequest = await fileSystem.readText('.github/workflows/safe-auto-merge-request.yml');
@@ -143,7 +143,7 @@ describe('blocking CI and governed workflows', () => {
     expect(mergePolicy).toContain('base_evidence');
     expect(mergePolicy).toContain('jq -n -e --slurpfile base');
     expect(mergePolicy).toContain('all($base[0][]; . as $existing | any($head[0][]; . == $existing))');
-    expect(mergePolicy).toContain('test "$commit_count" -eq 1');
+    expect(mergePolicy).toContain('test "$commit_count" -le 8');
     expect(mergePolicy).toContain('check_name=agent-review');
     expect(mergePolicy).toContain('agent-review:pr:${PR_NUMBER}:head:${HEAD_SHA}:');
     expect(mergePolicy).toContain('.event == "pull_request_target" or (.event == "workflow_dispatch" and .head_branch == "main")');

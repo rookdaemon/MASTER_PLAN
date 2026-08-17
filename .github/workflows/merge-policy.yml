@@ -115,7 +115,7 @@ jobs:
             exit 0
           fi
 
-          test "$commit_count" -eq 1
+          test "$commit_count" -le 8
           for attempt in $(seq 1 120); do
             checks_json="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?check_name=agent-review&per_page=100" | jq -s '[.[].check_runs[]]')"
             agent_check="$(jq -ec '

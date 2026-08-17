@@ -21,7 +21,7 @@
   "appliedAndVerified": true,
   "applicationAuthority": "single-maintainer-risk-policy",
   "highRiskPolicy": {
-    "maximumCommitCount": 1,
+    "maximumCommitCount": 8,
     "mergeMode": "agent-controlled",
     "domains": [
       "plan",
@@ -56,5 +56,5 @@
     "evidenceRequired": true,
     "boundedDecisionRequired": true
   },
-  "notes": "Automated-body policy: deterministic CI gates every change; bounded routine changes auto-merge without agent review; protected or otherwise non-routine changes require an independent agent review and one-commit agent-controlled merge; human escalation is exceptional and evidence-bound."
+  "notes": "Automated-body policy: deterministic CI gates every change; bounded routine changes auto-merge without agent review; protected or otherwise non-routine changes may use an auditable series of at most eight commits and require an independent exact-head agent review plus agent-controlled merge; human escalation is exceptional and evidence-bound."
 }
