@@ -119,9 +119,19 @@ jobs:
           trap finish_check EXIT
 
           for attempt in $(seq 1 7); do
-            copilot_reviewed="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
-              | jq -s -r --arg head "$HEAD_SHA" \
-                'add | any(.[]; .user.login == "copilot-pull-request-reviewer[bot]" and .commit_id == $head)')"
+            if ! copilot_reviews="$(gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" 2>/dev/null)"; then
+              copilot_reviews='[]'
+            fi
+            copilot_reviewed="$(
+              jq -s -r --arg head "$HEAD_SHA" \
+                '(add // [])
+                 | any(.[];
+                     (.user.login? // "") == "copilot-pull-request-reviewer[bot]"
+                     and (.commit_id? // "") == $head)' \
+                <<< "$copilot_reviews" 2>/dev/null \
+                || printf 'false'
+            )"
             if test "$copilot_reviewed" = true; then
               complete_success
               exit 0
