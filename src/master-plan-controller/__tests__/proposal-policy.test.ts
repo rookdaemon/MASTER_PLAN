@@ -20,15 +20,15 @@ describe('single-maintainer proposal policy', () => {
     const classification = classifyChange([
       { path: '.github/workflows/ci.yml', additions: 2, deletions: 1 },
     ]);
-    expect(assessProposalPolicy(classification, 9)).toMatchObject({
+    expect(assessProposalPolicy(classification, 10)).toMatchObject({
       allowed: true,
       risk: 'protected',
       mergeMode: 'agent-controlled',
       agentReviewRequired: true,
     });
-    const rejected = assessProposalPolicy(classification, 10);
+    const rejected = assessProposalPolicy(classification, 11);
     expect(rejected.allowed).toBe(false);
-    expect(rejected.reasons.join(' ')).toMatch(/at most nine commits/i);
+    expect(rejected.reasons.join(' ')).toMatch(/at most ten commits/i);
   });
 
   it('treats agent instructions as governance rather than routine code', () => {

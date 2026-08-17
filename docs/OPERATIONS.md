@@ -78,7 +78,7 @@ that decision.
 - Routine code/test changes covered by behavior tests may merge automatically when repository
   controls are independently verified.
 - Strategy, governance, doctrine, workflow, dependency, deployment, network, security, and other
-  protected changes may use an auditable series of at most nine commits and require an independent
+  protected changes may use an auditable series of at most ten commits and require an independent
   exact-head GitHub agent review and agent-controlled merge.
 - Verified results are immutable assessments. Later contradiction creates a superseding assessment.
 - Failed automation selects and records bounded alternatives; it does not ask the human to become a

@@ -52,10 +52,25 @@ jobs:
           REVIEW_STRATEGY: ${{ inputs.review_strategy || 'qwen3-14b-grounded-seed42-v8' }}
         run: |
           set -euo pipefail
-          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          retry_command() {
+            local retry_attempt
+            for retry_attempt in $(seq 1 7); do
+              if "$@"; then
+                return 0
+              fi
+              if test "$retry_attempt" -ge 7; then
+                return 1
+              fi
+              sleep 10
+            done
+          }
+          gh_api_retry() {
+            retry_command gh api "$@"
+          }
+          pr_json="$(gh_api_retry "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
           test "$(jq -r '.head.sha' <<< "$pr_json")" = "$HEAD_SHA"
           publish_success_attestation() {
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
+            gh_api_retry --method POST "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
               -f state='success' -f context='agent-review' \
               -f description="Exact-head agent review run ${GITHUB_RUN_ID} passed" \
               -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
@@ -77,7 +92,7 @@ jobs:
               echo "Reviewed-result integration is not installed on main yet"
             fi
           }
-          existing_success="$(gh api \
+          existing_success="$(gh_api_retry \
             "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?check_name=agent-review&filter=all" \
             | jq -r --arg external_id "agent-review:pr:${PR_NUMBER}:head:${HEAD_SHA}:" \
               '[.check_runs[] | select(.external_id != null and (.external_id | startswith($external_id)))]
@@ -88,7 +103,7 @@ jobs:
             echo "Exact-head agent review is already successful; skipping duplicate run"
             exit 0
           fi
-          check_id="$(gh api --method POST "repos/${GITHUB_REPOSITORY}/check-runs" \
+          check_id="$(gh_api_retry --method POST "repos/${GITHUB_REPOSITORY}/check-runs" \
             -f name='agent-review' -f head_sha="$HEAD_SHA" -f status='in_progress' \
             -f external_id="agent-review:pr:${PR_NUMBER}:head:${HEAD_SHA}:run:${GITHUB_RUN_ID}" \
             -f details_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
@@ -110,7 +125,7 @@ jobs:
             exit "$exit_code"
           }
           complete_success() {
-            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/check-runs/${check_id}" \
+            gh_api_retry --method PATCH "repos/${GITHUB_REPOSITORY}/check-runs/${check_id}" \
               -f status='completed' -f conclusion='success' >/dev/null
             check_finished=true
             publish_success_attestation
@@ -141,7 +156,7 @@ jobs:
             fi
           done
 
-          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          pr_json="$(gh_api_retry "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
           test "$(jq -r '.head.sha' <<< "$pr_json")" = "$HEAD_SHA"
           base_sha="$(jq -r '.base.sha' <<< "$pr_json")"
           review_repo="${RUNNER_TEMP}/master-plan-review-source"
@@ -306,7 +321,7 @@ jobs:
               -H 'Content-Type: application/json' --data-binary "$request_json")"
             jq -er '.choices[0].message.content' <<< "$response"
           }
-          gh api \
+          gh_api_retry \
             "repos/${GITHUB_REPOSITORY}/contents/.github/scripts/normalize-agent-review-response.mjs?ref=${GITHUB_SHA}" \
             --jq '.content' | base64 --decode > normalize-agent-review-response.mjs
 

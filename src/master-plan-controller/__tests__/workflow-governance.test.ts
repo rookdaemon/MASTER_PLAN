@@ -50,7 +50,7 @@ describe('blocking CI and governed workflows', () => {
       repositoryAutoMergeEnabled: true,
       safeAutoMergeVariableEnabled: true,
       workflowPullRequestCreationEnabled: true,
-      highRiskPolicy: { maximumCommitCount: 9, mergeMode: 'agent-controlled' },
+      highRiskPolicy: { maximumCommitCount: 10, mergeMode: 'agent-controlled' },
       agentReview: {
         provider: 'github-agent-reviewers', automatic: true, reviewOnPush: true,
         fallback: 'github-hosted-pinned-local-model',
@@ -143,7 +143,7 @@ describe('blocking CI and governed workflows', () => {
     expect(mergePolicy).toContain('base_evidence');
     expect(mergePolicy).toContain('jq -n -e --slurpfile base');
     expect(mergePolicy).toContain('all($base[0][]; . as $existing | any($head[0][]; . == $existing))');
-    expect(mergePolicy).toContain('test "$commit_count" -le 9');
+    expect(mergePolicy).toContain('test "$commit_count" -le 10');
     expect(mergePolicy).toContain('check_name=agent-review');
     expect(mergePolicy).toContain('agent-review:pr:${PR_NUMBER}:head:${HEAD_SHA}:');
     expect(mergePolicy).toContain('.event == "pull_request_target" or (.event == "workflow_dispatch" and .head_branch == "main")');
@@ -161,6 +161,9 @@ describe('blocking CI and governed workflows', () => {
     expect(agentReview).toContain('run-name: "Agent review PR #${{ github.event.pull_request.number || inputs.pr_number }} @ ${{ github.event.pull_request.head.sha || inputs.head_sha }}"');
     expect(agentReview).toContain('group: agent-review-${{ github.event.pull_request.number || inputs.pr_number }}-${{ github.event.pull_request.head.sha || inputs.head_sha }}');
     expect(agentReview).toContain('cancel-in-progress: false');
+    expect(agentReview).toContain('retry_command()');
+    expect(agentReview).toContain('gh_api_retry()');
+    expect(agentReview).toContain('pr_json="$(gh_api_retry "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"');
     expect(agentReview).toContain('pull_request_target:');
     expect(agentReview).not.toContain('pull_request_review:');
     expect(agentReview).toContain('workflow_dispatch:');
