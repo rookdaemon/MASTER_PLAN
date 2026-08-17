@@ -60,7 +60,7 @@ jobs:
             (map(.additions + .deletions) | add) <= 100 and
             all(.[];
               .deletions == 0 and
-              (.filename | test("^src/(?!master-plan-controller/|plan-guardian/).+\\.tsx?$")) and
+              (.filename | test("^src/(?!master-plan-controller/).+\\.tsx?$")) and
               (.filename | test("network|security|deploy") | not)
             ) and
             any(.[]; (.filename | test("\\.(test|spec)\\.[cm]?[jt]sx?$|/__tests__/"))) and

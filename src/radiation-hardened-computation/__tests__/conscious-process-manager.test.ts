@@ -2,7 +2,7 @@
  * Conscious Process Manager — TDD Tests
  *
  * Tests for all 7 Behavioral Spec scenarios from
- * plan/0.2.1.1.3-radiation-tolerant-process-continuity.md
+ * docs/reference/durable-infrastructure.md
  *
  * Red phase: These tests define the expected behavior of ConsciousProcessManager.
  */

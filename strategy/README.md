@@ -22,6 +22,9 @@ preserved as v1 history.
   auditable independent agent review records.
 - `escalations.json` contains evidence-bound requests for the rare decisions automation cannot make.
 - `decisions/` contains traceable strategy decisions.
+- [`docs/machine-ecology-and-coexistence.md`](../docs/machine-ecology-and-coexistence.md)
+  defines the adversarial coexistence doctrine. Its measured governance capability gates
+  self-replicating conscious infrastructure; it does not declare machine consciousness or amend G1-G3.
 
 The scheduled `strategy-periodic-review` workflow supplies the review timestamp, creates one
 auditable record commit, and routes it through blocking checks and independent GitHub agent review.

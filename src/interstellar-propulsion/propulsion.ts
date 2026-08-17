@@ -3,7 +3,7 @@
  *
  * Hybrid laser-sail acceleration + magnetic sail deceleration propulsion system.
  * Implements contracts, guards, computations, and mission simulation defined in
- * plan/0.4.2.3-interstellar-propulsion-systems.md
+ * docs/reference/space-and-longevity.md
  */
 
 import {

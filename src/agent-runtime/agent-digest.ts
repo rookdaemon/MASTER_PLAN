@@ -36,7 +36,7 @@ export type FrontierStatus = 'unread' | 'in-progress' | 'done' | 'skipped';
 export interface FrontierItem {
   id: string;
   resource: string;       // file path or concept name
-  type: 'file' | 'plan-card' | 'concept' | 'peer-thread';
+  type: 'file' | 'reference' | 'concept' | 'peer-thread';
   priority: FrontierPriority;
   status: FrontierStatus;
   addedAt: number;
@@ -176,7 +176,7 @@ export class AgentDigest {
     // [stable] identity
     lines.push('');
     lines.push('### Identity [stable]');
-    lines.push('- I am an agent running the MASTER_PLAN → plan/root.md');
+    lines.push('- I am an agent running the MASTER_PLAN → docs/PLAN.md');
     for (const note of this._data.identityNotes) {
       lines.push(`- ${note}`);
     }

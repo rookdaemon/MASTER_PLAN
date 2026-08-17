@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AutoMergeService } from '../auto-merge-service.js';
-import { safeAutoMergeFeatureEnabled, shadowCycleFingerprint, transitionGovernanceMode } from '../rollout.js';
+import { safeAutoMergeFeatureEnabled } from '../rollout.js';
 import { ProcessGit, ProcessGitHub } from '../process-adapters.js';
 import {
   InMemoryClock,
@@ -11,7 +11,7 @@ import {
   InMemoryProcess,
   InMemoryScheduler,
 } from '../testing/in-memory-adapters.js';
-import { makeState, NOW } from './fixtures.js';
+import { NOW } from './fixtures.js';
 
 describe('in-memory environment adapters', () => {
   it('supports deterministic clock, filesystem, network, process, Git, and scheduling tests', async () => {
@@ -49,74 +49,7 @@ describe('in-memory environment adapters', () => {
   });
 });
 
-describe('rollout gates', () => {
-  const cycles = Array.from({ length: 20 }, (_, index) => ({
-    cycle: index + 1,
-    observedAt: `2026-08-03T00:${String(index).padStart(2, '0')}:00.000Z`,
-    rankedFrontier: ['packet-1'], selectedPacketId: 'packet-1',
-    executed: false as const, merged: false as const, stateMutated: false as const,
-  }));
-  const reviews = (count: number, accepted = true) => Array.from({ length: count }, (_, index) => ({
-    cycle: index + 1,
-    cycleObservedAt: `2026-08-03T00:${String(index).padStart(2, '0')}:00.000Z`,
-    reviewer: 'independent-agent-reviewer',
-    reviewerRole: 'agent' as const,
-    reviewRunId: `agent-run-${index + 1}`,
-    selectedPacketId: 'packet-1',
-    cycleFingerprint: shadowCycleFingerprint(cycles[index]),
-    reviewedAt: `2026-08-04T00:${String(index).padStart(2, '0')}:00.000Z`,
-    useful: accepted,
-    nonChurning: accepted,
-    decision: accepted ? 'accept' as const : 'revise' as const,
-    rationale: accepted ? 'Useful bounded proposal with no document churn.' : 'Revision required.',
-  }));
-
-  it('does not make historical shadow-cycle counts an operating gate', () => {
-    const state = makeState({
-      governance: { mode: 'shadow', shadowCyclesReviewed: 0, supervisedResultsReviewed: 0, safeAutoMergeEnabled: false },
-    });
-    expect(transitionGovernanceMode(state, 'supervised', NOW).governance.mode).toBe('supervised');
-  });
-
-  it('validates duplicate, non-consecutive, or adverse historical shadow reviews without blocking operation', () => {
-    const duplicate = reviews(20);
-    duplicate[19] = { ...duplicate[19], cycle: 19 };
-    const adverse = reviews(20);
-    adverse[5] = { ...adverse[5], useful: false, decision: 'revise', rationale: 'Packet ranking was not useful.' };
-    for (const shadowCycleReviews of [duplicate, adverse]) {
-      const state = makeState({
-        shadowCycleReviews,
-        shadowCycles: cycles,
-        governance: { mode: 'shadow', shadowCyclesReviewed: 20, supervisedResultsReviewed: 0, safeAutoMergeEnabled: false },
-      });
-      expect(transitionGovernanceMode(state, 'supervised', NOW).governance.mode).toBe('supervised');
-    }
-  });
-
-  it('does not turn malformed historical review records into a human approval gate', () => {
-    const forged = reviews(20);
-    forged[0] = { ...forged[0], cycleFingerprint: 'forged' };
-    const selfReviewed = reviews(20);
-    selfReviewed[0] = { ...selfReviewed[0], reviewer: 'owner' };
-    for (const shadowCycleReviews of [forged, selfReviewed]) {
-      const state = makeState({
-        packets: [{ ...makeState().packets[0], id: 'packet-1', owner: 'owner' }],
-        shadowCycles: cycles,
-        shadowCycleReviews,
-        governance: { mode: 'shadow', shadowCyclesReviewed: 20, supervisedResultsReviewed: 0, safeAutoMergeEnabled: false },
-      });
-      expect(transitionGovernanceMode(state, 'supervised', NOW).governance.mode).toBe('supervised');
-    }
-  });
-
-  it('promotes reviewed supervised operation without a routine human approval gate', () => {
-    const state = makeState({
-      governance: { mode: 'supervised', shadowCyclesReviewed: 20, supervisedResultsReviewed: 5, safeAutoMergeEnabled: false },
-    });
-    const next = transitionGovernanceMode(state, 'safe-code', NOW);
-    expect(next.governance).toMatchObject({ mode: 'safe-code', safeAutoMergeEnabled: true });
-  });
-
+describe('repository auto-merge gate', () => {
   it('requires both recorded repository enablement and the external repository switch', () => {
     expect(safeAutoMergeFeatureEnabled(false, true)).toBe(false);
     expect(safeAutoMergeFeatureEnabled(true, false)).toBe(false);

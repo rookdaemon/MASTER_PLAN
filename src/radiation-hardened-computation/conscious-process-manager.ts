@@ -7,7 +7,7 @@
  * simple majority voting quorum consensus, checkpoint-restore migration,
  * and separated injectable abstractions (NodeRegistry, CheckpointStore, Clock).
  *
- * See: plan/0.2.1.1.3-radiation-tolerant-process-continuity.md
+ * See: docs/reference/durable-infrastructure.md
  */
 
 import type {

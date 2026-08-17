@@ -43,5 +43,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Verify v2 graph and complete v1 audit
+      - name: Verify strategy and generated document state
         run: npm run strategy:verify
+      - name: Verify canonical documentation contracts
+        run: npm run docs:verify

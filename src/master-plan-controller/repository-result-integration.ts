@@ -1,6 +1,6 @@
 import { Controller } from './controller.js';
 import type { FileSystemPort } from './ports.js';
-import { renderRoadmap } from './roadmap.js';
+import { renderOperationsDocument, renderPlanDocument } from './roadmap.js';
 import { loadRepositoryStrategy } from './repository-strategy.js';
 import {
   appendRepositoryJsonArrayItems,
@@ -44,15 +44,6 @@ function withPacketLifecycle(
   return `${content.slice(0, lifecycle)}"lifecycle": "${nextLifecycle}"${content.slice(lifecycle + lifecycleToken.length)}`;
 }
 
-function statusWithReviewedCount(status: string, count: number): string {
-  const pattern = /Automated results independently agent-reviewed: \*\*\d+\*\*/g;
-  const matches = status.match(pattern) ?? [];
-  if (matches.length !== 1) {
-    throw new Error('STATUS.md must contain exactly one automated-results counter');
-  }
-  return status.replace(pattern, `Automated results independently agent-reviewed: **${count}**`);
-}
-
 export async function integrateRepositoryPacketResult(
   fileSystem: FileSystemPort,
   packetId: string,
@@ -76,7 +67,7 @@ export async function integrateRepositoryPacketResult(
     ...advanced.state,
     governance: {
       ...advanced.state.governance,
-      supervisedResultsReviewed: advanced.state.governance.supervisedResultsReviewed + 1,
+      reviewedResultCount: advanced.state.governance.reviewedResultCount + 1,
     },
   };
   const updatedBundle = { ...bundle, state };
@@ -89,10 +80,10 @@ export async function integrateRepositoryPacketResult(
     fileSystem.readText('strategy/portfolio.json'),
   ]);
   const portfolio = JSON.parse(portfolioText) as PortfolioFile;
-  const status = statusWithReviewedCount(
-    await fileSystem.readText('STATUS.md'),
-    state.governance.supervisedResultsReviewed,
-  );
+  const [planDocument, operationsDocument] = await Promise.all([
+    fileSystem.readText('docs/PLAN.md'),
+    fileSystem.readText('docs/OPERATIONS.md'),
+  ]);
   const previousPacket = bundle.state.packets.find((candidate) => candidate.id === packetId)!;
   const nextPacket = state.packets.find((candidate) => candidate.id === packetId)!;
   const unchangedPacketFields = { ...previousPacket, lifecycle: nextPacket.lifecycle };
@@ -109,8 +100,8 @@ export async function integrateRepositoryPacketResult(
     ['strategy/audit-log.json', appendRepositoryJsonArrayItems(auditText, bundle.state.auditEvents, state.auditEvents)],
     ['strategy/portfolio.json', formattedRepositoryJson({ ...portfolio, currentEffort: state.portfolioEffort })],
     ['strategy/governance.json', formattedRepositoryJson(state.governance)],
-    ['strategy/ROADMAP.md', renderRoadmap(updatedBundle)],
-    ['STATUS.md', status],
+    ['docs/PLAN.md', renderPlanDocument(updatedBundle, planDocument)],
+    ['docs/OPERATIONS.md', renderOperationsDocument(updatedBundle, operationsDocument)],
   ];
   for (const [path, content] of writes) await fileSystem.writeText(path, content);
   return { event: advanced.event };

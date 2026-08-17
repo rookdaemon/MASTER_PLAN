@@ -107,11 +107,17 @@ describe('durable-compute fault-recovery simulation', () => {
 
   it('keeps the checked-in artifact equal to deterministic replay and bounded to simulation claims', async () => {
     const artifact = JSON.parse(await new NodeFileSystem('.').readText(
-      'strategy/results/durable-compute-fault-model-v1.json',
+      'strategy/findings/durable-compute.json',
     ));
     const replay = runFaultRecoverySimulation(CONFIG, OBSERVED_AT);
 
-    expect(artifact).toEqual(replay);
+    expect(artifact).toMatchObject({
+      preregistration: replay.preregistration,
+      scenarios: replay.scenarios,
+      summary: replay.summary,
+      scope: replay.scope,
+      limitations: replay.limitations,
+    });
     expect(artifact.scope.excluded).toEqual(expect.arrayContaining([
       'hardware operation',
       'deployment',

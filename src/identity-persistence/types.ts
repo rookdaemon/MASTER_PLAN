@@ -4,7 +4,7 @@
  * Types, interfaces, and threshold constants for the four-dimension
  * identity verification protocol defined in:
  *   docs/identity-persistence/ARCHITECTURE.md
- *   plan/0.2.2.3-identity-persistence-verification.md
+ *   docs/reference/continuity-and-identity.md
  *
  * Card 0.2.2.3: Identity Persistence Verification
  *

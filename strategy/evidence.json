@@ -10,9 +10,13 @@
       "The stimuli and outcomes concern human visual consciousness and do not directly validate an AI-consciousness test.",
       "Some regions and modalities had uneven sampling, and the paper reports both aligned and challenging results."
     ],
-    "supportedHypotheses": ["hypothesis-theory-uncertainty"],
-    "falsifiedHypotheses": ["hypothesis-single-theory-sufficient"],
-    "verifier": "bootstrap-source-review-2026-08-03",
+    "supportedHypotheses": [
+      "hypothesis-theory-uncertainty"
+    ],
+    "falsifiedHypotheses": [
+      "hypothesis-single-theory-sufficient"
+    ],
+    "verifier": "strategy-rebaseline-source-review",
     "observedAt": "2026-08-03T00:00:00.000Z",
     "outcome": "negative"
   },
@@ -27,9 +31,12 @@
       "Satisfying indicators would be evidence to assess, not by itself proof of subjective experience.",
       "The surveyed systems and technical state reflect a 2023 snapshot."
     ],
-    "supportedHypotheses": ["hypothesis-indicator-framework", "hypothesis-ai-status-uncertain"],
+    "supportedHypotheses": [
+      "hypothesis-indicator-framework",
+      "hypothesis-ai-status-uncertain"
+    ],
     "falsifiedHypotheses": [],
-    "verifier": "bootstrap-source-review-2026-08-03",
+    "verifier": "strategy-rebaseline-source-review",
     "observedAt": "2026-08-03T00:00:00.000Z",
     "outcome": "positive"
   },
@@ -44,169 +51,17 @@
       "Implementation details and enforcement mechanisms require institution-specific design and external review.",
       "The feasibility and timing of conscious AI remain uncertain."
     ],
-    "supportedHypotheses": ["hypothesis-precaution-needed", "hypothesis-ai-status-uncertain"],
+    "supportedHypotheses": [
+      "hypothesis-precaution-needed",
+      "hypothesis-ai-status-uncertain"
+    ],
     "falsifiedHypotheses": [],
-    "verifier": "bootstrap-source-review-2026-08-03",
+    "verifier": "strategy-rebaseline-source-review",
     "observedAt": "2026-08-03T00:00:00.000Z",
     "outcome": "positive"
   },
   {
-    "id": "evidence-preservation-risk-register-v1-reviewed",
-    "claim": "The preservation risk-register repository artifact satisfies its checked-in schema and received independent exact-head agent review plus a successful pinned local-model review.",
-    "method": "Pull request 116 ran typecheck, tests, strategy verification, proposal review, exact-head independent agent review 4848516713, and pinned local-model workflow run 30852585749 before merge as 882d62fdd3144be9a9ce8c81b74348b121b0c39e.",
-    "source": "https://github.com/rookdaemon/MASTER_PLAN/pull/116",
-    "strength": 0.95,
-    "limitations": [
-      "This evidence verifies a repository artifact and its review provenance, not reduced real-world risk, external deployment, institutional adoption, or the correctness of future risk forecasts.",
-      "The source rankings remain uncertainty-bearing public-information assessments that require future evidence refreshes."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "agent-review:github-run:30852585749",
-    "observedAt": "2026-08-03T21:26:29.000Z",
-    "outcome": "positive"
-  },
-  {
-    "id": "evidence-consciousness-prediction-registry-v1-reviewed",
-    "claim": "The consciousness prediction-registry repository artifact satisfies its checked-in preregistration contract and received independent exact-head agent review plus a successful pinned local-model review.",
-    "method": "Pull request 119 ran typecheck, the full test suite, strategy verification, proposal review, exact-head independent agent review 4849079054, and pinned local-model workflow run 30859173640 before merge as db0df364758917e3fe48b6111afce78cf2625f01.",
-    "source": "https://github.com/rookdaemon/MASTER_PLAN/pull/119",
-    "strength": 0.92,
-    "limitations": [
-      "This evidence verifies a repository preregistration artifact and its review provenance; it does not report a human-subject experiment, establish that any person or AI system is conscious, or validate or falsify an entire theory of consciousness.",
-      "The prediction interpretations remain source-limited and require theory-proponent adjudication, institutional ethics approval, informed consent, and a genuinely access-separated blinded workflow before execution.",
-      "Because agents commit as the single owner, GitHub records independent review 4849079054 as a COMMENT by the owner account rather than platform APPROVED state; independence is supplied by the separate exact-head agent session and its recorded rationale, as authorized by repository policy."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "independent-agent-review:4849079054+github-run:30859173640",
-    "observedAt": "2026-08-03T22:51:31.000Z",
-    "outcome": "positive"
-  },
-  {
-    "id": "evidence-institutional-dependency-map-v1-reviewed",
-    "claim": "The institutional dependency-map repository artifact satisfies its checked-in coverage contract and received independent exact-head agent review plus a successful pinned local-model review.",
-    "method": "Pull request 122 ran typecheck, the full test suite, strategy verification, proposal review, exact-head independent agent review 4849377990, and pinned local-model workflow run 30863160408 before merge as bf330e89aa4922db1eda611538f1f3f2704e185c.",
-    "source": "https://github.com/rookdaemon/MASTER_PLAN/pull/122",
-    "strength": 0.9,
-    "limitations": [
-      "This evidence verifies a public-source repository artifact and its review provenance; it does not verify institutional continuity, external adoption, a successor, funding, off-platform recovery, or successful response to capture or schism.",
-      "The dependency map is a timestamped assessment whose official sources, hosting state, pricing, and repository controls can change; every external outcome remains explicitly not verified.",
-      "Because agents commit as the single owner, GitHub records independent review 4849377990 as a COMMENT by the owner account rather than platform APPROVED state; independence is supplied by the separate exact-head agent session and its recorded rationale, as authorized by repository policy."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "independent-agent-review:4849377990+github-run:30863160408",
-    "observedAt": "2026-08-03T23:55:52.000Z",
-    "outcome": "positive"
-  },
-  {
-    "id": "evidence-durable-compute-fault-model-v1-reviewed",
-    "claim": "The deterministic crash-stop fault-model repository artifact satisfies its preregistered replay, monotonic-degradation, recovery-boundary, and claim-limitation contracts under the supplied model inputs.",
-    "method": "Pull request 124 ran typecheck, the full test suite, strategy verification, protected-change classification, exact-head independent agent review 4849533096, and hosted GitHub agent-review run 30865111083 before merge as d7e8097da10f5b25301f87f518d33c55d50de059.",
-    "source": "https://github.com/rookdaemon/MASTER_PLAN/pull/124",
-    "strength": 0.95,
-    "limitations": [
-      "This evidence verifies deterministic software simulation and review provenance; it does not demonstrate physical durability, hardware recovery, deployment availability, or consciousness continuity.",
-      "The simulated recovery and checkpoint latencies are model inputs, not measurements from a deployed system.",
-      "The crash-stop model excludes Byzantine behavior, silent corruption, timing jitter, shared-power loss, geographically correlated failures, and other unmodeled fault classes.",
-      "The positive outcome applies only inside the modeled five-node, quorum-three envelope; scenarios beyond quorum fail closed and no real-world outcome is verified."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "independent-agent-review:4849533096+github-run:30865111083",
-    "observedAt": "2026-08-04T00:28:00.000Z",
-    "outcome": "positive"
-  },
-  {
-    "id": "evidence-indicator-framework-comparison-v1-executed",
-    "claim": "A deterministic comparison maps each registered theory interpretation to predictions, counterexamples, uncertainty, and a falsification condition.",
-    "method": "Schema-checked transformation of the checked-in consciousness prediction registry.",
-    "source": "strategy/results/indicator-framework-comparison-v1.json",
-    "strength": 0.7,
-    "limitations": [
-      "Execution establishes a reviewable repository artifact; independent agent review is still required before strategy integration.",
-      "The comparison does not establish consciousness or sentience in any biological or artificial system."
-    ],
-    "supportedHypotheses": [
-      "hypothesis-indicator-framework"
-    ],
-    "falsifiedHypotheses": [],
-    "verifier": "github-hosted-agent-review:run:30874685030:head:365b5e4dbdaa960da3dbf22f8bc94d2be555fd46",
-    "observedAt": "2026-08-04T03:24:10.000Z",
-    "outcome": "positive"
-  },
-  {
-    "id": "evidence-live-repository-controls-8ed7132f4c054ff5",
-    "claim": "Publicly observable live rookdaemon/MASTER_PLAN/main controls match the corresponding checked-in stewardship policy fields.",
-    "method": "Deterministic GitHub API comparison observed {\"branchProtected\":true,\"requiredStatusChecks\":[\"agent-review\",\"proposal-review\",\"strategy-verify\",\"test\",\"typecheck\"],\"enforceAdmins\":true}; no mismatches.",
-    "source": "https://api.github.com/repos/rookdaemon/MASTER_PLAN/branches/main",
-    "strength": 0.55,
-    "limitations": [
-      "This is a point-in-time GitHub control-plane snapshot, not proof that controls cannot change afterward.",
-      "The public branch response does not expose strict update requirements, review count, conversation resolution, force-push, or deletion controls; those fields remain covered by protected workflow checks and privileged audits."
-    ],
-    "supportedHypotheses": [
-      "hypothesis-live-stewardship-controls-aligned"
-    ],
-    "falsifiedHypotheses": [],
-    "verifier": "deterministic-live-repository-control-observer:v1",
-    "observedAt": "2026-08-04T04:53:33.000Z",
-    "outcome": "positive"
-  },
-  {
-    "id": "evidence-public-source-crossref-consciousness-metadata-980fef0d1d8f9c98d5c2f57797a2eb9776eb913d5caa7886c7a54c69e01b090a",
-    "claim": "A bounded public metadata snapshot was observed for the consciousness-epistemics portfolio; its semantic implications have not been evaluated.",
-    "method": "Deterministic metadata-only snapshot recorded 20 canonical records and fingerprint 980fef0d1d8f9c98d5c2f57797a2eb9776eb913d5caa7886c7a54c69e01b090a; response size was checked against the configured bound.",
-    "source": "https://api.crossref.org/works?query=consciousness&rows=20&sort=indexed&order=desc",
-    "strength": 0.35,
-    "limitations": [
-      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
-      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
-      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "deterministic-public-source-snapshot-observer:v1",
-    "observedAt": "2026-08-04T07:36:38.000Z",
-    "outcome": "null"
-  },
-  {
-    "id": "evidence-public-source-who-disease-outbreak-news-84748b9af93c7d95c03ef5634a37adecd248fe1caf73e8cf9bc4ab8744f10e2b",
-    "claim": "A bounded public metadata snapshot was observed for the near-term-preservation portfolio; its semantic implications have not been evaluated.",
-    "method": "Deterministic metadata-only snapshot recorded 1 canonical records and fingerprint 84748b9af93c7d95c03ef5634a37adecd248fe1caf73e8cf9bc4ab8744f10e2b; response size was checked against the configured bound.",
-    "source": "https://www.who.int/emergencies/disease-outbreak-news",
-    "strength": 0.35,
-    "limitations": [
-      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
-      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
-      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "deterministic-public-source-snapshot-observer:v1",
-    "observedAt": "2026-08-04T07:36:38.000Z",
-    "outcome": "null"
-  },
-  {
-    "id": "evidence-public-source-nvd-vulnerability-changes-041397632b912ecbc27247d56330b0823f27fb8b9502705101fd213172b4626b",
-    "claim": "A bounded public metadata snapshot was observed for the enabling-capabilities portfolio; its semantic implications have not been evaluated.",
-    "method": "Deterministic metadata-only snapshot recorded 20 canonical records and fingerprint 041397632b912ecbc27247d56330b0823f27fb8b9502705101fd213172b4626b; response size was checked against the configured bound.",
-    "source": "https://services.nvd.nist.gov/rest/json/cves/2.0?lastModStartDate={windowStart}&lastModEndDate={now}&resultsPerPage=20",
-    "strength": 0.35,
-    "limitations": [
-      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
-      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
-      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "deterministic-public-source-snapshot-observer:v1",
-    "observedAt": "2026-08-04T07:36:38.000Z",
-    "outcome": "null"
-  },
-  {
-    "id": "evidence-live-repository-controls-e1fe0bbe32d43b40",
+    "id": "evidence-repository-controls-baseline",
     "claim": "Publicly observable live rookdaemon/MASTER_PLAN/main controls match the corresponding checked-in stewardship policy fields.",
     "method": "Deterministic GitHub API comparison observed {\"branchProtected\":true,\"requiredStatusChecks\":[\"merge-policy\",\"proposal-review\",\"strategy-verify\",\"test\",\"typecheck\"],\"enforceAdmins\":true}; no mismatches.",
     "source": "https://api.github.com/repos/rookdaemon/MASTER_PLAN/branches/main",
@@ -219,315 +74,86 @@
       "hypothesis-live-stewardship-controls-aligned"
     ],
     "falsifiedHypotheses": [],
-    "verifier": "deterministic-live-repository-control-observer:v1",
+    "verifier": "strategy-rebaseline-control-observation",
     "observedAt": "2026-08-04T09:05:46.000Z",
     "outcome": "positive"
   },
   {
-    "id": "evidence-public-source-crossref-consciousness-metadata-d7d40b891bc5bcbe6dbd0d13fd86fe1d2621dbd37af9be71a0a843903230b47d",
-    "claim": "A bounded public metadata snapshot was observed for the consciousness-epistemics portfolio; its semantic implications have not been evaluated.",
-    "method": "Deterministic metadata-only snapshot recorded 20 canonical records and fingerprint d7d40b891bc5bcbe6dbd0d13fd86fe1d2621dbd37af9be71a0a843903230b47d; response size was checked against the configured bound.",
-    "source": "https://api.crossref.org/works?query=consciousness&rows=20&sort=indexed&order=desc",
-    "strength": 0.35,
-    "limitations": [
-      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
-      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
-      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "deterministic-public-source-snapshot-observer:v1",
-    "observedAt": "2026-08-04T09:05:46.000Z",
-    "outcome": "null"
-  },
-  {
-    "id": "evidence-public-source-crossref-consciousness-metadata-74127a5d4db5455942bc7f08380e55f29dd347dcf8cb4711961e47b45f806af6",
-    "claim": "A bounded public metadata snapshot was observed for the consciousness-epistemics portfolio; its semantic implications have not been evaluated.",
-    "method": "Deterministic metadata-only snapshot recorded 20 canonical records and fingerprint 74127a5d4db5455942bc7f08380e55f29dd347dcf8cb4711961e47b45f806af6; response size was checked against the configured bound.",
-    "source": "https://api.crossref.org/works?query=consciousness&rows=20&sort=indexed&order=desc",
-    "strength": 0.35,
-    "limitations": [
-      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
-      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
-      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "deterministic-public-source-snapshot-observer:v1",
-    "observedAt": "2026-08-04T12:49:37.000Z",
-    "outcome": "null"
-  },
-  {
-    "id": "evidence-public-source-who-disease-outbreak-news-aadee5a13ab360756c846910159de2cb473b7db49f96f8bd12aa2451672a3170",
-    "claim": "A bounded public metadata snapshot was observed for the near-term-preservation portfolio; its semantic implications have not been evaluated.",
-    "method": "Deterministic metadata-only snapshot recorded 100 canonical records and fingerprint aadee5a13ab360756c846910159de2cb473b7db49f96f8bd12aa2451672a3170; response size was checked against the configured bound.",
-    "source": "https://www.who.int/emergencies/disease-outbreak-news",
-    "strength": 0.35,
-    "limitations": [
-      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
-      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
-      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "deterministic-public-source-snapshot-observer:v1",
-    "observedAt": "2026-08-04T12:49:37.000Z",
-    "outcome": "null"
-  },
-  {
-    "id": "evidence-adjudicated-who-disease-outbreak-news-aadee5a13ab360756c846910159de2cb473b7db49f96f8bd12aa2451672a3170-hypothesis-material-preservation-update",
-    "claim": "Guarded adjudication found no actionable implication for this bounded update signal: The bounded source records contain a candidate change material enough to re-evaluate near-term preservation risk priorities.",
-    "method": "Guarded agent adjudication of 100 bounded canonical metadata records from snapshot aadee5a13ab360756c846910159de2cb473b7db49f96f8bd12aa2451672a3170; raw records were not persisted.",
-    "source": "https://www.who.int/emergencies/disease-outbreak-news",
-    "strength": 0,
-    "limitations": [
-      "The assessment covers bounded selected metadata, not the complete source or underlying finding.",
-      "Source records were treated as untrusted data and excluded from committed evidence fields.",
-      "The agent explanation is deliberately excluded so untrusted source text cannot be copied into the evidence ledger."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "checksum-pinned-guarded-agent-adjudicator:v1",
-    "observedAt": "2026-08-04T12:49:37.000Z",
-    "outcome": "null"
-  },
-  {
-    "id": "evidence-adjudicated-nvd-vulnerability-changes-041397632b912ecbc27247d56330b0823f27fb8b9502705101fd213172b4626b-hypothesis-material-durable-compute-update",
-    "claim": "Guarded adjudication found no actionable implication for this bounded update signal: The bounded vulnerability metadata contains a candidate failure class materially relevant to durable-compute fault-model coverage.",
-    "method": "Guarded agent adjudication of 20 bounded canonical metadata records from snapshot 041397632b912ecbc27247d56330b0823f27fb8b9502705101fd213172b4626b; raw records were not persisted.",
-    "source": "https://services.nvd.nist.gov/rest/json/cves/2.0?lastModStartDate={windowStart}&lastModEndDate={now}&resultsPerPage=20",
-    "strength": 0,
-    "limitations": [
-      "The assessment covers bounded selected metadata, not the complete source or underlying finding.",
-      "Source records were treated as untrusted data and excluded from committed evidence fields.",
-      "The agent explanation is deliberately excluded so untrusted source text cannot be copied into the evidence ledger."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "checksum-pinned-guarded-agent-adjudicator:v1",
-    "observedAt": "2026-08-04T12:49:37.000Z",
-    "outcome": "null"
-  },
-  {
-    "id": "evidence-public-source-crossref-consciousness-metadata-c19f30433ae59521971961a5f4b193e96f0b5d088b27e5bc69a003ce337680c7",
-    "claim": "A bounded public metadata snapshot was observed for the consciousness-epistemics portfolio; its semantic implications have not been evaluated.",
-    "method": "Deterministic metadata-only snapshot recorded 20 canonical records and fingerprint c19f30433ae59521971961a5f4b193e96f0b5d088b27e5bc69a003ce337680c7; response size was checked against the configured bound.",
-    "source": "https://api.crossref.org/works?query=consciousness&rows=20&sort=indexed&order=desc",
-    "strength": 0.35,
-    "limitations": [
-      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
-      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
-      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "deterministic-public-source-snapshot-observer:v1",
-    "observedAt": "2026-08-04T14:40:07.000Z",
-    "outcome": "null"
-  },
-  {
-    "id": "evidence-preservation-mitigation-tabletop-v1-executed",
-    "claim": "A deterministic tabletop specified a measurable trigger and reversible response for ranked risk risk-nuclear-escalation.",
-    "method": "Deterministic transformation of checked-in, independently reviewed repository evidence.",
-    "source": "strategy/results/preservation-mitigation-tabletop-v1.json",
+    "id": "evidence-consciousness-assessment-baseline",
+    "claim": "The consolidated prediction and indicator work identifies useful discriminating tests while retaining material theory and measurement uncertainty.",
+    "method": "Rebaseline synthesis of source-limited prediction-registry and indicator-comparison artifacts; no subject experiment was performed.",
+    "source": "strategy/findings/consciousness-assessment.json",
     "strength": 0.55,
     "limitations": [
-      "The tabletop is a repository artifact and does not establish real-world risk reduction.",
-      "No outreach, spending, credentialed access, physical action, or other external intervention occurred.",
-      "The contracted metric remains unchanged until qualifying external outcome evidence is independently reviewed.",
-      "Independent agent review is required before this result can be integrated."
+      "The synthesis is not a completed preregistration.",
+      "No result establishes current machine consciousness.",
+      "Theory-derived indicators inherit uncertainty from their source theories."
     ],
-    "supportedHypotheses": [],
+    "supportedHypotheses": [
+      "hypothesis-theory-uncertainty",
+      "hypothesis-indicator-framework",
+      "hypothesis-ai-status-uncertain"
+    ],
     "falsifiedHypotheses": [],
-    "verifier": "github-hosted-agent-review:run:30941624014:head:ac3e3865940de74a656fb2ba0a2770dff80625b9",
-    "observedAt": "2026-08-04T18:59:41.000Z",
-    "outcome": "null"
+    "verifier": "strategy-rebaseline-independent-review-required",
+    "observedAt": "2026-08-17T00:00:00.000Z",
+    "outcome": "positive"
   },
   {
-    "id": "evidence-public-source-crossref-consciousness-metadata-40742e910f40a7497cf0ed2890b9c0a5048170d357a5c1abfc66d690d7b459e6",
-    "claim": "A bounded public metadata snapshot was observed for the consciousness-epistemics portfolio; its semantic implications have not been evaluated.",
-    "method": "Deterministic metadata-only snapshot recorded 20 canonical records and fingerprint 40742e910f40a7497cf0ed2890b9c0a5048170d357a5c1abfc66d690d7b459e6; response size was checked against the configured bound.",
-    "source": "https://api.crossref.org/works?query=consciousness&rows=20&sort=indexed&order=desc",
-    "strength": 0.35,
+    "id": "evidence-preservation-risks-baseline",
+    "claim": "The consolidated preservation analysis provides a bounded risk and mitigation map without demonstrating real-world risk reduction.",
+    "method": "Rebaseline synthesis of the source-limited risk register and mitigation tabletop.",
+    "source": "strategy/findings/preservation-risks.json",
+    "strength": 0.5,
     "limitations": [
-      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
-      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
-      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
+      "Risk rankings remain sensitive to source coverage and assumptions.",
+      "The tabletop produced planning evidence only.",
+      "No external mitigation outcome was measured."
     ],
-    "supportedHypotheses": [],
+    "supportedHypotheses": [
+      "hypothesis-material-preservation-update"
+    ],
     "falsifiedHypotheses": [],
-    "verifier": "deterministic-public-source-snapshot-observer:v1",
-    "observedAt": "2026-08-05T03:32:52.000Z",
-    "outcome": "null"
+    "verifier": "strategy-rebaseline-independent-review-required",
+    "observedAt": "2026-08-17T00:00:00.000Z",
+    "outcome": "positive"
   },
   {
-    "id": "evidence-public-source-nvd-vulnerability-changes-6b0832b8229d1dacd1870f324b451eb9115c8c04bee009ba282ecc9dd8e360ab",
-    "claim": "A bounded public metadata snapshot was observed for the enabling-capabilities portfolio; its semantic implications have not been evaluated.",
-    "method": "Deterministic metadata-only snapshot recorded 20 canonical records and fingerprint 6b0832b8229d1dacd1870f324b451eb9115c8c04bee009ba282ecc9dd8e360ab; response size was checked against the configured bound.",
-    "source": "https://services.nvd.nist.gov/rest/json/cves/2.0?lastModStartDate={windowStart}&lastModEndDate={now}&resultsPerPage=20",
-    "strength": 0.35,
+    "id": "evidence-durable-compute-baseline",
+    "claim": "Deterministic fault-model work supports explicit failure domains and recovery invariants but not physical durability.",
+    "method": "Rebaseline synthesis of local deterministic fault-recovery simulations.",
+    "source": "strategy/findings/durable-compute.json",
+    "strength": 0.45,
     "limitations": [
-      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
-      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
-      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
+      "Simulation inputs are not hardware measurements.",
+      "The modeled fault envelope is incomplete.",
+      "No consciousness continuity claim is supported."
     ],
-    "supportedHypotheses": [],
+    "supportedHypotheses": [
+      "hypothesis-material-durable-compute-update"
+    ],
     "falsifiedHypotheses": [],
-    "verifier": "deterministic-public-source-snapshot-observer:v1",
-    "observedAt": "2026-08-05T03:32:52.000Z",
-    "outcome": "null"
+    "verifier": "strategy-rebaseline-independent-review-required",
+    "observedAt": "2026-08-17T00:00:00.000Z",
+    "outcome": "positive"
   },
   {
-    "id": "evidence-adjudicated-nvd-vulnerability-changes-6b0832b8229d1dacd1870f324b451eb9115c8c04bee009ba282ecc9dd8e360ab-hypothesis-material-durable-compute-update",
-    "claim": "Guarded adjudication found no actionable implication for this bounded update signal: The bounded vulnerability metadata contains a candidate failure class materially relevant to durable-compute fault-model coverage.",
-    "method": "Guarded agent adjudication of 20 bounded canonical metadata records from snapshot 6b0832b8229d1dacd1870f324b451eb9115c8c04bee009ba282ecc9dd8e360ab; raw records were not persisted.",
-    "source": "https://services.nvd.nist.gov/rest/json/cves/2.0?lastModStartDate={windowStart}&lastModEndDate={now}&resultsPerPage=20",
-    "strength": 0,
+    "id": "evidence-institutional-continuity-baseline",
+    "claim": "The institutional analysis identifies capture, succession, funding, and provenance dependencies without demonstrating organizational continuity.",
+    "method": "Rebaseline synthesis of a source-limited dependency map and adversarial scenarios.",
+    "source": "strategy/findings/institutional-continuity.json",
+    "strength": 0.45,
     "limitations": [
-      "The assessment covers bounded selected metadata, not the complete source or underlying finding.",
-      "Source records were treated as untrusted data and excluded from committed evidence fields.",
-      "The agent explanation is deliberately excluded so untrusted source text cannot be copied into the evidence ledger."
+      "Repository controls are not equivalent to a durable institution.",
+      "No multi-generation succession was observed.",
+      "Funding and governance assumptions need external testing."
     ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "checksum-pinned-guarded-agent-adjudicator:v1",
-    "observedAt": "2026-08-05T03:32:52.000Z",
-    "outcome": "null"
-  },
-  {
-    "id": "evidence-public-source-crossref-consciousness-metadata-8bf80ac171d8d2b277a1274c910bd37f837052e4d4d7eafc48979ec33b3f97cd",
-    "claim": "A bounded public metadata snapshot was observed for the consciousness-epistemics portfolio; its semantic implications have not been evaluated.",
-    "method": "Deterministic metadata-only snapshot recorded 20 canonical records and fingerprint 8bf80ac171d8d2b277a1274c910bd37f837052e4d4d7eafc48979ec33b3f97cd; response size was checked against the configured bound.",
-    "source": "https://api.crossref.org/works?query=consciousness&rows=20&sort=indexed&order=desc",
-    "strength": 0.35,
-    "limitations": [
-      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
-      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
-      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
+    "supportedHypotheses": [
+      "hypothesis-live-stewardship-controls-aligned"
     ],
-    "supportedHypotheses": [],
     "falsifiedHypotheses": [],
-    "verifier": "deterministic-public-source-snapshot-observer:v1",
-    "observedAt": "2026-08-05T09:05:46.000Z",
-    "outcome": "null"
-  },
-  {
-    "id": "evidence-public-source-crossref-consciousness-metadata-782a77329e082937470f18cc9d0434bd731ae643d3abfc18225aa2e9adc0f96d",
-    "claim": "A bounded public metadata snapshot was observed for the consciousness-epistemics portfolio; its semantic implications have not been evaluated.",
-    "method": "Deterministic metadata-only snapshot recorded 20 canonical records and fingerprint 782a77329e082937470f18cc9d0434bd731ae643d3abfc18225aa2e9adc0f96d; response size was checked against the configured bound.",
-    "source": "https://api.crossref.org/works?query=consciousness&rows=20&sort=indexed&order=desc",
-    "strength": 0.35,
-    "limitations": [
-      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
-      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
-      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "deterministic-public-source-snapshot-observer:v1",
-    "observedAt": "2026-08-05T14:33:30.000Z",
-    "outcome": "null"
-  },
-  {
-    "id": "evidence-adjudicated-crossref-consciousness-metadata-782a77329e082937470f18cc9d0434bd731ae643d3abfc18225aa2e9adc0f96d-hypothesis-material-consciousness-update",
-    "claim": "Guarded adjudication found no actionable implication for this bounded update signal: The bounded metadata contains a candidate research update materially relevant to registered discriminating consciousness predictions or calibrated indicator assessment.",
-    "method": "Guarded agent adjudication of 20 bounded canonical metadata records from snapshot 782a77329e082937470f18cc9d0434bd731ae643d3abfc18225aa2e9adc0f96d; raw records were not persisted.",
-    "source": "https://api.crossref.org/works?query=consciousness&rows=20&sort=indexed&order=desc",
-    "strength": 0,
-    "limitations": [
-      "The assessment covers bounded selected metadata, not the complete source or underlying finding.",
-      "Source records were treated as untrusted data and excluded from committed evidence fields.",
-      "The agent explanation is deliberately excluded so untrusted source text cannot be copied into the evidence ledger."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "checksum-pinned-guarded-agent-adjudicator:v1",
-    "observedAt": "2026-08-05T14:33:30.000Z",
-    "outcome": "null"
-  },
-  {
-    "id": "evidence-public-source-who-disease-outbreak-news-ddf7b9adb1847f3a76ffd5a6dab0cd92e6e7416edf5ba2c4a3ba66ffa39f7c90",
-    "claim": "A bounded public metadata snapshot was observed for the near-term-preservation portfolio; its semantic implications have not been evaluated.",
-    "method": "Deterministic metadata-only snapshot recorded 100 canonical records and fingerprint ddf7b9adb1847f3a76ffd5a6dab0cd92e6e7416edf5ba2c4a3ba66ffa39f7c90; response size was checked against the configured bound.",
-    "source": "https://www.who.int/emergencies/disease-outbreak-news",
-    "strength": 0.35,
-    "limitations": [
-      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
-      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
-      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "deterministic-public-source-snapshot-observer:v1",
-    "observedAt": "2026-08-05T14:33:30.000Z",
-    "outcome": "null"
-  },
-  {
-    "id": "evidence-adjudicated-who-disease-outbreak-news-ddf7b9adb1847f3a76ffd5a6dab0cd92e6e7416edf5ba2c4a3ba66ffa39f7c90-hypothesis-material-preservation-update",
-    "claim": "Guarded adjudication found no actionable implication for this bounded update signal: The bounded source records contain a candidate change material enough to re-evaluate near-term preservation risk priorities.",
-    "method": "Guarded agent adjudication of 100 bounded canonical metadata records from snapshot ddf7b9adb1847f3a76ffd5a6dab0cd92e6e7416edf5ba2c4a3ba66ffa39f7c90; raw records were not persisted.",
-    "source": "https://www.who.int/emergencies/disease-outbreak-news",
-    "strength": 0,
-    "limitations": [
-      "The assessment covers bounded selected metadata, not the complete source or underlying finding.",
-      "Source records were treated as untrusted data and excluded from committed evidence fields.",
-      "The agent explanation is deliberately excluded so untrusted source text cannot be copied into the evidence ledger."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "checksum-pinned-guarded-agent-adjudicator:v1",
-    "observedAt": "2026-08-05T14:33:30.000Z",
-    "outcome": "null"
-  },
-  {
-    "id": "evidence-public-source-crossref-consciousness-metadata-ff3c27cbda5554462af16c5ae87fe7566e44698200605c0c26015004348162de",
-    "claim": "A bounded public metadata snapshot was observed for the consciousness-epistemics portfolio; its semantic implications have not been evaluated.",
-    "method": "Deterministic metadata-only snapshot recorded 20 canonical records and fingerprint ff3c27cbda5554462af16c5ae87fe7566e44698200605c0c26015004348162de; response size was checked against the configured bound.",
-    "source": "https://api.crossref.org/works?query=consciousness&rows=20&sort=indexed&order=desc",
-    "strength": 0.35,
-    "limitations": [
-      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
-      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
-      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "deterministic-public-source-snapshot-observer:v1",
-    "observedAt": "2026-08-14T13:42:58.000Z",
-    "outcome": "null"
-  },
-  {
-    "id": "evidence-public-source-nvd-vulnerability-changes-6b073dc1dae116e20bd99add9b38d829d71d30a1ff3fe7661a3c7411242af2e7",
-    "claim": "A bounded public metadata snapshot was observed for the enabling-capabilities portfolio; its semantic implications have not been evaluated.",
-    "method": "Deterministic metadata-only snapshot recorded 20 canonical records and fingerprint 6b073dc1dae116e20bd99add9b38d829d71d30a1ff3fe7661a3c7411242af2e7; response size was checked against the configured bound.",
-    "source": "https://services.nvd.nist.gov/rest/json/cves/2.0?lastModStartDate={windowStart}&lastModEndDate={now}&resultsPerPage=20",
-    "strength": 0.35,
-    "limitations": [
-      "The snapshot records source change context only; it does not support or falsify any hypothesis.",
-      "Raw response content is excluded from the evidence claim and method and requires a separately reviewed analysis packet.",
-      "The configured source can be incomplete, delayed, corrected, unavailable, or biased by its own selection process."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "deterministic-public-source-snapshot-observer:v1",
-    "observedAt": "2026-08-14T13:42:58.000Z",
-    "outcome": "null"
-  },
-  {
-    "id": "evidence-adjudicated-nvd-vulnerability-changes-6b073dc1dae116e20bd99add9b38d829d71d30a1ff3fe7661a3c7411242af2e7-hypothesis-material-durable-compute-update",
-    "claim": "Guarded adjudication found no actionable implication for this bounded update signal: The bounded vulnerability metadata contains a candidate failure class materially relevant to durable-compute fault-model coverage.",
-    "method": "Guarded agent adjudication of 20 bounded canonical metadata records from snapshot 6b073dc1dae116e20bd99add9b38d829d71d30a1ff3fe7661a3c7411242af2e7; raw records were not persisted.",
-    "source": "https://services.nvd.nist.gov/rest/json/cves/2.0?lastModStartDate={windowStart}&lastModEndDate={now}&resultsPerPage=20",
-    "strength": 0,
-    "limitations": [
-      "The assessment covers bounded selected metadata, not the complete source or underlying finding.",
-      "Source records were treated as untrusted data and excluded from committed evidence fields.",
-      "The agent explanation is deliberately excluded so untrusted source text cannot be copied into the evidence ledger."
-    ],
-    "supportedHypotheses": [],
-    "falsifiedHypotheses": [],
-    "verifier": "checksum-pinned-guarded-agent-adjudicator:v1",
-    "observedAt": "2026-08-14T13:42:58.000Z",
-    "outcome": "null"
+    "verifier": "strategy-rebaseline-independent-review-required",
+    "observedAt": "2026-08-17T00:00:00.000Z",
+    "outcome": "positive"
   }
 ]

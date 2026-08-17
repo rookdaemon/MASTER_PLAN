@@ -12,12 +12,11 @@ export interface ChangeClassification {
 function domainForPath(path: string): AuthorityRequest['domains'][number] {
   if (path === 'AGENTS.md') return 'governance';
   if (path.startsWith('.github/')) return 'workflow';
-  if (path.startsWith('plan/')) return 'plan';
   if (path.startsWith('strategy/CONSTITUTION') || path === 'strategy/constitution.json') return 'constitutional';
   if (path.startsWith('strategy/')) return 'governance';
   if (path.startsWith('docs/')) return 'doctrine';
   if (path === 'package.json' || path === 'package-lock.json') return 'dependency';
-  if (path.startsWith('src/master-plan-controller/') || path.startsWith('src/plan-guardian/')) return 'governance';
+  if (path.startsWith('src/master-plan-controller/')) return 'governance';
   if (path.includes('deploy')) return 'deployment';
   if (path.includes('network')) return 'network';
   if (path.includes('security')) return 'security';

@@ -1,6 +1,6 @@
 /**
  * Proposal System tests — covers the 5 behavioral spec scenarios from
- * plan/0.3.1.5.15-proposal-system.md
+ * Canonical runtime proposal-system reference.
  *
  * Scenarios:
  *   1. Successful proposal creation

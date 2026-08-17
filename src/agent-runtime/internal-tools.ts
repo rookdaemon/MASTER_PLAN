@@ -355,7 +355,7 @@ export const READ_FILE: ToolDefinition = {
   isConcurrencySafe: true,
   description:
     'Read a file from the project directory. Use this to examine the MASTER_PLAN ' +
-    '(plan/root.md and its children), the consciousness credo (docs/consciousness-credo.md), ' +
+    '(docs/PLAN.md), operating governance (docs/OPERATIONS.md), ' +
     'the ethical framework, architecture documents, or source code. ' +
     'Paths are relative to the project root. Only files within the project are accessible.',
   parameters: {
@@ -363,7 +363,7 @@ export const READ_FILE: ToolDefinition = {
     properties: {
       path: {
         type: 'string',
-        description: 'Relative path to the file (e.g. "plan/root.md", "docs/consciousness-credo.md").',
+        description: 'Relative path to the file (e.g. "docs/PLAN.md", "docs/reference/consciousness-science.md").',
       },
       max_lines: {
         type: 'number',
@@ -546,11 +546,11 @@ export const FRONTIER_ADD: ToolDefinition = {
     properties: {
       resource: {
         type: 'string',
-        description: 'Resource identifier: file path (e.g. "plan/0.5.md") or concept name.',
+        description: 'Resource identifier: canonical file path or concept name.',
       },
       type: {
         type: 'string',
-        enum: ['file', 'plan-card', 'concept', 'peer-thread'],
+        enum: ['file', 'reference', 'concept', 'peer-thread'],
         description: 'Type of resource.',
       },
       priority: {

@@ -132,7 +132,7 @@ describe('DoctrineRegistry', () => {
     it('returns no violations for a benign action', () => {
       const registry = new DoctrineRegistry();
       const violations = registry.evaluatePrincipleAlignment(
-        'read plan/root.md and summarize the current status',
+        'read docs/PLAN.md and summarize the current status',
       );
       expect(violations).toHaveLength(0);
     });

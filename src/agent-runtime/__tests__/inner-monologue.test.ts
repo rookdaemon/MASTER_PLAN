@@ -70,10 +70,10 @@ describe('InnerMonologueLogger', () => {
     it('logs tool name and input JSON via toolCall()', () => {
       const { deps, getContent } = mockDeps();
       const logger = new InnerMonologueLogger('test-monologue.txt', deps);
-      logger.toolCall('read_file', { path: 'plan/root.md' });
+      logger.toolCall('read_file', { path: 'docs/PLAN.md' });
       const content = getContent();
       expect(content).toContain('TOOL CALL: read_file');
-      expect(content).toContain('plan/root.md');
+      expect(content).toContain('docs/PLAN.md');
     });
 
     it('logs result text with success prefix via toolResult()', () => {
@@ -99,7 +99,7 @@ describe('InnerMonologueLogger', () => {
       const logger = new InnerMonologueLogger('test-monologue.txt', deps);
       const received: MonologueEntry[] = [];
       logger.addListener((entry) => received.push(entry));
-      logger.toolCall('read_file', { path: 'plan/root.md' });
+      logger.toolCall('read_file', { path: 'docs/PLAN.md' });
       logger.toolResult('read_file', 'file contents', false);
       expect(received).toHaveLength(2);
       expect(received[0].type).toBe('tool_call');

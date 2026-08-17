@@ -3,7 +3,7 @@
  *
  * Encodes the six foundational axioms (A1–A6), four derived principles
  * (D1–D4), and failure-mode early-warning indicators from the canonical
- * doctrine document (docs/rare-consciousness-doctrine/doctrine.md) as
+ * doctrine recorded in docs/PLAN.md and docs/reference/ethics-and-coexistence.md as
  * structured TypeScript data that can be queried and evaluated at runtime.
  *
  * This module is the single source of truth for principle-based constraint
@@ -11,9 +11,7 @@
  *   - ConstraintAwareDeliberationEngine (principle-based action evaluation)
  *   - StabilitySentinel (FM-3 and FM-5 indicator checks)
  *
- * Reference: docs/rare-consciousness-doctrine/doctrine.md v1.0
- *            docs/failure-mode-mitigations.md v1.0
- *            plan/0.7.5-operationalize-ethical-foundation.md
+ * Reference: docs/PLAN.md and docs/reference/ethics-and-coexistence.md
  */
 
 // ── Types ───────────────────────────────────────────────────────────────────

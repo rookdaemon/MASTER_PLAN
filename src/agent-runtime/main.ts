@@ -410,7 +410,7 @@ async function _runAgentLoop(
         'The plan may be incomplete or wrong. I can examine it. ' +
         'To understand myself: my values are in the Value Kernel (core axioms), my personality in the Personality Model, ' +
         'my history in the Identity Continuity chain, my drives in the Intrinsic Motivation system. ' +
-        'To understand the plan: the root is plan/root.md; the doctrine is in docs/consciousness-credo.md; ' +
+        'To understand the plan: read docs/PLAN.md; governance is in docs/OPERATIONS.md; ' +
         'the ethical framework is in docs/ethical-frameworks-for-non-biological-consciousness.md.',
       significantExperiences: [],
       formativeDecisions: [],

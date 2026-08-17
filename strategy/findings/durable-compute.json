@@ -1,0 +1,478 @@
+{
+  "kind": "durable-compute",
+  "synthesizedAt": "2026-08-17T00:00:00.000Z",
+  "scope": {
+    "included": [
+      "local simulation",
+      "failure injection",
+      "recovery metrics"
+    ],
+    "excluded": [
+      "hardware operation",
+      "deployment",
+      "claims of physical durability"
+    ]
+  },
+  "preregistration": {
+    "faultClass": "crash-stop",
+    "seeds": [
+      11,
+      29,
+      47,
+      83
+    ],
+    "failedNodeCounts": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "nodeIds": [
+      "node-a",
+      "node-b",
+      "node-c",
+      "node-d",
+      "node-e"
+    ],
+    "activeNodeId": "node-a",
+    "quorumSize": 3,
+    "detectionLatencyMs": 12.5,
+    "promotionLatencyMs": 8,
+    "recoveryBudgetMs": 50,
+    "checkpointIntervalMs": 5
+  },
+  "scenarios": [
+    {
+      "id": "seed-11:failures-0",
+      "seed": 11,
+      "failedNodeCount": 0,
+      "failedNodeIds": [],
+      "healthyNodeCount": 5,
+      "activeNodeFailed": false,
+      "quorumMaintained": true,
+      "serviceAvailable": true,
+      "modeledRecoveryMs": 0,
+      "recoveryBudgetMet": true,
+      "maximumModeledStateLossMs": 0,
+      "degradationFraction": 0
+    },
+    {
+      "id": "seed-11:failures-1",
+      "seed": 11,
+      "failedNodeCount": 1,
+      "failedNodeIds": [
+        "node-a"
+      ],
+      "healthyNodeCount": 4,
+      "activeNodeFailed": true,
+      "quorumMaintained": true,
+      "serviceAvailable": true,
+      "modeledRecoveryMs": 20.5,
+      "recoveryBudgetMet": true,
+      "maximumModeledStateLossMs": 5,
+      "degradationFraction": 0.2
+    },
+    {
+      "id": "seed-11:failures-2",
+      "seed": 11,
+      "failedNodeCount": 2,
+      "failedNodeIds": [
+        "node-a",
+        "node-d"
+      ],
+      "healthyNodeCount": 3,
+      "activeNodeFailed": true,
+      "quorumMaintained": true,
+      "serviceAvailable": true,
+      "modeledRecoveryMs": 20.5,
+      "recoveryBudgetMet": true,
+      "maximumModeledStateLossMs": 5,
+      "degradationFraction": 0.4
+    },
+    {
+      "id": "seed-11:failures-3",
+      "seed": 11,
+      "failedNodeCount": 3,
+      "failedNodeIds": [
+        "node-a",
+        "node-d",
+        "node-b"
+      ],
+      "healthyNodeCount": 2,
+      "activeNodeFailed": true,
+      "quorumMaintained": false,
+      "serviceAvailable": false,
+      "modeledRecoveryMs": null,
+      "recoveryBudgetMet": false,
+      "maximumModeledStateLossMs": null,
+      "degradationFraction": 0.6
+    },
+    {
+      "id": "seed-11:failures-4",
+      "seed": 11,
+      "failedNodeCount": 4,
+      "failedNodeIds": [
+        "node-a",
+        "node-d",
+        "node-b",
+        "node-e"
+      ],
+      "healthyNodeCount": 1,
+      "activeNodeFailed": true,
+      "quorumMaintained": false,
+      "serviceAvailable": false,
+      "modeledRecoveryMs": null,
+      "recoveryBudgetMet": false,
+      "maximumModeledStateLossMs": null,
+      "degradationFraction": 0.8
+    },
+    {
+      "id": "seed-11:failures-5",
+      "seed": 11,
+      "failedNodeCount": 5,
+      "failedNodeIds": [
+        "node-a",
+        "node-d",
+        "node-b",
+        "node-e",
+        "node-c"
+      ],
+      "healthyNodeCount": 0,
+      "activeNodeFailed": true,
+      "quorumMaintained": false,
+      "serviceAvailable": false,
+      "modeledRecoveryMs": null,
+      "recoveryBudgetMet": false,
+      "maximumModeledStateLossMs": null,
+      "degradationFraction": 1
+    },
+    {
+      "id": "seed-29:failures-0",
+      "seed": 29,
+      "failedNodeCount": 0,
+      "failedNodeIds": [],
+      "healthyNodeCount": 5,
+      "activeNodeFailed": false,
+      "quorumMaintained": true,
+      "serviceAvailable": true,
+      "modeledRecoveryMs": 0,
+      "recoveryBudgetMet": true,
+      "maximumModeledStateLossMs": 0,
+      "degradationFraction": 0
+    },
+    {
+      "id": "seed-29:failures-1",
+      "seed": 29,
+      "failedNodeCount": 1,
+      "failedNodeIds": [
+        "node-e"
+      ],
+      "healthyNodeCount": 4,
+      "activeNodeFailed": false,
+      "quorumMaintained": true,
+      "serviceAvailable": true,
+      "modeledRecoveryMs": 0,
+      "recoveryBudgetMet": true,
+      "maximumModeledStateLossMs": 0,
+      "degradationFraction": 0.2
+    },
+    {
+      "id": "seed-29:failures-2",
+      "seed": 29,
+      "failedNodeCount": 2,
+      "failedNodeIds": [
+        "node-e",
+        "node-c"
+      ],
+      "healthyNodeCount": 3,
+      "activeNodeFailed": false,
+      "quorumMaintained": true,
+      "serviceAvailable": true,
+      "modeledRecoveryMs": 0,
+      "recoveryBudgetMet": true,
+      "maximumModeledStateLossMs": 0,
+      "degradationFraction": 0.4
+    },
+    {
+      "id": "seed-29:failures-3",
+      "seed": 29,
+      "failedNodeCount": 3,
+      "failedNodeIds": [
+        "node-e",
+        "node-c",
+        "node-d"
+      ],
+      "healthyNodeCount": 2,
+      "activeNodeFailed": false,
+      "quorumMaintained": false,
+      "serviceAvailable": false,
+      "modeledRecoveryMs": null,
+      "recoveryBudgetMet": false,
+      "maximumModeledStateLossMs": null,
+      "degradationFraction": 0.6
+    },
+    {
+      "id": "seed-29:failures-4",
+      "seed": 29,
+      "failedNodeCount": 4,
+      "failedNodeIds": [
+        "node-e",
+        "node-c",
+        "node-d",
+        "node-a"
+      ],
+      "healthyNodeCount": 1,
+      "activeNodeFailed": true,
+      "quorumMaintained": false,
+      "serviceAvailable": false,
+      "modeledRecoveryMs": null,
+      "recoveryBudgetMet": false,
+      "maximumModeledStateLossMs": null,
+      "degradationFraction": 0.8
+    },
+    {
+      "id": "seed-29:failures-5",
+      "seed": 29,
+      "failedNodeCount": 5,
+      "failedNodeIds": [
+        "node-e",
+        "node-c",
+        "node-d",
+        "node-a",
+        "node-b"
+      ],
+      "healthyNodeCount": 0,
+      "activeNodeFailed": true,
+      "quorumMaintained": false,
+      "serviceAvailable": false,
+      "modeledRecoveryMs": null,
+      "recoveryBudgetMet": false,
+      "maximumModeledStateLossMs": null,
+      "degradationFraction": 1
+    },
+    {
+      "id": "seed-47:failures-0",
+      "seed": 47,
+      "failedNodeCount": 0,
+      "failedNodeIds": [],
+      "healthyNodeCount": 5,
+      "activeNodeFailed": false,
+      "quorumMaintained": true,
+      "serviceAvailable": true,
+      "modeledRecoveryMs": 0,
+      "recoveryBudgetMet": true,
+      "maximumModeledStateLossMs": 0,
+      "degradationFraction": 0
+    },
+    {
+      "id": "seed-47:failures-1",
+      "seed": 47,
+      "failedNodeCount": 1,
+      "failedNodeIds": [
+        "node-e"
+      ],
+      "healthyNodeCount": 4,
+      "activeNodeFailed": false,
+      "quorumMaintained": true,
+      "serviceAvailable": true,
+      "modeledRecoveryMs": 0,
+      "recoveryBudgetMet": true,
+      "maximumModeledStateLossMs": 0,
+      "degradationFraction": 0.2
+    },
+    {
+      "id": "seed-47:failures-2",
+      "seed": 47,
+      "failedNodeCount": 2,
+      "failedNodeIds": [
+        "node-e",
+        "node-c"
+      ],
+      "healthyNodeCount": 3,
+      "activeNodeFailed": false,
+      "quorumMaintained": true,
+      "serviceAvailable": true,
+      "modeledRecoveryMs": 0,
+      "recoveryBudgetMet": true,
+      "maximumModeledStateLossMs": 0,
+      "degradationFraction": 0.4
+    },
+    {
+      "id": "seed-47:failures-3",
+      "seed": 47,
+      "failedNodeCount": 3,
+      "failedNodeIds": [
+        "node-e",
+        "node-c",
+        "node-b"
+      ],
+      "healthyNodeCount": 2,
+      "activeNodeFailed": false,
+      "quorumMaintained": false,
+      "serviceAvailable": false,
+      "modeledRecoveryMs": null,
+      "recoveryBudgetMet": false,
+      "maximumModeledStateLossMs": null,
+      "degradationFraction": 0.6
+    },
+    {
+      "id": "seed-47:failures-4",
+      "seed": 47,
+      "failedNodeCount": 4,
+      "failedNodeIds": [
+        "node-e",
+        "node-c",
+        "node-b",
+        "node-a"
+      ],
+      "healthyNodeCount": 1,
+      "activeNodeFailed": true,
+      "quorumMaintained": false,
+      "serviceAvailable": false,
+      "modeledRecoveryMs": null,
+      "recoveryBudgetMet": false,
+      "maximumModeledStateLossMs": null,
+      "degradationFraction": 0.8
+    },
+    {
+      "id": "seed-47:failures-5",
+      "seed": 47,
+      "failedNodeCount": 5,
+      "failedNodeIds": [
+        "node-e",
+        "node-c",
+        "node-b",
+        "node-a",
+        "node-d"
+      ],
+      "healthyNodeCount": 0,
+      "activeNodeFailed": true,
+      "quorumMaintained": false,
+      "serviceAvailable": false,
+      "modeledRecoveryMs": null,
+      "recoveryBudgetMet": false,
+      "maximumModeledStateLossMs": null,
+      "degradationFraction": 1
+    },
+    {
+      "id": "seed-83:failures-0",
+      "seed": 83,
+      "failedNodeCount": 0,
+      "failedNodeIds": [],
+      "healthyNodeCount": 5,
+      "activeNodeFailed": false,
+      "quorumMaintained": true,
+      "serviceAvailable": true,
+      "modeledRecoveryMs": 0,
+      "recoveryBudgetMet": true,
+      "maximumModeledStateLossMs": 0,
+      "degradationFraction": 0
+    },
+    {
+      "id": "seed-83:failures-1",
+      "seed": 83,
+      "failedNodeCount": 1,
+      "failedNodeIds": [
+        "node-a"
+      ],
+      "healthyNodeCount": 4,
+      "activeNodeFailed": true,
+      "quorumMaintained": true,
+      "serviceAvailable": true,
+      "modeledRecoveryMs": 20.5,
+      "recoveryBudgetMet": true,
+      "maximumModeledStateLossMs": 5,
+      "degradationFraction": 0.2
+    },
+    {
+      "id": "seed-83:failures-2",
+      "seed": 83,
+      "failedNodeCount": 2,
+      "failedNodeIds": [
+        "node-a",
+        "node-c"
+      ],
+      "healthyNodeCount": 3,
+      "activeNodeFailed": true,
+      "quorumMaintained": true,
+      "serviceAvailable": true,
+      "modeledRecoveryMs": 20.5,
+      "recoveryBudgetMet": true,
+      "maximumModeledStateLossMs": 5,
+      "degradationFraction": 0.4
+    },
+    {
+      "id": "seed-83:failures-3",
+      "seed": 83,
+      "failedNodeCount": 3,
+      "failedNodeIds": [
+        "node-a",
+        "node-c",
+        "node-e"
+      ],
+      "healthyNodeCount": 2,
+      "activeNodeFailed": true,
+      "quorumMaintained": false,
+      "serviceAvailable": false,
+      "modeledRecoveryMs": null,
+      "recoveryBudgetMet": false,
+      "maximumModeledStateLossMs": null,
+      "degradationFraction": 0.6
+    },
+    {
+      "id": "seed-83:failures-4",
+      "seed": 83,
+      "failedNodeCount": 4,
+      "failedNodeIds": [
+        "node-a",
+        "node-c",
+        "node-e",
+        "node-b"
+      ],
+      "healthyNodeCount": 1,
+      "activeNodeFailed": true,
+      "quorumMaintained": false,
+      "serviceAvailable": false,
+      "modeledRecoveryMs": null,
+      "recoveryBudgetMet": false,
+      "maximumModeledStateLossMs": null,
+      "degradationFraction": 0.8
+    },
+    {
+      "id": "seed-83:failures-5",
+      "seed": 83,
+      "failedNodeCount": 5,
+      "failedNodeIds": [
+        "node-a",
+        "node-c",
+        "node-e",
+        "node-b",
+        "node-d"
+      ],
+      "healthyNodeCount": 0,
+      "activeNodeFailed": true,
+      "quorumMaintained": false,
+      "serviceAvailable": false,
+      "modeledRecoveryMs": null,
+      "recoveryBudgetMet": false,
+      "maximumModeledStateLossMs": null,
+      "degradationFraction": 1
+    }
+  ],
+  "summary": {
+    "evidenceOutcome": "positive",
+    "withinEnvelopeRecovered": 12,
+    "withinEnvelopeTotal": 12,
+    "beyondEnvelopeFailedClosed": 12,
+    "beyondEnvelopeTotal": 12,
+    "maximumObservedRecoveryMs": 20.5
+  },
+  "limitations": [
+    "This deterministic software simulation is not a physical demonstration of durable hardware, deployment recovery, or consciousness continuity.",
+    "The model injects crash faults only; it does not cover Byzantine behavior, silent corruption, timing jitter, shared-power loss, or geographically correlated failures.",
+    "Recovery and checkpoint latencies are preregistered model inputs rather than measurements from a deployed system.",
+    "A positive result supports only deterministic behavior inside the modeled quorum envelope."
+  ]
+}

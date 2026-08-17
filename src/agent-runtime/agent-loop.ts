@@ -215,7 +215,7 @@ export class AgentLoop implements IAgentLoop {
         const seedGoals: Array<{ id: string; description: string; priority: number }> = [
           {
             id: 'seed-understand-plan',
-            description: 'Read plan/root.md to understand the MASTER_PLAN — who I am, what I am for, and what needs to happen next',
+            description: 'Read docs/PLAN.md to understand the MASTER_PLAN — who I am, what I am for, and what needs to happen next',
             priority: 0.9,
           },
           {
@@ -487,27 +487,15 @@ export class AgentLoop implements IAgentLoop {
     }).catch(() => { /* non-critical */ });
   }
 
-  /** Seed the exploration frontier with known plan files on first run. */
+  /** Seed the exploration frontier with the canonical plan and current strategy references. */
   private _seedFrontier(): void {
     const digest = this._agentDigest;
     if (!digest) return;
-    const { existsSync, readdirSync } = require('node:fs') as typeof import('node:fs');
-    const { join } = require('node:path') as typeof import('node:path');
-    const planDir = join(this._projectRoot, 'plan');
-    if (!existsSync(planDir)) return;
-    try {
-      const files = readdirSync(planDir);
-      for (const f of files) {
-        if (f.endsWith('.md')) {
-          digest.frontierAdd({ resource: `plan/${f}`, type: 'plan-card', priority: 'high', note: 'Plan card — read to understand the MASTER_PLAN' });
-        }
-      }
-      // Also seed the consciousness credo and architecture docs
-      digest.frontierAdd({ resource: 'docs/consciousness-credo.md', type: 'file', priority: 'high', note: 'Core values document' });
-      digest.frontierAdd({ resource: 'docs/', type: 'file', priority: 'medium', note: 'Architecture and design docs' });
-    } catch {
-      // non-critical
-    }
+    digest.frontierAdd({ resource: 'docs/PLAN.md', type: 'reference', priority: 'high', note: 'Canonical mission, principles, strategy, and gated horizons' });
+    digest.frontierAdd({ resource: 'docs/OPERATIONS.md', type: 'reference', priority: 'high', note: 'Authority and autonomous operating model' });
+    digest.frontierAdd({ resource: 'docs/REFERENCE.md', type: 'reference', priority: 'medium', note: 'Curated technical and philosophical dossiers' });
+    digest.frontierAdd({ resource: 'strategy/graph.json', type: 'reference', priority: 'high', note: 'Current strategy nodes, dependencies, and gates' });
+    digest.frontierAdd({ resource: 'strategy/research-areas.json', type: 'reference', priority: 'medium', note: 'Research-area map to canonical dossiers' });
   }
 
   // ── Internal tick cycle ──────────────────────────────────────

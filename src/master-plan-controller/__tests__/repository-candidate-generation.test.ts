@@ -4,26 +4,26 @@ import { runCandidateGenerationCli } from '../cli/generate-candidates.js';
 import { NodeFileSystem } from '../runtime-adapters.js';
 import { InMemoryFileSystem } from '../testing/in-memory-adapters.js';
 import { advanceTimestamp, nextRepositoryTimestamp } from './repository-test-time.js';
-import { isVersionedPacketFamilyMember } from './repository-test-state.js';
+import { isRecurringPacketFamilyMember } from './repository-test-state.js';
 
 async function repositorySnapshot(): Promise<Record<string, string>> {
   const source = new NodeFileSystem('.');
   const paths = [
     ...(await source.listFiles('strategy/')),
-    ...(await source.listFiles('plan/')),
+    ...(await source.listFiles('docs/')),
   ];
   const snapshot = Object.fromEntries(await Promise.all(paths.map(async (path) => [path, await source.readText(path)])));
   // Reconstruct the state immediately before the two candidates under test. The repository snapshot
   // may already contain them after a successful live cycle; unrelated historical work stays intact.
   snapshot['strategy/work-packets.json'] = `${JSON.stringify(
     (JSON.parse(snapshot['strategy/work-packets.json']) as Array<{ id: string }>).filter((packet) =>
-      !isVersionedPacketFamilyMember(packet.id)),
+      !isRecurringPacketFamilyMember(packet.id)),
     null,
     2,
   )}\n`;
   snapshot['strategy/audit-log.json'] = `${JSON.stringify(
     (JSON.parse(snapshot['strategy/audit-log.json']) as Array<{ packetId?: string }>).filter((event) =>
-      !event.packetId || !isVersionedPacketFamilyMember(event.packetId)),
+      !event.packetId || !isRecurringPacketFamilyMember(event.packetId)),
     null,
     2,
   )}\n`;
@@ -55,22 +55,24 @@ describe('repository candidate generation', () => {
 
     expect(result).toEqual({
       generatedPacketIds: [
-        'packet-indicator-framework-comparison-v1',
-        'packet-preservation-mitigation-tabletop-v1',
+        'packet-indicator-framework-comparison-run-1',
+        'packet-preservation-mitigation-tabletop-run-1',
+        'packet-preservation-risk-register-refresh-run-1',
       ],
-      selectedPacketId: 'packet-preservation-mitigation-tabletop-v1',
+      selectedPacketId: 'packet-preservation-mitigation-tabletop-run-1',
     });
     const packets = JSON.parse(await fileSystem.readText('strategy/work-packets.json')) as Array<{
-      id: string; lifecycle: string; reviewedAt: string;
+      id: string; seriesId?: string; runNumber?: number; lifecycle: string; reviewedAt: string;
     }>;
-    expect(packets.at(-1)).toMatchObject({
-      id: 'packet-preservation-mitigation-tabletop-v1', lifecycle: 'eligible', reviewedAt: now,
+    expect(packets.find((packet) => packet.id === 'packet-preservation-mitigation-tabletop-run-1')).toMatchObject({
+      id: 'packet-preservation-mitigation-tabletop-run-1', seriesId: 'packet-preservation-mitigation-tabletop',
+      runNumber: 1, lifecycle: 'eligible', reviewedAt: now,
     });
     const audit = JSON.parse(await fileSystem.readText('strategy/audit-log.json')) as Array<{
       type: string; packetId: string; occurredAt: string;
     }>;
-    expect(audit.at(-1)).toMatchObject({
-      type: 'packet-generated', packetId: 'packet-preservation-mitigation-tabletop-v1', occurredAt: now,
+    expect(audit.find((event) => event.packetId === 'packet-preservation-mitigation-tabletop-run-1')).toMatchObject({
+      type: 'packet-generated', packetId: 'packet-preservation-mitigation-tabletop-run-1', occurredAt: now,
     });
     const originalPacketPrefix = initial['strategy/work-packets.json'].trimEnd().slice(0, -1).trimEnd();
     expect((await fileSystem.readText('strategy/work-packets.json')).slice(0, originalPacketPrefix.length))
@@ -87,7 +89,7 @@ describe('repository candidate generation', () => {
 
     const second = await runRepositoryCandidateGeneration(fileSystem, advanceTimestamp(now));
 
-    expect(second).toEqual({ generatedPacketIds: [], selectedPacketId: 'packet-preservation-mitigation-tabletop-v1' });
+    expect(second).toEqual({ generatedPacketIds: [], selectedPacketId: 'packet-preservation-mitigation-tabletop-run-1' });
     expect(await fileSystem.readText('strategy/work-packets.json')).toBe(packetsAfterFirst);
     expect(await fileSystem.readText('strategy/audit-log.json')).toBe(auditAfterFirst);
   });
@@ -105,8 +107,9 @@ describe('repository candidate generation', () => {
     const now = nextRepositoryTimestamp(await repositorySnapshot());
     expect(JSON.parse(await runCandidateGenerationCli(fileSystem, [now]))).toMatchObject({
       generatedPacketIds: [
-        'packet-indicator-framework-comparison-v1',
-        'packet-preservation-mitigation-tabletop-v1',
+        'packet-indicator-framework-comparison-run-1',
+        'packet-preservation-mitigation-tabletop-run-1',
+        'packet-preservation-risk-register-refresh-run-1',
       ],
     });
     await expect(runCandidateGenerationCli(fileSystem, [])).rejects.toThrow(/usage/i);

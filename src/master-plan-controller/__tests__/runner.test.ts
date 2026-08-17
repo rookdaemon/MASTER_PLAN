@@ -21,33 +21,22 @@ function makeRunner(
 }
 
 describe('CycleRunner end-to-end with injected ports', () => {
-  it('runs shadow mode without executing the selected packet', async () => {
+  it('uses persisted bounded work before asking the generator for more', async () => {
     const store = new InMemoryStateStore(makeState());
     const executor = new InMemoryPacketExecutor();
     const generator = new InMemoryPacketGenerator([[makePacket({ id: 'unnecessary', reviewedAt: NOW })]]);
     const result = await makeRunner(store, executor, undefined, undefined, generator).runCycle(NOW);
 
-    expect(result.status).toBe('proposed');
+    expect(result.status).toBe('crashed');
     expect(result.selectedPacketId).toBe('packet-1');
-    expect(executor.requests).toHaveLength(0);
+    expect(executor.requests).toHaveLength(1);
     expect(generator.requests).toHaveLength(0);
-    expect((await store.load()).governance.mode).toBe('shadow');
+    expect((await store.load()).governance.mode).toBe('automated-stewardship');
   });
 
-  it('executes and verifies one supervised packet', async () => {
-    const historicalShadowCycle = {
-      cycle: 1,
-      observedAt: '2026-08-03T00:00:00.000Z',
-      rankedFrontier: ['packet-1'],
-      selectedPacketId: 'packet-1',
-      executed: false as const,
-      merged: false as const,
-      stateMutated: false as const,
-    };
+  it('executes and verifies one autonomous packet with independent review', async () => {
     const state = makeState({
       approvals: [],
-      shadowCycles: [historicalShadowCycle],
-      governance: { mode: 'supervised', shadowCyclesReviewed: 20, supervisedResultsReviewed: 0, safeAutoMergeEnabled: false },
     });
     const store = new InMemoryStateStore(state);
     const executor = new InMemoryPacketExecutor([
@@ -67,15 +56,12 @@ describe('CycleRunner end-to-end with injected ports', () => {
     expect(executor.requests).toHaveLength(1);
     expect(reviewer.requests).toHaveLength(1);
     expect((await store.load()).packets[0].lifecycle).toBe('verified');
-    expect((await store.load()).governance.supervisedResultsReviewed).toBe(1);
-    expect((await store.load()).shadowCycles).toEqual([historicalShadowCycle]);
+    expect((await store.load()).governance.reviewedResultCount).toBe(1);
     expect((await store.load()).approvals).toEqual([]);
   });
 
   it('integrates a reviewed null result without manufacturing success', async () => {
-    const store = new InMemoryStateStore(makeState({
-      governance: { mode: 'supervised', shadowCyclesReviewed: 20, supervisedResultsReviewed: 0, safeAutoMergeEnabled: false },
-    }));
+    const store = new InMemoryStateStore(makeState());
     const executor = new InMemoryPacketExecutor([
       {
         outcome: 'null',
@@ -95,10 +81,7 @@ describe('CycleRunner end-to-end with injected ports', () => {
 
   it('blocks failed verification rather than treating artifact creation as verification', async () => {
     const packet = makePacket({ retrySignature: 'implementation-v1' });
-    const store = new InMemoryStateStore(makeState({
-      packets: [packet],
-      governance: { mode: 'supervised', shadowCyclesReviewed: 20, supervisedResultsReviewed: 0, safeAutoMergeEnabled: false },
-    }));
+    const store = new InMemoryStateStore(makeState({ packets: [packet] }));
     const executor = new InMemoryPacketExecutor([
       {
         outcome: 'positive',
@@ -113,7 +96,7 @@ describe('CycleRunner end-to-end with injected ports', () => {
     const result = await makeRunner(store, executor, reviewer).runCycle(NOW);
     expect(result.status).toBe('blocked');
     expect((await store.load()).packets[0].lifecycle).toBe('blocked');
-    expect((await store.load()).governance.supervisedResultsReviewed).toBe(0);
+    expect((await store.load()).governance.reviewedResultCount).toBe(0);
   });
 
   it('does not count a stale or self review toward supervised rollout', async () => {
@@ -124,21 +107,18 @@ describe('CycleRunner end-to-end with injected ports', () => {
       const packet = makePacket({ owner: 'owner' });
       const store = new InMemoryStateStore(makeState({
         packets: [packet],
-        governance: { mode: 'supervised', shadowCyclesReviewed: 20, supervisedResultsReviewed: 0, safeAutoMergeEnabled: false },
       }));
       const executor = new InMemoryPacketExecutor([{
         outcome: 'positive', artifactReferences: ['artifact://result'], evidence: [makeEvidence()],
         acceptanceCriteriaMet: true, portfolioEffortAfter: RESULT_PORTFOLIO_EFFORT,
       }]);
       await makeRunner(store, executor, new InMemoryReviewer([verification])).runCycle(NOW);
-      expect((await store.load()).governance.supervisedResultsReviewed).toBe(0);
+      expect((await store.load()).governance.reviewedResultCount).toBe(0);
     }
   });
 
   it('leaves an interrupted packet active, then recovers it as blocked without an identical retry', async () => {
-    const store = new InMemoryStateStore(makeState({
-      governance: { mode: 'supervised', shadowCyclesReviewed: 20, supervisedResultsReviewed: 0, safeAutoMergeEnabled: false },
-    }));
+    const store = new InMemoryStateStore(makeState());
     const executor = new InMemoryPacketExecutor([new Error('simulated process crash')]);
     const runner = makeRunner(store, executor);
 
@@ -179,7 +159,7 @@ describe('CycleRunner end-to-end with injected ports', () => {
     const generated = makePacket({ id: 'generated', lifecycle: 'eligible', reviewedAt: NOW });
     const store = new InMemoryStateStore(makeState({
       packets: [existing],
-      governance: { mode: 'supervised', shadowCyclesReviewed: 20, supervisedResultsReviewed: 4, safeAutoMergeEnabled: false },
+      governance: { mode: 'automated-stewardship', reviewedResultCount: 4, safeAutoMergeEnabled: false },
     }));
     const generator = new InMemoryPacketGenerator([[generated]]);
     const executor = new InMemoryPacketExecutor([{
@@ -280,7 +260,6 @@ describe('CycleRunner end-to-end with injected ports', () => {
       packets: [packet],
       evidence: makeEscalationEvidence(),
       escalations: [makeEscalation({ packetId: packet.id })],
-      governance: { mode: 'supervised', shadowCyclesReviewed: 20, supervisedResultsReviewed: 0, safeAutoMergeEnabled: false },
     }));
     const executor = new InMemoryPacketExecutor();
     const result = await makeRunner(store, executor).runCycle(NOW);
@@ -309,6 +288,6 @@ describe('CycleRunner end-to-end with injected ports', () => {
     await started;
     await expect(runner.runCycle('2026-08-03T12:00:01.000Z')).rejects.toThrow(/already running/i);
     releaseFirst([]);
-    await expect(first).resolves.toMatchObject({ status: 'proposed' });
+    await expect(first).resolves.toMatchObject({ status: 'crashed' });
   });
 });

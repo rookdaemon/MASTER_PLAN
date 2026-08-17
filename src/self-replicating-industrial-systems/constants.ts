@@ -3,7 +3,7 @@
  *
  * Card: 0.4.1.4
  * Architecture: docs/self-replicating-industrial-systems/ARCHITECTURE.md
- * Threshold Registry: plan/0.4.1.4-self-replicating-industrial-systems.md
+ * Threshold registry context: docs/reference/durable-infrastructure.md
  *
  * All numeric constants for the self-replicating industrial system design
  * are centralised here. No magic numbers anywhere else in the module.

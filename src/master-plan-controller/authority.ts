@@ -113,9 +113,9 @@ function safeCodeOrTestPath(path: string): boolean {
 function forbiddenPathReason(path: string): string | null {
   if (path.startsWith('.github/workflows/')) return `workflow change is forbidden: ${path}`;
   if (path.startsWith('strategy/')) return `strategy/plan change is forbidden: ${path}`;
-  if (path.startsWith('plan/') || path.startsWith('docs/')) return `plan or doctrine change is forbidden: ${path}`;
+  if (path.startsWith('docs/')) return `plan or doctrine change is forbidden: ${path}`;
   if (path === 'package.json' || path === 'package-lock.json') return `dependency change is forbidden: ${path}`;
-  if (path.startsWith('src/master-plan-controller/') || path.startsWith('src/plan-guardian/')) {
+  if (path.startsWith('src/master-plan-controller/')) {
     return `governance code change is forbidden: ${path}`;
   }
   if (path.includes('/network/')) return `network code change is forbidden: ${path}`;

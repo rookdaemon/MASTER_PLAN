@@ -1,7 +1,7 @@
 /**
  * Radiation-Hardened Computation — Acceptance Criteria Tests
  *
- * Maps directly to the 7 acceptance criteria in plan/0.2.1.1-radiation-hardened-computation.md.
+ * Maps to the bounded durability criteria in docs/reference/durable-infrastructure.md.
  * Red/Green/Refactor: these tests define what "done" looks like.
  */
 

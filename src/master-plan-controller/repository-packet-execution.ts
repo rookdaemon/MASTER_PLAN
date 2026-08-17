@@ -3,7 +3,7 @@ import type { ExecutionResult, FileSystemPort } from './ports.js';
 import {
   crossPortfolioPacketHandlers,
   matchesRepositoryPacketHandler,
-  versionedArtifactPaths,
+  recurringArtifactPaths,
   type RepositoryExecutionOutput,
   type RepositoryPacketHandler,
 } from './repository-packet-handlers.js';
@@ -47,7 +47,7 @@ interface PredictionRegistry {
   theoryFamilies: Array<{ id: string; limitations: string[] }>;
 }
 
-const REGISTRY_PATH = 'strategy/results/consciousness-prediction-registry-v1.json';
+const REGISTRY_PATH = 'strategy/findings/consciousness-assessment.json';
 
 function unique(values: readonly string[]): string[] {
   return [...new Set(values.filter((value) => value.trim().length > 0))];
@@ -68,10 +68,10 @@ function executionOutputWithoutTimestamps(artifact: unknown, result: ExecutionRe
 
 function indicatorComparisonHandler(): RepositoryPacketHandler {
   return {
-    packetId: 'packet-indicator-framework-comparison-v1',
+    packetId: 'packet-indicator-framework-comparison-run-1',
     packetFamily: 'packet-indicator-framework-comparison',
     async prepare(fileSystem, packet, state, now) {
-      const paths = versionedArtifactPaths(packet, 'packet-indicator-framework-comparison');
+      const paths = recurringArtifactPaths(packet, 'packet-indicator-framework-comparison');
       const registry = JSON.parse(await fileSystem.readText(REGISTRY_PATH)) as PredictionRegistry;
       const families = new Map(registry.theoryFamilies.map((family) => [family.id, family]));
       const indicators = registry.predictions.flatMap((prediction) => prediction.interpretations.map((interpretation) => {

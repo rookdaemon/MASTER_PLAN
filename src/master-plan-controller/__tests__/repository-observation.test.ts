@@ -68,7 +68,7 @@ function responses(overrides: { checks?: string[] } = {}) {
 
 async function repositorySnapshot(): Promise<Record<string, string>> {
   const source = new NodeFileSystem('.');
-  const paths = [...await source.listFiles('strategy/'), ...await source.listFiles('plan/')];
+  const paths = [...await source.listFiles('strategy/'), ...await source.listFiles('docs/')];
   return Object.fromEntries(await Promise.all(paths.map(async (path) => [path, await source.readText(path)])));
 }
 

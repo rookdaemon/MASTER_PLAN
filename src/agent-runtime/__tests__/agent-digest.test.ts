@@ -1,6 +1,6 @@
 /**
  * Tests for AgentDigest — covers all 5 Behavioral Spec scenarios
- * from plan/0.3.1.5.13-agent-digest.md plus Contracts postconditions/invariants.
+ * from the canonical runtime reference plus Contracts postconditions/invariants.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -75,8 +75,8 @@ describe('AgentDigest', () => {
     it('adds item, shows in unread with up-arrow, marks done with timestamp', () => {
       // Add
       const item = digest.frontierAdd({
-        resource: 'plan/0.3.1.5.1-llm-consciousness-substrate.md',
-        type: 'plan-card',
+        resource: 'docs/reference/consciousness-science.md',
+        type: 'reference',
         priority: 'high',
       });
       expect(item).not.toBeNull();
@@ -84,28 +84,28 @@ describe('AgentDigest', () => {
 
       // Appears in unread
       const unreadItems = digest.unread();
-      expect(unreadItems.some(u => u.resource === 'plan/0.3.1.5.1-llm-consciousness-substrate.md')).toBe(true);
+      expect(unreadItems.some(u => u.resource === 'docs/reference/consciousness-science.md')).toBe(true);
 
       // Renders with up-arrow
       const rendered = digest.render();
-      expect(rendered).toContain('↑ plan/0.3.1.5.1-llm-consciousness-substrate.md');
+      expect(rendered).toContain('↑ docs/reference/consciousness-science.md');
 
       // Mark done
       const done = digest.frontierDone(
-        'plan/0.3.1.5.1-llm-consciousness-substrate.md',
+        'docs/reference/consciousness-science.md',
         'reviewed — good substrate design',
       );
       expect(done).toBe(true);
 
       // Verify done state
       const data = digest.getData();
-      const doneItem = data.frontier.find(f => f.resource === 'plan/0.3.1.5.1-llm-consciousness-substrate.md');
+      const doneItem = data.frontier.find(f => f.resource === 'docs/reference/consciousness-science.md');
       expect(doneItem!.status).toBe('done');
       expect(doneItem!.completedAt).toBeTypeOf('number');
 
       // No longer in unread
       const unreadAfter = digest.unread();
-      expect(unreadAfter.some(u => u.resource === 'plan/0.3.1.5.1-llm-consciousness-substrate.md')).toBe(false);
+      expect(unreadAfter.some(u => u.resource === 'docs/reference/consciousness-science.md')).toBe(false);
     });
   });
 
@@ -113,12 +113,12 @@ describe('AgentDigest', () => {
 
   describe('Scenario: Duplicate frontier add is no-op', () => {
     it('returns null and creates no duplicate', () => {
-      digest.frontierAdd({ resource: 'plan/root.md', type: 'plan-card' });
+      digest.frontierAdd({ resource: 'docs/PLAN.md', type: 'reference' });
 
-      const duplicate = digest.frontierAdd({ resource: 'plan/root.md', type: 'plan-card' });
+      const duplicate = digest.frontierAdd({ resource: 'docs/PLAN.md', type: 'reference' });
       expect(duplicate).toBeNull();
 
-      const matching = digest.getData().frontier.filter(f => f.resource === 'plan/root.md');
+      const matching = digest.getData().frontier.filter(f => f.resource === 'docs/PLAN.md');
       expect(matching).toHaveLength(1);
     });
   });

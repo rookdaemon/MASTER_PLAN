@@ -23,6 +23,14 @@ function assertInsideRoot(root: string, candidate: string): void {
   }
 }
 
+export function normalizeRepositoryPath(path: string): string {
+  return path.replaceAll('\\', '/');
+}
+
+export function normalizeRepositoryText(content: string): string {
+  return content.replaceAll('\r\n', '\n');
+}
+
 export class NodeFileSystem implements FileSystemPort {
   private readonly root: string;
 
@@ -37,7 +45,7 @@ export class NodeFileSystem implements FileSystemPort {
   }
 
   async readText(path: string): Promise<string> {
-    return readFile(this.location(path), 'utf8');
+    return normalizeRepositoryText(await readFile(this.location(path), 'utf8'));
   }
 
   async writeText(path: string, content: string): Promise<void> {
@@ -53,7 +61,7 @@ export class NodeFileSystem implements FileSystemPort {
       for (const entry of await readdir(directory, { withFileTypes: true })) {
         const location = resolve(directory, entry.name);
         if (entry.isDirectory()) await walk(location);
-        else if (entry.isFile()) results.push(relative(this.root, location));
+        else if (entry.isFile()) results.push(normalizeRepositoryPath(relative(this.root, location)));
       }
     };
     await walk(start);

@@ -126,7 +126,7 @@ export function makePacket(overrides: Partial<WorkPacket> = {}): WorkPacket {
     owner: 'packet-owner',
     lifecycle: 'eligible',
     attempt: 0,
-    retrySignature: 'packet-1-v1',
+    retrySignature: 'packet-1',
     priority: {
       impact: 0.5,
       urgency: 0.5,
@@ -145,7 +145,7 @@ export function makeState(overrides: Partial<StrategyState> = {}): StrategyState
   const node = makeNode();
   return {
     constitution: {
-      version: '2.0.0',
+      version: 'current',
       directives: ['G1', 'G2', 'G3'],
       ethicalInvariants: ['Preserve existing conscious life and option value before expansion.'],
       amendments: [],
@@ -158,8 +158,6 @@ export function makeState(overrides: Partial<StrategyState> = {}): StrategyState
     activePacketId: null,
     approvals: [],
     escalations: [],
-    shadowCycles: [],
-    shadowCycleReviews: [],
     auditEvents: [],
     portfolioEffort: {
       'consciousness-epistemics': 0.35,
@@ -168,9 +166,8 @@ export function makeState(overrides: Partial<StrategyState> = {}): StrategyState
       'institutional-continuity': 0.15,
     },
     governance: {
-      mode: 'shadow',
-      shadowCyclesReviewed: 0,
-      supervisedResultsReviewed: 0,
+      mode: 'automated-stewardship',
+      reviewedResultCount: 0,
       safeAutoMergeEnabled: false,
     },
     ...overrides,

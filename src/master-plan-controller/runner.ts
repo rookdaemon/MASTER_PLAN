@@ -132,18 +132,6 @@ export class CycleRunner {
       return { status: 'waiting', selectedPacketId: null, rejections };
     }
 
-    if (state.governance.mode === 'shadow') {
-      const auditEvent: AuditEvent = {
-        id: `audit:${selected.id}:cycle-observed:${now}`,
-        type: 'cycle-observed',
-        packetId: selected.id,
-        occurredAt: now,
-        details: { mode: 'shadow', executed: false },
-      };
-      await this.ports.store.save(appendEvent(state, auditEvent));
-      return { status: 'proposed', selectedPacketId: selected.id, rejections };
-    }
-
     const activeState = structuredClone(state);
     const packetIndex = activeState.packets.findIndex((packet) => packet.id === selected.id);
     const activePacket = { ...selected, lifecycle: 'active' as const };
@@ -180,13 +168,13 @@ export class CycleRunner {
       ...advanced.state,
       governance: {
         ...advanced.state.governance,
-        supervisedResultsReviewed: [
+        reviewedResultCount: [
           'packet-verified',
           'packet-blocked',
           'packet-retry-eligible',
         ].includes(advanced.event.type)
-          ? advanced.state.governance.supervisedResultsReviewed + 1
-          : advanced.state.governance.supervisedResultsReviewed,
+          ? advanced.state.governance.reviewedResultCount + 1
+          : advanced.state.governance.reviewedResultCount,
       },
     };
     await this.ports.store.save(next);

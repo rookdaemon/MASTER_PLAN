@@ -2,7 +2,7 @@
  * Radiation-Aware Runtime — TDD Tests
  *
  * Tests for all 6 Behavioral Spec scenarios and acceptance criteria
- * from plan/0.2.1.1.2-radiation-aware-runtime.md
+ * from docs/reference/durable-infrastructure.md
  *
  * RED phase: these tests should all fail until implementation exists.
  */

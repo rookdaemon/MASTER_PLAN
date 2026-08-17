@@ -2,7 +2,7 @@
  * Behavioral Spec Scenario Tests
  *
  * Tests derived directly from the Behavioral Spec section of
- * plan/0.2.1.4-consciousness-preserving-redundancy.md
+ * docs/reference/continuity-and-identity.md
  *
  * Each test maps to a specific Given/When/Then scenario.
  */

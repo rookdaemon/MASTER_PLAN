@@ -144,7 +144,7 @@ jobs:
           test -n "$(git diff --name-only)"
           while IFS= read -r path; do
             case "$path" in
-              "$RESULT_PATH"|strategy/graph.json|strategy/evidence.json|strategy/assessments.json|strategy/work-packets.json|strategy/audit-log.json|strategy/portfolio.json|strategy/governance.json|strategy/ROADMAP.md|STATUS.md) ;;
+              "$RESULT_PATH"|strategy/graph.json|strategy/evidence.json|strategy/assessments.json|strategy/work-packets.json|strategy/audit-log.json|strategy/portfolio.json|strategy/governance.json|docs/PLAN.md|docs/OPERATIONS.md) ;;
               *) echo "Unexpected integration path: $path"; exit 1 ;;
             esac
           done < <(git diff --name-only)
@@ -155,7 +155,7 @@ jobs:
           git switch -c "$branch"
           git add -- "$RESULT_PATH" strategy/graph.json strategy/evidence.json strategy/assessments.json \
             strategy/work-packets.json strategy/audit-log.json strategy/portfolio.json \
-            strategy/governance.json strategy/ROADMAP.md STATUS.md
+            strategy/governance.json docs/PLAN.md docs/OPERATIONS.md
           git commit -m "Integrate reviewed strategy result ${PACKET_ID}"
           head_sha="$(git rev-parse HEAD)"
           commit_count="$(git rev-list --count origin/main..HEAD)"

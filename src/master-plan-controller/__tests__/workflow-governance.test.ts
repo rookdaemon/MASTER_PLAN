@@ -13,6 +13,7 @@ describe('blocking CI and governed workflows', () => {
     expect(workflow).toContain('npm run lint');
     expect(workflow).toContain('npm test');
     expect(workflow).toContain('npm run strategy:verify');
+    expect(workflow).toContain('npm run docs:verify');
   });
 
   it('declares protected-branch controls for automated stewardship', async () => {
@@ -63,10 +64,9 @@ describe('blocking CI and governed workflows', () => {
 
   it('defines humans as exceptional servant-leader escalation, never the operating body', async () => {
     const agents = await fileSystem.readText('AGENTS.md');
-    const authority = await fileSystem.readText('strategy/AUTHORITY.md');
-    const roadmap = await fileSystem.readText('strategy/ROADMAP.md');
-    for (const policy of [agents, authority]) {
-      expect(policy).toMatch(/automated (?:process|agents).*operating body/is);
+    const operations = await fileSystem.readText('docs/OPERATIONS.md');
+    for (const policy of [agents, operations]) {
+      expect(policy).toMatch(/automated[\s\S]{0,120}operating body/i);
       expect(policy).toMatch(/human.*servant leader/is);
       expect(policy).toMatch(/owner-held credentials|owner-credential/is);
       expect(policy).toMatch(/physical presence|physical-presence/is);
@@ -74,25 +74,18 @@ describe('blocking CI and governed workflows', () => {
       expect(policy).toMatch(/constitutional conflict|constitutional-conflict/is);
       expect(policy).toMatch(/at least two.*automated alternatives/is);
     }
-    expect(agents).toMatch(/historical shadow records.*no cycle count, human review, or human approval.*operating prerequisite/is);
     expect(agents).toMatch(/routine.*deterministic CI.*without.*agent review/is);
     expect(agents).toMatch(/protected.*independent.*agent review/is);
-    expect(roadmap).toContain('Mode: **automated stewardship**');
-    expect(roadmap).toMatch(/historical calibration.*records retained as evidence, never an operating prerequisite/i);
+    expect(operations).toContain('Mode: **automated stewardship**');
+    expect(operations).toMatch(/one (?:bounded )?work packet may be active/i);
   });
 
-  it('makes repository entry points describe v2 while retaining v1 as history', async () => {
+  it('makes repository entry points describe one current system', async () => {
     const readme = await fileSystem.readText('README.md');
-    const status = await fileSystem.readText('STATUS.md');
-    expect(readme).toContain('strategy/ROADMAP.md');
-    expect(readme).toMatch(/v1.*histor/i);
-    expect(status).toContain('Historical calibration retained: **20 automated shadow records with agent reviews; no operating gate**');
-    expect(status).toContain('Human role: **servant leader for exceptional escalation**');
-    expect(status).toContain('Branch protection applied and verified: **yes**');
-    expect(status).toContain('Safe auto-merge: **enabled for routine code/test changes**');
-    expect(status).toContain(
-      'Routine code/test changes auto-merge after classification, tests, and protected controls; no agent or human review is required.',
-    );
+    expect(readme).toContain('docs/PLAN.md');
+    expect(readme).toContain('docs/OPERATIONS.md');
+    expect(readme).toContain('docs/REFERENCE.md');
+    expect(readme).not.toMatch(/MASTER_PLAN v[12]|v[12] MASTER_PLAN/i);
   });
 
   it('enforces one-commit protected proposals and automatic routine merge without a label', async () => {
@@ -393,6 +386,9 @@ describe('blocking CI and governed workflows', () => {
       'strategy:execute': 'tsx src/master-plan-controller/cli/execute-packet-main.ts',
       'strategy:integrate-reviewed-execution': 'tsx src/master-plan-controller/cli/integrate-reviewed-execution-main.ts',
       'strategy:await-pr-merge': 'tsx src/master-plan-controller/cli/await-pr-merge-main.ts',
+      'docs:verify': 'vitest run src/master-plan-controller/__tests__/documentation-contract.test.ts',
     });
+    expect(packageJson.scripts.guardian).toBeUndefined();
+    expect(packageJson.scripts['guardian:dry-run']).toBeUndefined();
   });
 });

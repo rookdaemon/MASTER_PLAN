@@ -68,8 +68,18 @@ export interface PlanNode {
   lifecycle: LifecycleState;
   reviewedAt: Timestamp;
   constitutionalImpact?: 'none' | 'interpretation' | 'amendment';
-  legacyPlanReferences?: string[];
+  referencePaths?: string[];
   externallyDemonstrated?: boolean;
+}
+
+export interface ResearchArea {
+  id: string;
+  title: string;
+  domain: string;
+  status: 'active' | 'gated' | 'reference';
+  strategyNodeId: string;
+  supportedDirectives: Directive[];
+  referencePath: string;
 }
 
 export interface EvidenceRecord {
@@ -164,6 +174,8 @@ export interface PriorityFactors {
 
 export interface WorkPacket {
   id: string;
+  seriesId?: string;
+  runNumber?: number;
   nodeId: string;
   title: string;
   portfolio: Portfolio;
@@ -237,42 +249,17 @@ export interface AuditEvent {
     | 'packet-activated'
     | 'packet-generated'
     | 'cycle-observed'
-    | 'crash-recovered';
+    | 'crash-recovered'
+    | 'strategy-baselined';
   packetId?: string;
   occurredAt: Timestamp;
   details: Record<string, unknown>;
 }
 
 export interface GovernanceState {
-  mode: 'shadow' | 'supervised' | 'safe-code';
-  shadowCyclesReviewed: number;
-  supervisedResultsReviewed: number;
+  mode: 'automated-stewardship';
+  reviewedResultCount: number;
   safeAutoMergeEnabled: boolean;
-}
-
-export interface ShadowCycleReview {
-  cycle: number;
-  cycleObservedAt: Timestamp;
-  reviewer: string;
-  reviewerRole: 'agent';
-  reviewRunId: string;
-  selectedPacketId: string | null;
-  cycleFingerprint: string;
-  reviewedAt: Timestamp;
-  useful: boolean;
-  nonChurning: boolean;
-  decision: 'accept' | 'revise' | 'reject';
-  rationale: string;
-}
-
-export interface ShadowCycleRecord {
-  cycle: number;
-  observedAt: Timestamp;
-  rankedFrontier: string[];
-  selectedPacketId: string | null;
-  executed: false;
-  merged: false;
-  stateMutated: false;
 }
 
 export interface StrategyState {
@@ -288,8 +275,6 @@ export interface StrategyState {
   portfolioEffort: Record<Portfolio, number>;
   governance: GovernanceState;
   escalations: EscalationRecord[];
-  shadowCycles: ShadowCycleRecord[];
-  shadowCycleReviews: ShadowCycleReview[];
 }
 
 export interface ControllerConfig {

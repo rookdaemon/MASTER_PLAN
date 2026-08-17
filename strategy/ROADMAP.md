@@ -24,7 +24,7 @@ over expansion. Positive, negative, and null evidence are integrated without for
 ## Deferred complete map
 
 - Space settlement and planet-independent conscious life: **proposed**; activation gates: capability-consciousness-assessment, capability-safe-durable-computation.
-- Self-replicating conscious infrastructure: **proposed**; activation gates: program-space-settlement, capability-welfare-precautions, dependencies-verified.
+- Self-replicating conscious infrastructure: **proposed**; activation gates: program-space-settlement, capability-welfare-precautions, capability-cross-substrate-coexistence-governance, dependencies-verified.
 - Cosmological engineering and longevity: **proposed**; activation gates: program-self-replication.
 
 ## Operating status

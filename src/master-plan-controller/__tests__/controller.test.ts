@@ -403,7 +403,7 @@ describe('Controller.advance', () => {
   });
 
   it('blocks a renamed retry that does not change strategy or tractability', () => {
-    const packet = makePacket({ lifecycle: 'active', retrySignature: 'strategy-v1' });
+    const packet = makePacket({ lifecycle: 'active', retrySignature: 'strategy-run-1' });
     const state = makeState({ packets: [packet], activePacketId: packet.id });
     const advanced = new Controller(state, CONFIG).advance(
       packet,
@@ -413,7 +413,7 @@ describe('Controller.advance', () => {
         evidence: [makeEvidence({ outcome: 'negative' })],
         acceptanceCriteriaMet: false,
         verification: { status: 'passed', verifier: 'reviewer', reviewedAt: NOW },
-        retrySignature: 'strategy-v2',
+        retrySignature: 'strategy-run-2',
         portfolioEffortAfter: RESULT_PORTFOLIO_EFFORT,
       },
       NOW,
@@ -423,7 +423,7 @@ describe('Controller.advance', () => {
   });
 
   it('allows one bounded retry only when the changed strategy is explicit', () => {
-    const packet = makePacket({ lifecycle: 'active', retrySignature: 'strategy-v1' });
+    const packet = makePacket({ lifecycle: 'active', retrySignature: 'strategy-run-1' });
     const state = makeState({ packets: [packet], activePacketId: packet.id });
     const advanced = new Controller(state, CONFIG).advance(
       packet,
@@ -433,13 +433,13 @@ describe('Controller.advance', () => {
         evidence: [makeEvidence({ outcome: 'negative' })],
         acceptanceCriteriaMet: false,
         verification: { status: 'passed', verifier: 'reviewer', reviewedAt: NOW },
-        retrySignature: 'strategy-v2',
+        retrySignature: 'strategy-run-2',
         strategyAdjustment: 'Reduce scope and replace the failed measurement with a preregistered observable.',
         portfolioEffortAfter: RESULT_PORTFOLIO_EFFORT,
       },
       NOW,
     );
-    expect(advanced.state.packets[0]).toMatchObject({ lifecycle: 'eligible', retrySignature: 'strategy-v2', attempt: 1 });
+    expect(advanced.state.packets[0]).toMatchObject({ lifecycle: 'eligible', retrySignature: 'strategy-run-2', attempt: 1 });
     expect(advanced.event.type).toBe('packet-retry-eligible');
   });
 

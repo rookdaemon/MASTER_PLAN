@@ -5,7 +5,7 @@
  * Monitors ambient radiation flux, classifies alert levels, and orchestrates
  * safe mode entry/exit with hold-off timing.
  *
- * See: plan/0.2.1.1.2-radiation-aware-runtime.md (Contracts, Decisions, Behavioral Spec)
+ * See: docs/reference/durable-infrastructure.md
  */
 
 import {
