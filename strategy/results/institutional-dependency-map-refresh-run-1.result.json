@@ -1,0 +1,36 @@
+{
+  "outcome": "null",
+  "artifactReferences": [
+    "strategy/results/institutional-dependency-map-refresh-run-1.json",
+    "strategy/findings/institutional-continuity.json"
+  ],
+  "evidence": [
+    {
+      "id": "evidence-institutional-dependency-map-refresh-run-1-executed",
+      "claim": "Institutional dependencies were re-evaluated while preserving distinctions among artifacts, readiness, and external outcomes.",
+      "method": "Deterministic transformation of checked-in, independently reviewed repository evidence.",
+      "source": "strategy/results/institutional-dependency-map-refresh-run-1.json",
+      "strength": 0.55,
+      "limitations": [
+        "No external institutional adoption, succession, or continuity outcome was observed by this local execution."
+      ],
+      "supportedHypotheses": [],
+      "falsifiedHypotheses": [],
+      "verifier": "deterministic-repository-executor",
+      "observedAt": "2026-08-21T14:54:10.000Z",
+      "outcome": "null"
+    }
+  ],
+  "acceptanceCriteriaMet": true,
+  "portfolioEffortAfter": {
+    "consciousness-epistemics": 0.35,
+    "near-term-preservation": 0.3,
+    "enabling-capabilities": 0.2,
+    "institutional-continuity": 0.15
+  },
+  "verification": {
+    "status": "passed",
+    "verifier": "deterministic-repository-executor",
+    "reviewedAt": "2026-08-21T14:54:10.000Z"
+  }
+}
