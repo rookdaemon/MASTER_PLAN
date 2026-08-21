@@ -172,5 +172,21 @@
     "verifier": "github-hosted-agent-review:run:31966214145:head:c247c2538ab3a9b7c13874fdba2491a9ef18df3b",
     "observedAt": "2026-08-16T18:58:33.000Z",
     "outcome": "null"
+  },
+  {
+    "id": "evidence-preservation-mitigation-tabletop-run-1-executed",
+    "claim": "A deterministic tabletop specified a measurable trigger and reversible response for ranked risk risk-nuclear-escalation.",
+    "method": "Deterministic transformation of checked-in, independently reviewed repository evidence.",
+    "source": "strategy/results/preservation-mitigation-tabletop-run-1.json",
+    "strength": 0.55,
+    "limitations": [
+      "The tabletop is a repository artifact and does not establish real-world risk reduction.",
+      "The contracted metric remains unchanged until qualifying external outcome evidence is independently reviewed."
+    ],
+    "supportedHypotheses": [],
+    "falsifiedHypotheses": [],
+    "verifier": "deterministic-repository-executor",
+    "observedAt": "2026-08-21T09:46:54.000Z",
+    "outcome": "null"
   }
 ]
