@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "id": "guardian-progress:cycle-started:2026-08-21T10:11:17.000Z",
+    "kind": "progress",
+    "text": "The bounded Guardian cycle has started.",
+    "occurredAt": "2026-08-21T10:11:17.000Z"
+  },
+  {
+    "id": "guardian-progress:cycle-completed:2026-08-21T10:11:17.000Z",
+    "kind": "progress",
+    "text": "The bounded Guardian cycle completed its deterministic checks.",
+    "occurredAt": "2026-08-21T10:11:17.000Z"
+  }
+]
