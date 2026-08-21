@@ -217,6 +217,32 @@ function recurringPacket(
   };
 }
 
+function proactiveRecurringPacket(
+  template: DiagnosticPacketTemplate,
+  state: StrategyState,
+): Omit<DiagnosticPacketTemplate, 'trigger' | 'recurrence'> | null {
+  const seriesId = template.seriesId;
+  if (!seriesId) throw new Error(`Recurring packet template ${template.id} has an invalid series identity`);
+  const familyPackets = state.packets
+    .filter((packet) => packet.seriesId === seriesId && Number.isSafeInteger(packet.runNumber) && packet.runNumber! > 0);
+  if (familyPackets.some((packet) => !['verified', 'invalidated', 'retired'].includes(packet.lifecycle))) {
+    return null;
+  }
+  const runNumber = familyPackets.reduce(
+    (highest, packet) => Math.max(highest, packet.runNumber ?? 0),
+    0,
+  ) + 1;
+  const { trigger: _trigger, recurrence: _recurrence, ...definition } = template;
+  return {
+    ...structuredClone(definition),
+    id: `${seriesId}-run-${runNumber}`,
+    seriesId,
+    runNumber,
+    retrySignature: `${template.retrySignature}-run-${runNumber}`,
+    deliverables: template.deliverables.map((deliverable) => `${deliverable}-run-${runNumber}`),
+  };
+}
+
 export class DiagnosticPacketGenerator implements PacketGeneratorPort {
   private readonly templates: DiagnosticPacketTemplate[];
 
@@ -246,6 +272,31 @@ export class DiagnosticPacketGenerator implements PacketGeneratorPort {
       .sort((left, right) => left.id.localeCompare(right.id))
       .map((template) => {
         if (template.recurrence?.kind === 'iterated') return recurringPacket(template, state, now);
+        if (state.packets.some((packet) => packet.id === template.id)) return null;
+        const { trigger: _trigger, recurrence: _recurrence, ...definition } = template;
+        return definition;
+      })
+      .filter((template): template is Omit<DiagnosticPacketTemplate, 'trigger' | 'recurrence'> => template !== null)
+      .slice(0, this.maximumCandidates)
+      .map((template) => ({
+        ...structuredClone(template),
+        lifecycle: 'eligible' as const,
+        attempt: 0,
+        reviewedAt: now,
+      }));
+  }
+
+  /**
+   * Keeps a bounded autonomous backlog moving when passive diagnostic triggers
+   * are quiet. Existing non-terminal work is never duplicated.
+   */
+  async generateProactiveBacklog(
+    state: StrategyState,
+    now: Timestamp,
+  ): Promise<WorkPacket[]> {
+    return this.templates
+      .map((template) => {
+        if (template.recurrence?.kind === 'iterated') return proactiveRecurringPacket(template, state);
         if (state.packets.some((packet) => packet.id === template.id)) return null;
         const { trigger: _trigger, recurrence: _recurrence, ...definition } = template;
         return definition;

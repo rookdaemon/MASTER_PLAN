@@ -58,8 +58,9 @@ export function renderOperatingStateBlock(bundle: RepositoryStrategyBundle): str
     '- Repository updates use deterministic CI only.',
     `- Reviewed results since the current baseline: **${bundle.state.governance.reviewedResultCount}**.`,
     `- Active work packets: **${activePackets}**.`,
-    '- Guardian executes one bounded repository-only packet every hour.',
-    '- Guardian publishes progress updates and accepts immediate status requests plus queued messages and answers through configured connectors.',
+    '- Guardian executes the highest-ranked feasible bounded packet every hour and proactively fills an empty frontier.',
+    '- Guardian publishes one explanatory cycle summary and accepts immediate status requests plus queued messages and answers through configured connectors.',
+    '- The controller maintains a proactive bounded backlog; a successful cycle does not idle for a passive trigger.',
   ].join('\n');
 }
 

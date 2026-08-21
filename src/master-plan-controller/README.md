@@ -9,7 +9,7 @@ setup guide for connecting a Slack workspace.
 - `guardian-cycle.yml` runs the Guardian every hour and accepts optional `sender` and `message`
   workflow-dispatch inputs.
 - `strategy/guardian-inbox.json` holds queued messages; `guardian-questions.json` holds bounded
-  human questions; `guardian-updates.json` holds progress and replies until delivery succeeds.
+  human questions; `guardian-updates.json` holds one cycle summary and replies until delivery succeeds.
 - `SLACK_WEBHOOK_URL`, when configured as a GitHub Actions secret, publishes undelivered Guardian
   updates to Slack without blocking strategy work if Slack is unavailable.
 - `npm run guardian:status` answers the current operational status; `help`, a normal message, and
@@ -24,7 +24,7 @@ Complete these in order.
 
 1. In Slack, create an app for this workspace and give it a clear name such as `MASTER_PLAN
    Guardian`.
-2. Enable **Incoming Webhooks**, add one for the channel where progress updates should appear, and
+2. Enable **Incoming Webhooks**, add one for the channel where cycle summaries should appear, and
    copy the generated webhook URL.
 3. In GitHub, open this repository’s **Settings → Secrets and variables → Actions**, create a secret
    named `SLACK_WEBHOOK_URL`, and paste the webhook URL. Never commit it or place it in workflow

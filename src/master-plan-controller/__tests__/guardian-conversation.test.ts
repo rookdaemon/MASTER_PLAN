@@ -64,11 +64,19 @@ describe('GuardianConversation', () => {
     await expect(guardian.readUpdates()).resolves.toEqual(expect.arrayContaining([
       expect.objectContaining({
         kind: 'summary',
-        text: expect.stringMatching(/executed packet-preservation-mitigation-tabletop-run-1.*highest-ranked eligible bounded packet/i),
+        text: expect.stringMatching(/completed packet-preservation-mitigation-tabletop-run-1.*What I did: generated 1 candidate and executed the highest-ranked feasible bounded task.*Why this: it ranked first after feasibility and preservation-first priority/i),
       }),
       expect.objectContaining({ kind: 'reply', inReplyTo: 'slack-message-1', occurredAt: LATER }),
       expect.objectContaining({ kind: 'question', questionId: 'human-decision:escalation-7' }),
     ]));
+  });
+
+  it('rejects a no-op cycle summary instead of normalizing an idle Guardian run', async () => {
+    const guardian = conversation();
+
+    await expect(guardian.recordCycleSummary({ generatedPacketIds: [], selectedPacketId: null }, {
+      status: 'waiting', packetId: null,
+    }, NOW)).rejects.toThrow(/must execute or confirm a bounded packet/i);
   });
 
   it('records a human answer to an open Guardian question without inventing an approval', async () => {
