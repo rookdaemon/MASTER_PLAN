@@ -175,11 +175,12 @@
     "dependencies": [
       "hypothesis-theory-uncertainty"
     ],
-    "confidence": 0.7617812500000001,
+    "confidence": 0.8034695312500001,
     "evidenceReferences": [
       "evidence-ai-indicators-2023",
       "evidence-consciousness-assessment-baseline",
-      "evidence-indicator-framework-comparison-run-1-executed"
+      "evidence-indicator-framework-comparison-run-1-executed",
+      "evidence-indicator-framework-comparison-run-2-executed"
     ],
     "metrics": [
       {

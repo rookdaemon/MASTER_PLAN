@@ -1,0 +1,367 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "indicator-framework-comparison-run-2",
+  "packetId": "packet-indicator-framework-comparison-run-2",
+  "preparedAt": "2026-08-21T18:56:20.000Z",
+  "sourceRegistry": "strategy/findings/consciousness-assessment.json",
+  "scope": {
+    "claimsSentience": false,
+    "executesHumanSubjectsResearch": false,
+    "publishesExternally": false
+  },
+  "indicators": [
+    {
+      "id": "prediction-content-location:iit",
+      "predictionId": "prediction-content-location",
+      "theoryId": "iit",
+      "expectedResult": "Maximal multidimensional content information is sustained in posterior cortex.",
+      "discriminatingConsequence": "Posterior maintenance supports the tested IIT biological implementation; its absence challenges that implementation.",
+      "counterexamples": [
+        "sensory hierarchy differences",
+        "task relevance",
+        "regional signal-to-noise",
+        "post-perceptual report",
+        "Task and report preparation",
+        "Unequal measurement sensitivity by region"
+      ],
+      "uncertainty": [
+        "Only one dimension passes, reliability is below the preregistered floor, or positive controls fail.",
+        "The registered measurements test selected biological implementation claims, not the complete mathematical theory.",
+        "A failed neural proxy does not establish that every possible IIT implementation is false."
+      ],
+      "falsificationCondition": "Neither content dimension exceeds the locked threshold in the theory-linked region despite positive sensory and behavioral controls.",
+      "forbiddenInference": "Passing or failing this contrast cannot establish the presence or absence of consciousness or the truth or falsity of an entire theory family.",
+      "sourceIds": [
+        "cogitate-2025",
+        "iit-4-2023",
+        "gnwt-2020"
+      ]
+    },
+    {
+      "id": "prediction-content-location:gnwt",
+      "predictionId": "prediction-content-location",
+      "theoryId": "gnwt",
+      "expectedResult": "Conscious content is decodable in prefrontal workspace regions as part of global availability.",
+      "discriminatingConsequence": "Prefrontal content coding supports the tested GNWT implementation; its absence under adequate sensitivity challenges that implementation.",
+      "counterexamples": [
+        "sensory hierarchy differences",
+        "task relevance",
+        "regional signal-to-noise",
+        "post-perceptual report",
+        "Task and report preparation",
+        "Unequal measurement sensitivity by region"
+      ],
+      "uncertainty": [
+        "Only one dimension passes, reliability is below the preregistered floor, or positive controls fail.",
+        "Task, report, and post-perceptual activity can mimic workspace signatures.",
+        "The registered tests distinguish specified neural implementations from the broader computational idea of global availability."
+      ],
+      "falsificationCondition": "Neither content dimension exceeds the locked threshold in the theory-linked region despite positive sensory and behavioral controls.",
+      "forbiddenInference": "Passing or failing this contrast cannot establish the presence or absence of consciousness or the truth or falsity of an entire theory family.",
+      "sourceIds": [
+        "cogitate-2025",
+        "iit-4-2023",
+        "gnwt-2020"
+      ]
+    },
+    {
+      "id": "prediction-temporal-maintenance:iit",
+      "predictionId": "prediction-temporal-maintenance",
+      "theoryId": "iit",
+      "expectedResult": "Posterior content-specific activity and interactions persist for the experienced duration.",
+      "discriminatingConsequence": "Sustained posterior evidence supports the specified IIT implementation; absent maintenance challenges it.",
+      "counterexamples": [
+        "sensory adaptation",
+        "working memory",
+        "expectation at offset",
+        "temporal smearing",
+        "Stimulus transients mistaken for theory signatures",
+        "Delayed report and working memory"
+      ],
+      "uncertainty": [
+        "Modalities disagree, duration manipulation fails, or the estimate falls inside the smallest-effect-of-interest interval.",
+        "The registered measurements test selected biological implementation claims, not the complete mathematical theory.",
+        "A failed neural proxy does not establish that every possible IIT implementation is false."
+      ],
+      "falsificationCondition": "The signature remains below threshold with adequate noise ceiling and successful sensory controls in both modalities.",
+      "forbiddenInference": "Temporal signatures alone cannot prove consciousness or conclusively validate or invalidate a whole theory.",
+      "sourceIds": [
+        "cogitate-2025",
+        "iit-4-2023",
+        "gnwt-2020"
+      ]
+    },
+    {
+      "id": "prediction-temporal-maintenance:gnwt",
+      "predictionId": "prediction-temporal-maintenance",
+      "theoryId": "gnwt",
+      "expectedResult": "Brief prefrontal ignition occurs near onset and offset with relatively silent intervening maintenance.",
+      "discriminatingConsequence": "The double-ignition profile supports the specified GNWT implementation; absent offset ignition challenges it.",
+      "counterexamples": [
+        "sensory adaptation",
+        "working memory",
+        "expectation at offset",
+        "temporal smearing",
+        "Stimulus transients mistaken for theory signatures",
+        "Delayed report and working memory"
+      ],
+      "uncertainty": [
+        "Modalities disagree, duration manipulation fails, or the estimate falls inside the smallest-effect-of-interest interval.",
+        "Task, report, and post-perceptual activity can mimic workspace signatures.",
+        "The registered tests distinguish specified neural implementations from the broader computational idea of global availability."
+      ],
+      "falsificationCondition": "The signature remains below threshold with adequate noise ceiling and successful sensory controls in both modalities.",
+      "forbiddenInference": "Temporal signatures alone cannot prove consciousness or conclusively validate or invalidate a whole theory.",
+      "sourceIds": [
+        "cogitate-2025",
+        "iit-4-2023",
+        "gnwt-2020"
+      ]
+    },
+    {
+      "id": "prediction-connectivity-topology:iit",
+      "predictionId": "prediction-connectivity-topology",
+      "theoryId": "iit",
+      "expectedResult": "Sustained short-range posterior interactions dominate the specified contrast.",
+      "discriminatingConsequence": "That topology supports the tested posterior IIT implementation; its reliable absence challenges it.",
+      "counterexamples": [
+        "common input",
+        "signal leakage",
+        "task-driven communication",
+        "anatomical coverage bias",
+        "Volume conduction or spatial leakage",
+        "Common sensory drive"
+      ],
+      "uncertainty": [
+        "Motion, leakage, coverage, or node reliability violates the preregistered quality floor.",
+        "The registered measurements test selected biological implementation claims, not the complete mathematical theory.",
+        "A failed neural proxy does not establish that every possible IIT implementation is false."
+      ],
+      "falsificationCondition": "The predicted topology is absent or directionally reversed despite adequate node reliability and positive controls.",
+      "forbiddenInference": "A connectivity topology is not by itself evidence that consciousness exists or that a complete theory is true.",
+      "sourceIds": [
+        "cogitate-2025",
+        "iit-4-2023",
+        "gnwt-2020"
+      ]
+    },
+    {
+      "id": "prediction-connectivity-topology:gnwt",
+      "predictionId": "prediction-connectivity-topology",
+      "theoryId": "gnwt",
+      "expectedResult": "Long-range interactions between high-level content regions and prefrontal workspace dominate.",
+      "discriminatingConsequence": "That topology supports the tested GNWT implementation; its reliable absence challenges it.",
+      "counterexamples": [
+        "common input",
+        "signal leakage",
+        "task-driven communication",
+        "anatomical coverage bias",
+        "Volume conduction or spatial leakage",
+        "Common sensory drive"
+      ],
+      "uncertainty": [
+        "Motion, leakage, coverage, or node reliability violates the preregistered quality floor.",
+        "Task, report, and post-perceptual activity can mimic workspace signatures.",
+        "The registered tests distinguish specified neural implementations from the broader computational idea of global availability."
+      ],
+      "falsificationCondition": "The predicted topology is absent or directionally reversed despite adequate node reliability and positive controls.",
+      "forbiddenInference": "A connectivity topology is not by itself evidence that consciousness exists or that a complete theory is true.",
+      "sourceIds": [
+        "cogitate-2025",
+        "iit-4-2023",
+        "gnwt-2020"
+      ]
+    },
+    {
+      "id": "prediction-recurrence-necessity:rpt",
+      "predictionId": "prediction-recurrence-necessity",
+      "theoryId": "rpt",
+      "expectedResult": "Selective perturbation of recurrent processing reduces visual awareness despite preserved feedforward encoding.",
+      "discriminatingConsequence": "Selective impairment supports recurrence necessity in the tested task; a precise null with target engagement challenges that claim.",
+      "counterexamples": [
+        "feedforward impairment",
+        "attention capture",
+        "TMS expectancy",
+        "decision noise",
+        "TMS auditory and somatic cues",
+        "Disrupted feedforward encoding rather than recurrence"
+      ],
+      "uncertainty": [
+        "Target engagement fails, feedforward sensitivity is also impaired, or confidence intervals cross both the effect and equivalence bounds.",
+        "Recurrence is widespread and its observation alone may not distinguish conscious processing from attention or inference.",
+        "Causal perturbation can disrupt feedforward evidence or task performance as well as the targeted recurrent computation."
+      ],
+      "falsificationCondition": "Recurrent-window perturbation is equivalent to sham for visibility despite verified target engagement and adequate precision.",
+      "forbiddenInference": "A causal effect on report cannot alone establish consciousness or show that recurrence is sufficient or an entire rival theory is false.",
+      "sourceIds": [
+        "rpt-2006",
+        "rpt-dispute-2010"
+      ]
+    },
+    {
+      "id": "prediction-recurrence-necessity:gnwt",
+      "predictionId": "prediction-recurrence-necessity",
+      "theoryId": "gnwt",
+      "expectedResult": "Local recurrent disruption affects conscious report only when it prevents later global availability.",
+      "discriminatingConsequence": "Mediation by later workspace measures favors a global-availability account over recurrence alone.",
+      "counterexamples": [
+        "feedforward impairment",
+        "attention capture",
+        "TMS expectancy",
+        "decision noise",
+        "TMS auditory and somatic cues",
+        "Disrupted feedforward encoding rather than recurrence"
+      ],
+      "uncertainty": [
+        "Target engagement fails, feedforward sensitivity is also impaired, or confidence intervals cross both the effect and equivalence bounds.",
+        "Task, report, and post-perceptual activity can mimic workspace signatures.",
+        "The registered tests distinguish specified neural implementations from the broader computational idea of global availability."
+      ],
+      "falsificationCondition": "Recurrent-window perturbation is equivalent to sham for visibility despite verified target engagement and adequate precision.",
+      "forbiddenInference": "A causal effect on report cannot alone establish consciousness or show that recurrence is sufficient or an entire rival theory is false.",
+      "sourceIds": [
+        "rpt-2006",
+        "rpt-dispute-2010",
+        "gnwt-2020"
+      ]
+    },
+    {
+      "id": "prediction-metacognitive-dissociation:hot",
+      "predictionId": "prediction-metacognitive-dissociation",
+      "theoryId": "hot",
+      "expectedResult": "Awareness-linked metacognitive change occurs independently of matched first-order discrimination.",
+      "discriminatingConsequence": "A robust dissociation supports a higher-order representation account; a precise null challenges the tested operationalization.",
+      "counterexamples": [
+        "decision noise",
+        "confidence scale use",
+        "memory decay",
+        "response mapping",
+        "First-order performance differences",
+        "Confidence scale and motor response artifacts"
+      ],
+      "uncertainty": [
+        "First-order equivalence fails, model recovery is inadequate, or neural results depend on an unregistered region choice.",
+        "Confidence and metacognitive accuracy are imperfect operational proxies for higher-order representation.",
+        "Higher-order theories do not uniformly require prefrontal cortex, so localization cannot stand in for the whole family."
+      ],
+      "falsificationCondition": "Metacognitive measures are equivalent across conditions with adequate precision and validated manipulation strength.",
+      "forbiddenInference": "Metacognitive efficiency is not a direct meter of consciousness, and localization cannot validate or falsify every higher-order theory.",
+      "sourceIds": [
+        "hot-2011",
+        "hot-pfc-dispute-2024"
+      ]
+    },
+    {
+      "id": "prediction-metacognitive-dissociation:rpt",
+      "predictionId": "prediction-metacognitive-dissociation",
+      "theoryId": "rpt",
+      "expectedResult": "First-order recurrent sensory processing can support perceptual awareness without a necessary metacognitive-efficiency change.",
+      "discriminatingConsequence": "Preserved perceptual report under reduced metacognition is compatible with separating local recurrence from higher-order access.",
+      "counterexamples": [
+        "decision noise",
+        "confidence scale use",
+        "memory decay",
+        "response mapping",
+        "First-order performance differences",
+        "Confidence scale and motor response artifacts"
+      ],
+      "uncertainty": [
+        "First-order equivalence fails, model recovery is inadequate, or neural results depend on an unregistered region choice.",
+        "Recurrence is widespread and its observation alone may not distinguish conscious processing from attention or inference.",
+        "Causal perturbation can disrupt feedforward evidence or task performance as well as the targeted recurrent computation."
+      ],
+      "falsificationCondition": "Metacognitive measures are equivalent across conditions with adequate precision and validated manipulation strength.",
+      "forbiddenInference": "Metacognitive efficiency is not a direct meter of consciousness, and localization cannot validate or falsify every higher-order theory.",
+      "sourceIds": [
+        "hot-2011",
+        "hot-pfc-dispute-2024",
+        "rpt-2006"
+      ]
+    },
+    {
+      "id": "prediction-report-invariance:gnwt",
+      "predictionId": "prediction-report-invariance",
+      "theoryId": "gnwt",
+      "expectedResult": "Task-independent content remains globally available, while some late frontoparietal components vary with report demands.",
+      "discriminatingConsequence": "Cross-condition global content supports availability separated from motor report; report-only activity must not be counted as decisive ignition.",
+      "counterexamples": [
+        "probe contamination",
+        "attention drift",
+        "arousal",
+        "decoder domain shift",
+        "Unverified perception in no-immediate-report trials",
+        "Attention and arousal changes"
+      ],
+      "uncertainty": [
+        "Probe validity, arousal, fixation, or decoder reliability falls below its preregistered floor.",
+        "Task, report, and post-perceptual activity can mimic workspace signatures.",
+        "The registered tests distinguish specified neural implementations from the broader computational idea of global availability."
+      ],
+      "falsificationCondition": "Content decoding does not generalize despite adequate within-condition reliability and validated perception probes.",
+      "forbiddenInference": "Report invariance does not itself demonstrate consciousness and cannot settle the truth of any entire theory family.",
+      "sourceIds": [
+        "cogitate-2025",
+        "gnwt-2020",
+        "rpt-2006",
+        "hot-2011"
+      ]
+    },
+    {
+      "id": "prediction-report-invariance:rpt",
+      "predictionId": "prediction-report-invariance",
+      "theoryId": "rpt",
+      "expectedResult": "Posterior recurrent content signatures persist when immediate report and task relevance are removed.",
+      "discriminatingConsequence": "Report-invariant posterior recurrence supports the tested local account; its absence with valid probes challenges it.",
+      "counterexamples": [
+        "probe contamination",
+        "attention drift",
+        "arousal",
+        "decoder domain shift",
+        "Unverified perception in no-immediate-report trials",
+        "Attention and arousal changes"
+      ],
+      "uncertainty": [
+        "Probe validity, arousal, fixation, or decoder reliability falls below its preregistered floor.",
+        "Recurrence is widespread and its observation alone may not distinguish conscious processing from attention or inference.",
+        "Causal perturbation can disrupt feedforward evidence or task performance as well as the targeted recurrent computation."
+      ],
+      "falsificationCondition": "Content decoding does not generalize despite adequate within-condition reliability and validated perception probes.",
+      "forbiddenInference": "Report invariance does not itself demonstrate consciousness and cannot settle the truth of any entire theory family.",
+      "sourceIds": [
+        "cogitate-2025",
+        "gnwt-2020",
+        "rpt-2006",
+        "hot-2011"
+      ]
+    },
+    {
+      "id": "prediction-report-invariance:hot",
+      "predictionId": "prediction-report-invariance",
+      "theoryId": "hot",
+      "expectedResult": "Higher-order representation can generalize across response modes even if confidence-report activity does not.",
+      "discriminatingConsequence": "A report-invariant higher-order signal supports the tested operationalization, whereas a purely motor-linked signal does not.",
+      "counterexamples": [
+        "probe contamination",
+        "attention drift",
+        "arousal",
+        "decoder domain shift",
+        "Unverified perception in no-immediate-report trials",
+        "Attention and arousal changes"
+      ],
+      "uncertainty": [
+        "Probe validity, arousal, fixation, or decoder reliability falls below its preregistered floor.",
+        "Confidence and metacognitive accuracy are imperfect operational proxies for higher-order representation.",
+        "Higher-order theories do not uniformly require prefrontal cortex, so localization cannot stand in for the whole family."
+      ],
+      "falsificationCondition": "Content decoding does not generalize despite adequate within-condition reliability and validated perception probes.",
+      "forbiddenInference": "Report invariance does not itself demonstrate consciousness and cannot settle the truth of any entire theory family.",
+      "sourceIds": [
+        "cogitate-2025",
+        "gnwt-2020",
+        "rpt-2006",
+        "hot-2011",
+        "hot-pfc-dispute-2024"
+      ]
+    }
+  ]
+}
