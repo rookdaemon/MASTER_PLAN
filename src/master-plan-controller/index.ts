@@ -1,8 +1,4 @@
 export * from './authority.js';
-export * from './auto-merge-service.js';
-export * from './auto-merge-gate.js';
-export * from './await-pr-merge.js';
-export * from './change-classifier.js';
 export * from './guardian.js';
 export * from './controller.js';
 export * from './decomposition.js';
@@ -15,8 +11,6 @@ export * from './graph.js';
 export * from './human-authorization.js';
 export * from './outcome-contracts.js';
 export * from './ports.js';
-export * from './process-adapters.js';
-export * from './proposal-policy.js';
 export * from './periodic-review.js';
 export * from './repository-strategy.js';
 export * from './repository-observation.js';

@@ -55,7 +55,7 @@ export function renderOperatingStateBlock(bundle: RepositoryStrategyBundle): str
   const activePackets = bundle.state.packets.filter((packet) => packet.lifecycle === 'active').length;
   return [
     '- Mode: **automated stewardship**.',
-    `- Safe code/test auto-merge: **${bundle.state.governance.safeAutoMergeEnabled ? 'enabled' : 'disabled'}** subject to checked-in classification and repository controls.`,
+    '- Repository updates use deterministic CI only.',
     `- Reviewed results since the current baseline: **${bundle.state.governance.reviewedResultCount}**.`,
     `- Active work packets: **${activePackets}**.`,
     '- Weekly portfolio and quarterly evidence, weight, and constitutional-risk reviews are scheduled.',

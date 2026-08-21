@@ -3,13 +3,13 @@
 ## Operating model
 
 The human servant leader sets goals, constraints, and constitutional values. The automated
-operating body analyzes evidence, selects bounded work, implements, tests, reviews, retries,
+operating body analyzes evidence, selects bounded work, implements, tests, retries,
 integrates results, and maintains the repository within those constraints. Routine work is not
 transferred to the human merely because it is difficult, novel, uncertain, or temporarily failing.
 
 Only one work packet may be active. Each packet has explicit acceptance criteria, tests or
-preregistration, authority classification, evidence requirements, and a retry identity. Results are
-integrated only after the review required by their risk class.
+preregistration, authority classification, evidence requirements, and a retry identity. Repository
+updates are integrated after deterministic verification.
 
 ## Controller lifecycle
 
@@ -21,22 +21,16 @@ integrated only after the review required by their risk class.
 5. Generate eligible bounded work from stable packet series.
 6. Rank the frontier with preservation receiving lexical priority over expansion.
 7. Execute one packet within its authority boundary.
-8. Review the result independently when policy requires it.
-9. Integrate positive, negative, or null evidence and re-evaluate the graph.
+8. Integrate positive, negative, or null evidence and re-evaluate the graph.
 
 All filesystem, time, network, process, and command-line behavior crosses injectable interfaces.
 Methods receive referenced timestamps from callers; strategy logic does not read ambient time.
 
 ## Authority boundaries
 
-Routine, bounded, backward-incompatible cleanup within the approved repository goal may be executed
-by the operating body when deterministic tests and checked-in policy cover it. Consequential actions
-require bounded plans, evidence, rollback where possible, and fresh independent review.
-
-Changes to plans, doctrine, governance, workflows, dependencies, deployment, network behavior,
-security, or constitutional interpretation use the protected agent-review path. Routine source and
-test changes may use safe auto-merge only when the classifier, behavior tests, blocking checks,
-repository controls, and branch protection all agree.
+Repository updates—including plans, doctrine, governance, workflows, dependencies, deployment,
+network behavior, security, and constitutional interpretation—use the same deterministic CI checks.
+There are no special update classifications, model-review gates, or merge-policy exceptions.
 
 The operating body may publish repository changes, but it does not gain authority to spend money,
 accept legal terms, use owner-held credentials, perform physical acts, operate external hardware,
@@ -54,7 +48,7 @@ Human escalation is allowed only for:
 
 Before escalating, automation records at least two bounded automated alternatives, the evidence for their
 failure, why the remaining act is intrinsically human, and exactly one decision requested. CI
-failures, unavailable reviewers, risk, novelty, and uncertainty remain automation responsibilities.
+failures, risk, novelty, and uncertainty remain automation responsibilities.
 
 ## Constitutional amendment
 
@@ -68,19 +62,14 @@ validation, or implementation without changing their meaning. A normative change
 5. the servant leader's bounded normative decision and supplied timestamp; and
 6. a machine-readable record naming every affected strategy node.
 
-The operating body prepares, tests, independently reviews, and merges the resulting change after
-that decision.
+The operating body prepares, tests, and merges the resulting change after that decision.
 
-## Review and merge policy
+## Update policy
 
 - Deterministic CI must pass type checking, unit and integration tests, documentation verification,
   and strategy verification.
-- Routine code/test changes covered by behavior tests may merge automatically when repository
-  controls are independently verified.
-- Strategy, governance, doctrine, workflow, dependency, deployment, network, security, and other
-  protected changes may use an auditable series of at most twelve commits and require an independent
-  exact-head GitHub agent review and agent-controlled merge. A verified review may run from the
-  protected base or the reviewed branch.
+- No review classifier, agent reviewer, special merge policy, or protected-change exception controls
+  repository updates.
 - Verified results are immutable assessments. Later contradiction creates a superseding assessment.
 - Failed automation selects and records bounded alternatives; it does not ask the human to become a
   retry mechanism.
@@ -89,7 +78,7 @@ that decision.
 
 <!-- GENERATED:OPERATING-STATE:START -->
 - Mode: **automated stewardship**.
-- Safe code/test auto-merge: **enabled** subject to checked-in classification and repository controls.
+- Repository updates use deterministic CI only.
 - Reviewed results since the current baseline: **0**.
 - Active work packets: **0**.
 - Weekly portfolio and quarterly evidence, weight, and constitutional-risk reviews are scheduled.
@@ -120,8 +109,7 @@ The `strategy/` directory contains operational data rather than competing prose:
   and integration behavior plus environment adapters.
 - Independent scientific, cognitive, infrastructure, and simulation modules are research artifacts
   catalogued through [REFERENCE](REFERENCE.md).
-- `.github/workflows/` supplies blocking CI, scheduled review, protected agent review, and narrowly
-  classified safe auto-merge.
+- `.github/workflows/` supplies blocking CI only.
 
 No module's existence implies that its scientific or real-world objective has been achieved.
 

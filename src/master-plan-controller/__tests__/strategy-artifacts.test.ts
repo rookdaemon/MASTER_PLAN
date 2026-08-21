@@ -13,7 +13,7 @@ describe('unversioned repository strategy baseline', () => {
     expect(bundle.state.governance).toEqual({
       mode: 'automated-stewardship',
       reviewedResultCount: 0,
-      safeAutoMergeEnabled: true,
+      safeAutoMergeEnabled: false,
     });
     expect(bundle.state.auditEvents).toEqual([
       expect.objectContaining({ type: 'strategy-baselined', occurredAt: BASELINE_TIME }),

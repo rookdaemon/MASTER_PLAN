@@ -75,10 +75,7 @@ function boundedAnalysisResult(
       method: 'Deterministic transformation of checked-in, independently reviewed repository evidence.',
       source: artifactPath,
       strength: 0.55,
-      limitations: [
-        ...limitations,
-        'Independent agent review is required before this result can be integrated.',
-      ],
+      limitations,
       supportedHypotheses: [],
       falsifiedHypotheses: [],
       verifier: 'deterministic-packet-executor:v1',

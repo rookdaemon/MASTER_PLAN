@@ -25,7 +25,7 @@ const CONFIG: RepositoryControlObservationConfig = {
   branch: 'main',
   hypothesisId: 'hypothesis-live-stewardship-controls-aligned',
   branchProtected: true,
-  requiredStatusChecks: ['typecheck', 'test', 'strategy-verify', 'proposal-review', 'agent-review'],
+  requiredStatusChecks: ['typecheck', 'test', 'strategy-verify'],
   enforceAdmins: true,
 };
 const PUBLIC_URL = 'https://sources.example.test/works?from={windowStart}&until={now}';

@@ -13,11 +13,7 @@
     "strategy:review": "tsx src/master-plan-controller/cli/periodic-review-main.ts",
     "strategy:generate": "tsx src/master-plan-controller/cli/generate-candidates-main.ts",
     "strategy:execute": "tsx src/master-plan-controller/cli/execute-packet-main.ts",
-    "strategy:integrate-reviewed-execution": "tsx src/master-plan-controller/cli/integrate-reviewed-execution-main.ts",
-    "strategy:await-pr-merge": "tsx src/master-plan-controller/cli/await-pr-merge-main.ts",
     "strategy:integrate-result": "tsx src/master-plan-controller/cli/integrate-result-main.ts",
-    "governance:classify": "tsx src/master-plan-controller/cli/classify-change.ts",
-    "auto-merge:evaluate": "tsx src/master-plan-controller/cli/evaluate-auto-merge.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

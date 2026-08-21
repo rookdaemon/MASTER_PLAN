@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { executeRepositoryPacket, integrateReviewedRepositoryExecution } from '../repository-packet-execution.js';
+import { executeRepositoryPacket } from '../repository-packet-execution.js';
 import { runPacketExecutionCli } from '../cli/execute-packet.js';
-import { runReviewedExecutionIntegrationCli } from '../cli/integrate-reviewed-execution.js';
 import { NodeFileSystem } from '../runtime-adapters.js';
 import { InMemoryFileSystem } from '../testing/in-memory-adapters.js';
 import type { FileSystemPort } from '../ports.js';
@@ -115,7 +114,7 @@ describe('repository packet execution', () => {
     expect(execution.verification).toBeUndefined();
     expect(execution.artifactReferences).toContain(result.artifactPath);
     expect(execution.evidence[0].observedAt).toBe(now);
-    expect(execution.evidence[0].limitations.join(' ')).toMatch(/independent agent review/i);
+    expect(execution.evidence[0].limitations.join(' ')).toMatch(/repository artifact|real-world outcome/i);
   });
 
   it.each([
@@ -175,7 +174,7 @@ describe('repository packet execution', () => {
     expect(['positive', 'negative', 'null']).toContain(result.outcome);
     expect(result.verification).toBeUndefined();
     expect(result.evidence[0].observedAt).toBe(now);
-    expect(result.evidence[0].limitations.join(' ')).toMatch(/agent review/i);
+      expect(result.evidence[0].limitations.join(' ')).toMatch(/artifact|simulation|external|physical|observed|supplied/i);
   });
 
   it('routes a later explicitly numbered run to its family executor', async () => {
@@ -264,67 +263,4 @@ describe('repository packet execution', () => {
     await expect(runPacketExecutionCli(fileSystem, [now, 'extra'])).rejects.toThrow(/usage.*timestamp/i);
   });
 
-  it('binds an exact-head agent attestation before integrating the reviewed result', async () => {
-    const { fileSystem, now } = await executableRepository();
-    const execution = await executeRepositoryPacket(fileSystem, now);
-    const reviewedAt = advanceTimestamp(now);
-    const integratedAt = advanceTimestamp(reviewedAt);
-
-    const integrated = await integrateReviewedRepositoryExecution(fileSystem, {
-      packetId: execution.packetId!,
-      resultPath: execution.resultPath!,
-      reviewer: 'github-hosted-agent-review',
-      reviewRunId: '30872448965',
-      reviewedHeadSha: '0123456789abcdef0123456789abcdef01234567',
-      reviewedAt,
-    }, integratedAt);
-
-    expect(integrated.event.type).toBe('packet-verified');
-    const result = JSON.parse(await fileSystem.readText(execution.resultPath!)) as {
-      verification: { status: string; verifier: string; reviewedAt: string };
-      evidence: Array<{ verifier: string }>;
-    };
-    expect(result.verification).toEqual({
-      status: 'passed',
-      verifier: 'github-hosted-agent-review:run:30872448965:head:0123456789abcdef0123456789abcdef01234567',
-      reviewedAt,
-    });
-    expect(result.evidence.every((record) => record.verifier === result.verification.verifier)).toBe(true);
-    const packets = JSON.parse(await fileSystem.readText('strategy/work-packets.json')) as Array<{ id: string; lifecycle: string }>;
-    expect(packets.find((packet) => packet.id === execution.packetId)?.lifecycle).toBe('verified');
-  });
-
-  it('rejects malformed or future review attestations before integration', async () => {
-    const { fileSystem, now } = await executableRepository();
-    const execution = await executeRepositoryPacket(fileSystem, now);
-    const resultBefore = await fileSystem.readText(execution.resultPath!);
-
-    await expect(integrateReviewedRepositoryExecution(fileSystem, {
-      packetId: execution.packetId!,
-      resultPath: execution.resultPath!,
-      reviewer: '',
-      reviewRunId: 'not-a-run',
-      reviewedHeadSha: 'not-a-sha',
-      reviewedAt: advanceTimestamp(now, 2),
-    }, advanceTimestamp(now))).rejects.toThrow(/attestation/i);
-
-    expect(await fileSystem.readText(execution.resultPath!)).toBe(resultBefore);
-    const packets = JSON.parse(await fileSystem.readText('strategy/work-packets.json')) as Array<{ id: string; lifecycle: string }>;
-    expect(packets.find((packet) => packet.id === execution.packetId)?.lifecycle).toBe('eligible');
-  });
-
-  it('accepts explicit review provenance through the injected integration CLI', async () => {
-    const { fileSystem, now } = await executableRepository();
-    const execution = await executeRepositoryPacket(fileSystem, now);
-    const reviewedAt = advanceTimestamp(now);
-    const integratedAt = advanceTimestamp(reviewedAt);
-    const output = await runReviewedExecutionIntegrationCli(fileSystem, [
-      execution.packetId!, execution.resultPath!, 'github-hosted-agent-review', '42',
-      'abcdefabcdefabcdefabcdefabcdefabcdefabcd', reviewedAt, integratedAt,
-    ]);
-
-    expect(output).toContain(execution.packetId!);
-    expect(output).toContain('packet-verified');
-    await expect(runReviewedExecutionIntegrationCli(fileSystem, [])).rejects.toThrow(/usage/i);
-  });
 });

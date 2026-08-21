@@ -65,8 +65,8 @@ function reviewedResult(): PacketResult {
     ],
     evidence: [{
       id: 'evidence-preservation-mitigation-tabletop-reviewed',
-      claim: 'The repository risk-register artifact satisfies its schema and received independent agent review.',
-      method: 'CI, exact-head independent agent review, and a pinned local-model review of pull request 116.',
+      claim: 'The repository risk-register artifact satisfies its schema and deterministic checks.',
+      method: 'Schema validation and deterministic CI verification.',
       source: 'https://github.com/rookdaemon/MASTER_PLAN/pull/116',
       strength: 0.9,
       limitations: [
@@ -74,14 +74,14 @@ function reviewedResult(): PacketResult {
       ],
       supportedHypotheses: [],
       falsifiedHypotheses: [],
-      verifier: 'independent-agent-review:4848516713',
+      verifier: 'deterministic-packet-executor:v1',
       observedAt: REVIEWED_AT,
       outcome: 'positive',
     }],
     acceptanceCriteriaMet: true,
     verification: {
       status: 'passed',
-      verifier: 'independent-agent-review:4848516713',
+      verifier: 'deterministic-packet-executor:v1',
       reviewedAt: REVIEWED_AT,
     },
     portfolioEffortAfter: {
@@ -145,7 +145,7 @@ describe('repository packet-result integration', () => {
       candidate.nodeId === 'capability-near-term-preservation' && candidate.metricId === 'risk-register-coverage');
     if (!contract) throw new Error('Expected preservation outcome contract');
     contract.allowedSourcePrefixes = ['https://github.com/rookdaemon/MASTER_PLAN/'];
-    contract.requiredVerifierPrefix = 'independent-agent-review:';
+    contract.requiredVerifierPrefix = 'deterministic-packet-executor:';
     initial['strategy/outcome-contracts.json'] = `${JSON.stringify(contracts, null, 2)}\n`;
     const fileSystem = new InMemoryFileSystem(initial);
     const result = reviewedResult();

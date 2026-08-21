@@ -1,16 +1,9 @@
 import type {
-  AutoMergeAssessment,
-  DiffFile,
-  RepositoryControls,
-} from '../authority.js';
-import type {
   ClockPort,
   ContentFingerprintPort,
   ExecutionResult,
   ExternalDataPort,
   FileSystemPort,
-  GitHubPort,
-  GitPort,
   NetworkPort,
   NetworkRequest,
   NetworkResponse,
@@ -100,39 +93,6 @@ export class InMemoryProcess implements ProcessPort {
     const result = this.results.shift();
     if (!result) throw new Error('No in-memory process result queued');
     return structuredClone(result);
-  }
-}
-
-export class InMemoryGit implements GitPort {
-  readonly preparedBranches: string[] = [];
-
-  constructor(private readonly changedFiles: DiffFile[] = []) {}
-
-  async diff(_base: string, _head: string): Promise<DiffFile[]> {
-    return structuredClone(this.changedFiles);
-  }
-
-  async prepareBranch(name: string): Promise<void> {
-    this.preparedBranches.push(name);
-  }
-}
-
-export class InMemoryGitHub implements GitHubPort {
-  readonly autoMergeRequests: number[] = [];
-  readonly assessments: Array<{ pullRequestNumber: number; assessment: AutoMergeAssessment }> = [];
-
-  constructor(private readonly controls: RepositoryControls) {}
-
-  async getRepositoryControls(): Promise<RepositoryControls> {
-    return structuredClone(this.controls);
-  }
-
-  async requestAutoMerge(pullRequestNumber: number): Promise<void> {
-    this.autoMergeRequests.push(pullRequestNumber);
-  }
-
-  async recordAssessment(pullRequestNumber: number, assessment: AutoMergeAssessment): Promise<void> {
-    this.assessments.push({ pullRequestNumber, assessment: structuredClone(assessment) });
   }
 }
 
