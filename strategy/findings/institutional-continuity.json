@@ -1,0 +1,688 @@
+{
+  "kind": "institutional-continuity",
+  "synthesizedAt": "2026-08-17T00:00:00.000Z",
+  "scope": {
+    "performsOutreach": false,
+    "changesGovernance": false,
+    "claimsExternalContinuity": false
+  },
+  "sources": [
+    {
+      "id": "source-repository",
+      "url": "https://github.com/rookdaemon/MASTER_PLAN",
+      "accessedAt": "2026-08-03T23:25:00.000Z",
+      "limitations": [
+        "A public repository exposes code and history but not private account-recovery, billing, credential, or off-platform backup state.",
+        "Repository artifacts demonstrate controls and plans, not institutional adoption or successful recovery."
+      ]
+    },
+    {
+      "id": "source-github-ownership-continuity",
+      "url": "https://docs.github.com/en/organizations/managing-peoples-access-to-your-organization-with-roles/maintaining-ownership-continuity-for-your-organization",
+      "accessedAt": "2026-08-03T23:25:00.000Z",
+      "limitations": [
+        "The guidance is written for GitHub organizations, whereas MASTER_PLAN is currently a personal-account repository.",
+        "Adding an organization owner would be an external governance action outside this packet."
+      ]
+    },
+    {
+      "id": "source-github-protected-branches",
+      "url": "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches",
+      "accessedAt": "2026-08-03T23:25:00.000Z",
+      "limitations": [
+        "Branch protection reduces accidental or unauthorized changes but does not eliminate repository-owner, platform, dependency, or credential compromise.",
+        "Documentation describes available controls rather than proving this repository's live configuration."
+      ]
+    },
+    {
+      "id": "source-github-transfer",
+      "url": "https://docs.github.com/en/repositories/creating-and-managing-repositories/transferring-a-repository",
+      "accessedAt": "2026-08-03T23:25:00.000Z",
+      "limitations": [
+        "Transfer requires repository administration and recipient acceptance and can alter feature availability.",
+        "A transfer procedure does not establish a willing successor or legal continuity."
+      ]
+    },
+    {
+      "id": "source-github-codeowners",
+      "url": "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners",
+      "accessedAt": "2026-08-03T23:25:00.000Z",
+      "limitations": [
+        "Code owners need explicit write access and cannot create an independent human reviewer in a single-developer repository.",
+        "MASTER_PLAN has no checked-in CODEOWNERS file at the assessment timestamp."
+      ]
+    },
+    {
+      "id": "source-github-actions-billing",
+      "url": "https://docs.github.com/en/billing/concepts/product-billing/github-actions",
+      "accessedAt": "2026-08-03T23:25:00.000Z",
+      "limitations": [
+        "Pricing, quotas, and product terms can change after this assessment.",
+        "Public standard GitHub-hosted runners are currently free, but external model downloads and future services create separate availability risks."
+      ]
+    },
+    {
+      "id": "source-nist-contingency-planning",
+      "url": "https://nvlpubs.nist.gov/nistpubs/legacy/sp/nistspecialpublication800-34r1.pdf",
+      "accessedAt": "2026-08-03T23:25:00.000Z",
+      "limitations": [
+        "NIST SP 800-34 Rev. 1 targets US federal information systems and needs proportional adaptation for a public single-maintainer repository.",
+        "It supplies planning guidance, not evidence that MASTER_PLAN backups or recovery exercises exist."
+      ]
+    },
+    {
+      "id": "source-cisa-iam-practices",
+      "url": "https://www.cisa.gov/sites/default/files/2023-12/ESF%20IDENTITY%20AND%20ACCESS%20MANAGEMENT%20RECOMMENDED%20BEST%20PRACTICES%20FOR%20ADMINISTRATORS%20PP-23-0248_508C.pdf",
+      "accessedAt": "2026-08-03T23:25:00.000Z",
+      "limitations": [
+        "The guidance addresses larger operational environments and does not reveal this maintainer's private credential controls.",
+        "Public evidence cannot safely verify recovery codes, authentication factors, or secret custody."
+      ]
+    },
+    {
+      "id": "source-cisa-succession",
+      "url": "https://www.cisa.gov/sites/default/files/publications/emergency-services-sector-continuity-planning-suite-worksheet-2-orders-of-succession-022018-508.pdf",
+      "accessedAt": "2026-08-03T23:25:00.000Z",
+      "limitations": [
+        "The worksheet targets emergency-services organizations and is used here only for the general principle of predefined succession depth and breadth.",
+        "It does not identify or authorize a successor for MASTER_PLAN."
+      ]
+    },
+    {
+      "id": "source-openssf-scorecard",
+      "url": "https://openssf.org/scorecard/",
+      "accessedAt": "2026-08-03T23:25:00.000Z",
+      "limitations": [
+        "Scorecard indicators estimate open-source security posture and cannot guarantee workflow, dependency, or model integrity.",
+        "No checked-in Scorecard run is present, so this source currently supports a candidate control rather than attained readiness."
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "dependency-source-history",
+      "category": "source custody and recoverability",
+      "sourceIds": [
+        "source-repository",
+        "source-nist-contingency-planning"
+      ],
+      "repositoryArtifact": {
+        "status": "present-but-single-platform",
+        "references": [
+          "https://github.com/rookdaemon/MASTER_PLAN",
+          "docs/OPERATIONS.md"
+        ],
+        "limitations": [
+          "Ordinary Git history is public, but no independently hosted mirror, offline bundle manifest, or restore-drill record is checked in."
+        ]
+      },
+      "evidence": {
+        "strength": "moderate",
+        "basis": "The public repository and preserved history are directly observable; recoverability outside GitHub is not.",
+        "limitations": [
+          "Clone availability is not evidence of scheduled backup, custody diversity, integrity checking, or successful restoration."
+        ]
+      },
+      "readiness": {
+        "status": "partial",
+        "prerequisites": [
+          "Automated cryptographic repository bundles",
+          "A separately administered mirror or durable archive",
+          "Periodic isolated restore tests"
+        ],
+        "gaps": [
+          "No verified off-platform copy",
+          "No recovery-point or recovery-time objective",
+          "No restore exercise evidence"
+        ]
+      },
+      "externalOutcome": {
+        "status": "not-verified",
+        "statement": "No external archive custodian or demonstrated recovery outcome has been verified."
+      }
+    },
+    {
+      "id": "dependency-hosting-control-plane",
+      "category": "hosting and administrative control plane",
+      "sourceIds": [
+        "source-repository",
+        "source-github-protected-branches",
+        "source-github-transfer"
+      ],
+      "repositoryArtifact": {
+        "status": "active-with-protected-main",
+        "references": [
+          "strategy/branch-protection.json",
+          ".github/workflows/ci.yml"
+        ],
+        "limitations": [
+          "The repository depends on one hosting provider and live owner administration; checked-in policy cannot restore a suspended or lost account."
+        ]
+      },
+      "evidence": {
+        "strength": "moderate",
+        "basis": "The public repository is directly observable and its checked-in branch-protection record reports strict required checks, enforced administrator protection, and disabled force-push and deletion.",
+        "limitations": [
+          "The checked-in policy is not an immutable capture of the live GitHub API response and does not prove future GitHub availability or prevent owner-level configuration change."
+        ]
+      },
+      "readiness": {
+        "status": "partial",
+        "prerequisites": [
+          "Continuously verified protection drift",
+          "Provider-independent recovery path",
+          "Tested repository transfer or re-publication runbook"
+        ],
+        "gaps": [
+          "Single hosting control plane",
+          "No checked-in transfer drill",
+          "No verified alternate publication endpoint"
+        ]
+      },
+      "externalOutcome": {
+        "status": "not-verified",
+        "statement": "Continuous public availability and successful provider migration have not been verified."
+      }
+    },
+    {
+      "id": "dependency-owner-identity",
+      "category": "identity, credentials, and account recovery",
+      "sourceIds": [
+        "source-github-ownership-continuity",
+        "source-cisa-iam-practices",
+        "source-repository"
+      ],
+      "repositoryArtifact": {
+        "status": "single-owner-visible-private-controls-unknown",
+        "references": [
+          "AGENTS.md",
+          "strategy/AUTHORITY.md"
+        ],
+        "limitations": [
+          "The public repository shows one personal-account owner but must not expose or infer private MFA, recovery-code, passkey, or legal-estate arrangements."
+        ]
+      },
+      "evidence": {
+        "strength": "moderate",
+        "basis": "Single ownership is directly visible and official guidance identifies unreachable sole ownership as a continuity risk; private recovery posture is unobservable.",
+        "limitations": [
+          "Absence of public recovery evidence is not evidence that secure private recovery controls are absent."
+        ]
+      },
+      "readiness": {
+        "status": "not-ready",
+        "prerequisites": [
+          "Privately verified phishing-resistant authentication",
+          "Documented owner recovery and emergency-access procedure",
+          "A successor structure that does not disclose secrets"
+        ],
+        "gaps": [
+          "Sole public owner",
+          "No public evidence of delegated emergency authority",
+          "Owner credential and legal transfer remain intrinsically non-automatable at the final act"
+        ]
+      },
+      "externalOutcome": {
+        "status": "not-verified",
+        "statement": "No independent successor with effective account authority has been verified."
+      }
+    },
+    {
+      "id": "dependency-ci-review-supply-chain",
+      "category": "continuous integration, agent review, and software supply chain",
+      "sourceIds": [
+        "source-repository",
+        "source-github-protected-branches",
+        "source-openssf-scorecard"
+      ],
+      "repositoryArtifact": {
+        "status": "automated-and-pinned-in-part",
+        "references": [
+          ".github/workflows/agent-review.yml",
+          ".github/workflows/proposal-review.yml",
+          "strategy/branch-protection.json"
+        ],
+        "limitations": [
+          "Hosted runners, package registries, downloaded reviewer binaries, model hosting, and GitHub Actions remain external dependencies despite checksum pins and exact-head checks."
+        ]
+      },
+      "evidence": {
+        "strength": "strong",
+        "basis": "Required workflows, pinned reviewer assets, prompt-injection canaries, deterministic tests, and exact-head review binding are inspectable repository artifacts.",
+        "limitations": [
+          "Artifact inspection does not establish compromise resistance of every transitive package, runner image, or upstream service."
+        ]
+      },
+      "readiness": {
+        "status": "partial",
+        "prerequisites": [
+          "Automated dependency and action provenance inventory",
+          "Offline deterministic verification path",
+          "Periodic reviewer and supply-chain adversarial tests"
+        ],
+        "gaps": [
+          "No checked-in OpenSSF Scorecard result",
+          "No complete software bill of materials",
+          "Hosted workflow availability remains provider-coupled"
+        ]
+      },
+      "externalOutcome": {
+        "status": "not-verified",
+        "statement": "No external assurance or incident-tested supply-chain recovery outcome has been verified."
+      }
+    },
+    {
+      "id": "dependency-governance-integrity",
+      "category": "constitutional and governance integrity",
+      "sourceIds": [
+        "source-repository",
+        "source-github-protected-branches",
+        "source-github-codeowners"
+      ],
+      "repositoryArtifact": {
+        "status": "agent-reviewed-policy",
+        "references": [
+          "strategy/CONSTITUTION.md",
+          "strategy/AUTHORITY.md",
+          "strategy/constitution.json",
+          "strategy/audit-log.json"
+        ],
+        "limitations": [
+          "A single GitHub owner ultimately retains platform authority, and repository rules cannot by themselves resolve competing off-platform claims to identity, name, assets, or doctrine."
+        ]
+      },
+      "evidence": {
+        "strength": "strong",
+        "basis": "Constitutional directives, amendment records, authority boundaries, protected-change classification, and audit state are public and test-checked.",
+        "limitations": [
+          "Internal consistency does not demonstrate recognition by an external institution or eliminate owner capture."
+        ]
+      },
+      "readiness": {
+        "status": "partial",
+        "prerequisites": [
+          "Cryptographically anchored releases and policy snapshots",
+          "Automated detection of unauthorized policy drift",
+          "A documented fork and schism provenance protocol"
+        ],
+        "gaps": [
+          "No independent institution recognizes the constitution",
+          "No name or trademark continuity rule",
+          "No tested resolution process for mutually incompatible legitimate forks"
+        ]
+      },
+      "externalOutcome": {
+        "status": "not-verified",
+        "statement": "Durable recognition of MASTER_PLAN governance by any independent institution has not been verified."
+      }
+    },
+    {
+      "id": "dependency-maintainer-succession",
+      "category": "maintainer knowledge and succession",
+      "sourceIds": [
+        "source-cisa-succession",
+        "source-github-ownership-continuity",
+        "source-github-transfer",
+        "source-repository"
+      ],
+      "repositoryArtifact": {
+        "status": "documented-automation-without-successor",
+        "references": [
+          "AGENTS.md",
+          "docs/OPERATIONS.md",
+          "docs/PLAN.md"
+        ],
+        "limitations": [
+          "Repository documentation supports agent operation but no qualified successor, succession order, acceptance record, or transfer rehearsal is present."
+        ]
+      },
+      "evidence": {
+        "strength": "moderate",
+        "basis": "Automation instructions and operating state are directly inspectable, while the absence of a publicly identified successor is observable only at repository scope.",
+        "limitations": [
+          "Private succession plans may exist; no inference is made about the maintainer's health, availability, intentions, or estate."
+        ]
+      },
+      "readiness": {
+        "status": "not-ready",
+        "prerequisites": [
+          "Machine-executable stewardship runbook",
+          "Predefined succession depth greater than one",
+          "Periodic no-owner continuity exercise"
+        ],
+        "gaps": [
+          "No verified successor",
+          "No transfer acceptance",
+          "No drill proving automated stewardship survives owner unavailability"
+        ]
+      },
+      "externalOutcome": {
+        "status": "not-verified",
+        "statement": "No continuity of stewardship beyond the current owner has been demonstrated."
+      }
+    },
+    {
+      "id": "dependency-funding-services",
+      "category": "funding, billing, and paid-service continuity",
+      "sourceIds": [
+        "source-github-actions-billing",
+        "source-repository"
+      ],
+      "repositoryArtifact": {
+        "status": "public-free-tier-with-uninventoried-external-costs",
+        "references": [
+          ".github/workflows/agent-review.yml",
+          "package.json",
+          "strategy/work-packets.json"
+        ],
+        "limitations": [
+          "The public repository uses standard public GitHub-hosted runners, but it contains no complete service inventory, budget, funding source, payment authority, or cost forecast."
+        ]
+      },
+      "evidence": {
+        "strength": "weak",
+        "basis": "Official billing documentation and public workflow configuration show current free-runner eligibility, but account billing state and wider program costs are private or unspecified.",
+        "limitations": [
+          "No outreach, fundraising, account billing inspection, or financial commitment was performed; future pricing and resource demand are unknown."
+        ]
+      },
+      "readiness": {
+        "status": "not-ready",
+        "prerequisites": [
+          "Automated inventory of free and paid dependencies",
+          "Explicit cost ceilings and degradation paths",
+          "A legally authorized funding mechanism only when expenditure becomes necessary"
+        ],
+        "gaps": [
+          "No verified budget",
+          "No funding institution",
+          "No tested zero-cost fallback for every external service"
+        ]
+      },
+      "externalOutcome": {
+        "status": "not-verified",
+        "statement": "No durable funding source, reserve, or payment continuity has been verified."
+      }
+    },
+    {
+      "id": "dependency-knowledge-preservation",
+      "category": "evidence, doctrine, and operational knowledge preservation",
+      "sourceIds": [
+        "source-repository",
+        "source-nist-contingency-planning",
+        "source-cisa-succession"
+      ],
+      "repositoryArtifact": {
+        "status": "substantial-current-record",
+        "references": [
+          "docs/PLAN.md",
+          "strategy/evidence.json",
+          "strategy/findings/preservation-risks.json",
+          "strategy/findings/institutional-continuity.json"
+        ],
+        "limitations": [
+          "Checked-in records are substantial but lack a format-migration policy, independently verified backup, recovery exercise, and external comprehension test."
+        ]
+      },
+      "evidence": {
+        "strength": "strong",
+        "basis": "The repository contains a machine-readable strategy, evidence limits, result provenance, and consolidated current findings.",
+        "limitations": [
+          "Readable files do not prove that future agents or institutions can reconstruct intent, validate dependencies, or operate the system after loss."
+        ]
+      },
+      "readiness": {
+        "status": "partial",
+        "prerequisites": [
+          "Automated archive validation",
+          "Periodic format migration and restore rehearsal",
+          "Independent cold-start comprehension test"
+        ],
+        "gaps": [
+          "No off-platform preservation evidence",
+          "No recovery exercise",
+          "No external custodian or reader validation"
+        ]
+      },
+      "externalOutcome": {
+        "status": "not-verified",
+        "statement": "Long-horizon intelligibility and successful doctrine transmission have not been verified."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "dependency-owner-identity",
+      "to": "dependency-hosting-control-plane",
+      "failurePropagation": "Loss or compromise of the sole owner account can prevent administration or permit hostile control-plane changes."
+    },
+    {
+      "from": "dependency-hosting-control-plane",
+      "to": "dependency-source-history",
+      "failurePropagation": "Provider loss or repository suspension can remove the primary public source and history endpoint."
+    },
+    {
+      "from": "dependency-hosting-control-plane",
+      "to": "dependency-ci-review-supply-chain",
+      "failurePropagation": "GitHub control-plane or Actions failure stops required checks and hosted agent-review orchestration."
+    },
+    {
+      "from": "dependency-source-history",
+      "to": "dependency-knowledge-preservation",
+      "failurePropagation": "Loss or corruption of source history removes evidence, decisions, and migration context."
+    },
+    {
+      "from": "dependency-governance-integrity",
+      "to": "dependency-ci-review-supply-chain",
+      "failurePropagation": "Captured policy can weaken required checks or redefine which changes qualify for automated merge."
+    },
+    {
+      "from": "dependency-ci-review-supply-chain",
+      "to": "dependency-governance-integrity",
+      "failurePropagation": "A compromised reviewer or dependency can falsely validate a governance-changing head."
+    },
+    {
+      "from": "dependency-maintainer-succession",
+      "to": "dependency-owner-identity",
+      "failurePropagation": "Without predefined succession, owner unavailability leaves account recovery and transfer authority unresolved."
+    },
+    {
+      "from": "dependency-knowledge-preservation",
+      "to": "dependency-maintainer-succession",
+      "failurePropagation": "Incomplete or unintelligible records prevent a successor or new agent from reconstructing safe operations."
+    },
+    {
+      "from": "dependency-funding-services",
+      "to": "dependency-hosting-control-plane",
+      "failurePropagation": "Pricing or billing changes can disable paid hosting capabilities or block necessary administrative actions."
+    },
+    {
+      "from": "dependency-funding-services",
+      "to": "dependency-ci-review-supply-chain",
+      "failurePropagation": "Loss of funded compute, storage, or model access can halt independent automated review and testing."
+    },
+    {
+      "from": "dependency-governance-integrity",
+      "to": "dependency-maintainer-succession",
+      "failurePropagation": "Ambiguous authority or incompatible doctrine makes it unclear what a successor is obligated to preserve."
+    },
+    {
+      "from": "dependency-owner-identity",
+      "to": "dependency-governance-integrity",
+      "failurePropagation": "Sole-owner capture can override platform settings even when the public constitutional record remains intact."
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "capture",
+      "triggers": [
+        "Owner-account compromise",
+        "Unauthorized weakening of required checks",
+        "Reviewer or workflow supply-chain compromise"
+      ],
+      "affectedDependencyIds": [
+        "dependency-owner-identity",
+        "dependency-hosting-control-plane",
+        "dependency-ci-review-supply-chain",
+        "dependency-governance-integrity"
+      ],
+      "candidateAutomatedControls": [
+        {
+          "description": "Continuously compare live branch protection with strategy/branch-protection.json and fail closed on drift",
+          "status": "planned",
+          "evidenceReferences": [
+            "strategy/branch-protection.json",
+            "source-github-protected-branches"
+          ]
+        },
+        {
+          "description": "Bind CI and independent agent review to the exact pull-request head",
+          "status": "present",
+          "evidenceReferences": [
+            ".github/workflows/agent-review.yml",
+            ".github/workflows/safe-auto-merge-request.yml"
+          ]
+        },
+        {
+          "description": "Preserve signed or content-addressed policy and release snapshots on a provider-independent mirror",
+          "status": "planned",
+          "evidenceReferences": [
+            "source-nist-contingency-planning"
+          ]
+        }
+      ],
+      "residualGap": "A sole platform owner or compromised hosting provider can still exercise powers outside repository checks, and no independent institutional authority currently exists.",
+      "humanEscalation": "Escalate only if restoration requires truly unautomatable owner-held credential recovery, legal identity proof, or physical custody after two automated recovery paths fail."
+    },
+    {
+      "id": "schism",
+      "triggers": [
+        "Two forks claim authoritative stewardship",
+        "Constitutional histories diverge",
+        "Name or asset control separates from the best-preserved doctrine"
+      ],
+      "affectedDependencyIds": [
+        "dependency-governance-integrity",
+        "dependency-source-history",
+        "dependency-knowledge-preservation",
+        "dependency-maintainer-succession"
+      ],
+      "candidateAutomatedControls": [
+        {
+          "description": "Publish content-addressed constitution, decision, evidence, and audit snapshots",
+          "status": "planned",
+          "evidenceReferences": [
+            "strategy/CONSTITUTION.md",
+            "strategy/audit-log.json"
+          ]
+        },
+        {
+          "description": "Generate a deterministic divergence report identifying each fork's last common verified state",
+          "status": "planned",
+          "evidenceReferences": [
+            "strategy/constitution.json",
+            "strategy/audit-log.json"
+          ]
+        },
+        {
+          "description": "Prefer the lineage preserving G1-G3, evidence limits, and exact-head independent review without inferring legal ownership",
+          "status": "present",
+          "evidenceReferences": [
+            "strategy/CONSTITUTION.md",
+            "strategy/AUTHORITY.md",
+            ".github/workflows/agent-review.yml"
+          ]
+        }
+      ],
+      "residualGap": "Automation can establish provenance and policy consistency but cannot settle external legal rights or a genuinely underdetermined conflict between constitutional values.",
+      "humanEscalation": "Escalate only if a truly unautomatable legal consent question or unresolved constitutional conflict remains after at least two documented automated reconciliations."
+    },
+    {
+      "id": "succession",
+      "triggers": [
+        "Owner becomes unreachable",
+        "Credentials cannot be renewed",
+        "Operational knowledge is no longer available from the maintainer"
+      ],
+      "affectedDependencyIds": [
+        "dependency-maintainer-succession",
+        "dependency-owner-identity",
+        "dependency-knowledge-preservation",
+        "dependency-hosting-control-plane"
+      ],
+      "candidateAutomatedControls": [
+        {
+          "description": "Maintain machine-readable stewardship rules and operating records in the public repository",
+          "status": "present",
+          "evidenceReferences": [
+            "AGENTS.md",
+            "docs/OPERATIONS.md",
+            "docs/PLAN.md"
+          ]
+        },
+        {
+          "description": "Create and verify provider-independent encrypted or public repository bundles on a schedule",
+          "status": "planned",
+          "evidenceReferences": [
+            "source-nist-contingency-planning"
+          ]
+        },
+        {
+          "description": "Run periodic cold-start exercises using an independent agent with no unstated maintainer context",
+          "status": "planned",
+          "evidenceReferences": [
+            "source-cisa-succession"
+          ]
+        }
+      ],
+      "residualGap": "No successor presently has verified authority to transfer the personal-account repository or exercise private legal and credential rights.",
+      "humanEscalation": "Escalate only if the final transfer requires truly unautomatable owner credentials, legal consent, or physical recovery material after at least two automated mirroring and reconstruction alternatives fail."
+    },
+    {
+      "id": "funding",
+      "triggers": [
+        "A currently free service becomes paid",
+        "Compute or storage usage exceeds a configured ceiling",
+        "A required external provider discontinues service"
+      ],
+      "affectedDependencyIds": [
+        "dependency-funding-services",
+        "dependency-ci-review-supply-chain",
+        "dependency-hosting-control-plane",
+        "dependency-source-history"
+      ],
+      "candidateAutomatedControls": [
+        {
+          "description": "Inventory service dependencies, prices, quotas, and zero-cost substitutes without purchasing them",
+          "status": "planned",
+          "evidenceReferences": [
+            "source-github-actions-billing",
+            ".github/workflows/agent-review.yml"
+          ]
+        },
+        {
+          "description": "Enforce cost ceilings and degrade to local deterministic checks and mirrors",
+          "status": "planned",
+          "evidenceReferences": [
+            "source-github-actions-billing",
+            "package.json"
+          ]
+        },
+        {
+          "description": "Rank and test provider-independent alternatives before any funding request",
+          "status": "planned",
+          "evidenceReferences": [
+            "strategy/AUTHORITY.md",
+            "source-github-actions-billing"
+          ]
+        }
+      ],
+      "residualGap": "There is no verified funding institution or legal payment authority, and some future minimum viable service may have no adequate free substitute.",
+      "humanEscalation": "Escalate only if a necessary payment or contract requires truly unautomatable legal consent after at least two automated no-cost or lower-cost alternatives fail; outreach and fundraising remain outside this packet."
+    }
+  ],
+  "limitations": [
+    "Artifact evidence is not organizational readiness.",
+    "No durable institution or succession outcome is demonstrated."
+  ]
+}

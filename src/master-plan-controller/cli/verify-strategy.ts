@@ -14,7 +14,7 @@ async function main(): Promise<void> {
       cli.fail();
       return;
     }
-    cli.write(`strategy v2 verified: ${report.legacyPlanFileCount} v1 cards audited at ${report.verifiedAt}`);
+    cli.write(`strategy verified: ${report.researchAreaCount} research areas at ${report.verifiedAt}`);
   } catch (error) {
     cli.writeError(error instanceof Error ? error.message : String(error));
     cli.fail();

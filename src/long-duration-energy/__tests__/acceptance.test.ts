@@ -1,7 +1,7 @@
 /**
  * Long-Duration Energy Sources — Acceptance Criteria Tests
  *
- * Maps directly to the 7 acceptance criteria in plan/0.2.1.3-long-duration-energy.md.
+ * Maps to the bounded durability criteria in docs/reference/durable-infrastructure.md.
  * Red/Green/Refactor: these tests define what "done" looks like.
  */
 

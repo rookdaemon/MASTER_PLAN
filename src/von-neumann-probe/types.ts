@@ -15,7 +15,7 @@
 
 // ── Threshold Registry ──────────────────────────────────────────────────────
 // All named constants from the architecture spec's Threshold Registry.
-// See plan/0.4.2.1-von-neumann-probe-architectures.md § Threshold Registry.
+// See docs/reference/space-and-longevity.md for the gated architecture context.
 
 /** Minimum compute: 1 exaFLOP for whole-brain emulation (ops/s) */
 export const MIN_COMPUTE_OPS = 1e18;

@@ -3,45 +3,22 @@
   "requiredStatusChecks": [
     "typecheck",
     "test",
-    "strategy-verify",
-    "proposal-review",
-    "merge-policy"
+    "strategy-verify"
   ],
   "strictStatusChecks": true,
   "requiredApprovingReviewCount": 0,
   "dismissStaleReviews": false,
   "requireCodeOwnerReview": false,
-  "requireConversationResolution": true,
+  "requireConversationResolution": false,
   "allowForcePushes": false,
   "allowDeletions": false,
   "enforceAdmins": true,
-  "repositoryAutoMergeEnabled": true,
-  "safeAutoMergeVariableEnabled": true,
-  "workflowPullRequestCreationEnabled": true,
+  "repositoryAutoMergeEnabled": false,
+  "safeAutoMergeVariableEnabled": false,
+  "workflowPullRequestCreationEnabled": false,
   "appliedAndVerified": true,
-  "applicationAuthority": "single-maintainer-risk-policy",
-  "highRiskPolicy": {
-    "maximumCommitCount": 1,
-    "mergeMode": "agent-controlled",
-    "domains": [
-      "plan",
-      "doctrine",
-      "governance",
-      "workflow",
-      "dependency",
-      "deployment",
-      "network",
-      "security",
-      "constitutional"
-    ]
-  },
-  "agentReview": {
-    "provider": "github-agent-reviewers",
-    "automatic": true,
-    "reviewOnPush": true,
-    "reviewDraftPullRequests": true,
-    "fallback": "github-hosted-pinned-local-model"
-  },
+  "applicationAuthority": "deterministic-ci-only",
+  "reviewGateEnabled": false,
   "humanEscalation": {
     "role": "servant-leader",
     "routineApprovalGate": false,
@@ -56,5 +33,5 @@
     "evidenceRequired": true,
     "boundedDecisionRequired": true
   },
-  "notes": "Automated-body policy: deterministic CI gates every change; bounded routine changes auto-merge without agent review; protected or otherwise non-routine changes require an independent agent review and one-commit agent-controlled merge; human escalation is exceptional and evidence-bound."
+  "notes": "Deterministic CI is the sole checked-in update gate. No review classifier, special merge policy, or model reviewer controls repository updates."
 }

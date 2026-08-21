@@ -1,5 +1,5 @@
 {
-  "version": "2.1.0",
+  "version": "current",
   "directives": ["G1", "G2", "G3"],
   "ethicalInvariants": [
     "Preserve existing conscious life and option value before expansion when they compete.",

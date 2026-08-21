@@ -3,14 +3,13 @@ import type { ExecutionResult, FileSystemPort } from './ports.js';
 import {
   crossPortfolioPacketHandlers,
   matchesRepositoryPacketHandler,
-  versionedArtifactPaths,
+  recurringArtifactPaths,
   type RepositoryExecutionOutput,
   type RepositoryPacketHandler,
 } from './repository-packet-handlers.js';
 import { formattedRepositoryJson } from './repository-json.js';
-import { integrateRepositoryPacketResult, type RepositoryPacketIntegration } from './repository-result-integration.js';
 import { loadRepositoryStrategy, verifyRepositoryStrategy } from './repository-strategy.js';
-import type { PacketResult, Timestamp } from './types.js';
+import type { Timestamp } from './types.js';
 
 export interface RepositoryPacketExecution {
   status: 'waiting' | 'executed' | 'already-executed';
@@ -18,17 +17,7 @@ export interface RepositoryPacketExecution {
   artifactPath: string | null;
   resultPath: string | null;
 }
-
 export type { RepositoryExecutionOutput, RepositoryPacketHandler } from './repository-packet-handlers.js';
-
-export interface AgentReviewAttestation {
-  packetId: string;
-  resultPath: string;
-  reviewer: string;
-  reviewRunId: string;
-  reviewedHeadSha: string;
-  reviewedAt: Timestamp;
-}
 
 interface PredictionRegistry {
   predictions: Array<{
@@ -47,7 +36,7 @@ interface PredictionRegistry {
   theoryFamilies: Array<{ id: string; limitations: string[] }>;
 }
 
-const REGISTRY_PATH = 'strategy/results/consciousness-prediction-registry-v1.json';
+const REGISTRY_PATH = 'strategy/findings/consciousness-assessment.json';
 
 function unique(values: readonly string[]): string[] {
   return [...new Set(values.filter((value) => value.trim().length > 0))];
@@ -68,10 +57,10 @@ function executionOutputWithoutTimestamps(artifact: unknown, result: ExecutionRe
 
 function indicatorComparisonHandler(): RepositoryPacketHandler {
   return {
-    packetId: 'packet-indicator-framework-comparison-v1',
+    packetId: 'packet-indicator-framework-comparison-run-1',
     packetFamily: 'packet-indicator-framework-comparison',
     async prepare(fileSystem, packet, state, now) {
-      const paths = versionedArtifactPaths(packet, 'packet-indicator-framework-comparison');
+      const paths = recurringArtifactPaths(packet, 'packet-indicator-framework-comparison');
       const registry = JSON.parse(await fileSystem.readText(REGISTRY_PATH)) as PredictionRegistry;
       const families = new Map(registry.theoryFamilies.map((family) => [family.id, family]));
       const indicators = registry.predictions.flatMap((prediction) => prediction.interpretations.map((interpretation) => {
@@ -123,7 +112,7 @@ function indicatorComparisonHandler(): RepositoryPacketHandler {
           source: paths.artifactPath,
           strength: 0.7,
           limitations: [
-            'Execution establishes a reviewable repository artifact; independent agent review is still required before strategy integration.',
+            'Execution establishes a repository artifact, not a real-world outcome.',
             'The comparison does not establish consciousness or sentience in any biological or artificial system.',
           ],
           supportedHypotheses: [packet.nodeId],
@@ -199,43 +188,4 @@ export async function executeRepositoryPacket(
     artifactPath: output.artifactPath,
     resultPath: output.resultPath,
   };
-}
-
-export async function integrateReviewedRepositoryExecution(
-  fileSystem: FileSystemPort,
-  attestation: AgentReviewAttestation,
-  now: Timestamp,
-): Promise<RepositoryPacketIntegration> {
-  const reviewedEpoch = Date.parse(attestation.reviewedAt);
-  const nowEpoch = Date.parse(now);
-  const valid = attestation.packetId.trim().length > 0 &&
-    /^strategy\/results\/[a-zA-Z0-9._/-]+\.result\.json$/.test(attestation.resultPath) &&
-    !attestation.resultPath.includes('..') &&
-    /^[a-zA-Z0-9._-]+$/.test(attestation.reviewer) &&
-    /^\d+$/.test(attestation.reviewRunId) &&
-    /^[0-9a-f]{40}$/.test(attestation.reviewedHeadSha) &&
-    !Number.isNaN(reviewedEpoch) && !Number.isNaN(nowEpoch) && reviewedEpoch <= nowEpoch;
-  if (!valid) throw new Error('A valid exact-head agent review attestation is required');
-
-  const pending = JSON.parse(await fileSystem.readText(attestation.resultPath)) as ExecutionResult & {
-    verification?: unknown;
-  };
-  if (pending.verification !== undefined) throw new Error('Execution result already contains a verification');
-  if (!Array.isArray(pending.artifactReferences) || pending.artifactReferences.length === 0 ||
-    !Array.isArray(pending.evidence) || pending.evidence.length === 0) {
-    throw new Error('Execution result is incomplete');
-  }
-  const localArtifacts = pending.artifactReferences.filter((reference) => reference.startsWith('strategy/'));
-  if (localArtifacts.length === 0) throw new Error('Execution result has no repository artifact');
-  await Promise.all(localArtifacts.map((path) => fileSystem.readText(path)));
-
-  const verifier = `${attestation.reviewer}:run:${attestation.reviewRunId}:head:${attestation.reviewedHeadSha}`;
-  const reviewedResult: PacketResult = {
-    ...pending,
-    evidence: pending.evidence.map((record) => ({ ...record, verifier })),
-    verification: { status: 'passed', verifier, reviewedAt: attestation.reviewedAt },
-  };
-  const integrated = await integrateRepositoryPacketResult(fileSystem, attestation.packetId, reviewedResult, now);
-  await fileSystem.writeText(attestation.resultPath, formattedRepositoryJson(reviewedResult));
-  return integrated;
 }

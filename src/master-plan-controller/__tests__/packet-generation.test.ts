@@ -19,9 +19,11 @@ function template(id: string, trigger: DiagnosticTrigger): DiagnosticPacketTempl
 function recurringTemplate(id: string, trigger: DiagnosticTrigger): DiagnosticPacketTemplate {
   return {
     ...template(id, trigger),
+    seriesId: id,
+    runNumber: 0,
     retrySignature: id,
     deliverables: [`artifact://${id}`],
-    recurrence: { kind: 'versioned', minimumIntervalMs: 86_400_000, requiresNewEvidence: true },
+    recurrence: { kind: 'iterated', minimumIntervalMs: 86_400_000, requiresNewEvidence: true },
   };
 }
 
@@ -60,18 +62,20 @@ describe('DiagnosticPacketGenerator', () => {
     expect(await generator.generate(makeState({ packets: [existing] }), DIAGNOSIS, NOW)).toEqual([]);
   });
 
-  it('advances a versioned template after terminal work without duplicating active work', async () => {
+  it('advances an explicitly numbered series after terminal work without duplicating active work', async () => {
     const definition = recurringTemplate(
-      'candidate-v1',
+      'candidate',
       { kind: 'high-value-uncertainty', nodeId: 'capability-1' },
     );
-    definition.retrySignature = 'candidate-v1';
-    definition.deliverables = ['artifact://candidate-v1'];
+    definition.retrySignature = 'candidate';
+    definition.deliverables = ['artifact://candidate'];
     const previous = makePacket({
-      id: 'candidate-v1',
+      id: 'candidate-run-1',
+      seriesId: 'candidate',
+      runNumber: 1,
       nodeId: 'capability-1',
-      retrySignature: 'candidate-v1',
-      deliverables: ['artifact://candidate-v1'],
+      retrySignature: 'candidate-run-1',
+      deliverables: ['artifact://candidate-run-1'],
       lifecycle: 'verified',
       reviewedAt: '2026-08-01T12:00:00.000Z',
     });
@@ -84,9 +88,11 @@ describe('DiagnosticPacketGenerator', () => {
     const [next] = await generator.generate(state, DIAGNOSIS, NOW);
 
     expect(next).toMatchObject({
-      id: 'candidate-v2',
-      retrySignature: 'candidate-v2',
-      deliverables: ['artifact://candidate-v2'],
+      id: 'candidate-run-2',
+      seriesId: 'candidate',
+      runNumber: 2,
+      retrySignature: 'candidate-run-2',
+      deliverables: ['artifact://candidate-run-2'],
       lifecycle: 'eligible',
       attempt: 0,
       reviewedAt: NOW,
@@ -98,11 +104,13 @@ describe('DiagnosticPacketGenerator', () => {
 
   it('requires both the configured interval and newer evidence before recurring', async () => {
     const definition = recurringTemplate(
-      'candidate-v1',
+      'candidate',
       { kind: 'high-value-uncertainty', nodeId: 'capability-1' },
     );
     const previous = makePacket({
-      id: 'candidate-v1',
+      id: 'candidate-run-1',
+      seriesId: 'candidate',
+      runNumber: 1,
       nodeId: 'capability-1',
       lifecycle: 'verified',
       reviewedAt: '2026-08-02T12:00:00.000Z',
@@ -157,7 +165,7 @@ describe('DiagnosticPacketGenerator', () => {
       metricId: 'metric-1',
       outcomeContractId: 'contract-capability-1-metric-1',
     };
-    const generator = new DiagnosticPacketGenerator([recurringTemplate('gap-v1', trigger)]);
+    const generator = new DiagnosticPacketGenerator([recurringTemplate('gap', trigger)]);
     const contract = makeOutcomeContract();
     const satisfiedNode = structuredClone(makeState().nodes[0]);
     satisfiedNode.metrics[0].current = 1;
@@ -176,11 +184,12 @@ describe('DiagnosticPacketGenerator', () => {
       kind: 'evidence-signal', nodeId: 'capability-1', hypothesisId: 'hypothesis-signal',
       outcomes: ['positive'], minimumStrength: 0.5, maximumAgeMs: 604_800_000,
     };
-    const definition = recurringTemplate('signal-v1', trigger);
+    const definition = recurringTemplate('signal', trigger);
     const previous = makePacket({
-      id: 'signal-v1', nodeId: 'capability-1', lifecycle: 'verified',
-      reviewedAt: '2026-08-02T12:00:00.000Z', retrySignature: 'signal-v1',
-      deliverables: ['artifact://signal-v1'],
+      id: 'signal-run-1', seriesId: 'signal', runNumber: 1,
+      nodeId: 'capability-1', lifecycle: 'verified',
+      reviewedAt: '2026-08-02T12:00:00.000Z', retrySignature: 'signal-run-1',
+      deliverables: ['artifact://signal-run-1'],
     });
     const unrelated = makeEvidence({ observedAt: '2026-08-03T00:00:00.000Z' });
     const oldSignal = makeEvidence({
@@ -194,11 +203,13 @@ describe('DiagnosticPacketGenerator', () => {
 
   it('does not convert a blocked packet into an identical automated retry', async () => {
     const definition = recurringTemplate(
-      'candidate-v1',
+      'candidate',
       { kind: 'high-value-uncertainty', nodeId: 'capability-1' },
     );
     const blocked = makePacket({
-      id: 'candidate-v1',
+      id: 'candidate-run-1',
+      seriesId: 'candidate',
+      runNumber: 1,
       nodeId: 'capability-1',
       lifecycle: 'blocked',
     });
@@ -249,20 +260,20 @@ describe('DiagnosticPacketGenerator', () => {
     expect(() => new DiagnosticPacketGenerator([malformedPortfolio])).toThrow(/trigger portfolio/i);
   });
 
-  it('rejects versioned templates that would reuse retry or deliverable identities', () => {
+  it('rejects recurring templates without explicit base identities', () => {
     const invalidRetry = recurringTemplate(
-      'candidate-v1',
+      'candidate',
       { kind: 'bottleneck', nodeId: 'capability-1' },
     );
-    invalidRetry.retrySignature = 'candidate-static';
-    expect(() => new DiagnosticPacketGenerator([invalidRetry])).toThrow(/retry signature.*v1/i);
+    invalidRetry.retrySignature = 'candidate-run-1';
+    expect(() => new DiagnosticPacketGenerator([invalidRetry])).toThrow(/retry signature.*unnumbered/i);
 
     const invalidDeliverable = recurringTemplate(
-      'candidate-v1',
+      'candidate',
       { kind: 'bottleneck', nodeId: 'capability-1' },
     );
-    invalidDeliverable.deliverables = ['artifact://candidate-static'];
-    expect(() => new DiagnosticPacketGenerator([invalidDeliverable])).toThrow(/deliverable.*v1/i);
+    invalidDeliverable.deliverables = ['artifact://candidate-run-1'];
+    expect(() => new DiagnosticPacketGenerator([invalidDeliverable])).toThrow(/deliverable.*unnumbered/i);
   });
 
   it('satisfies the packet-generator port contract without depending on environment time', async () => {

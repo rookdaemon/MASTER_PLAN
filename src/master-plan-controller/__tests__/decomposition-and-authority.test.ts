@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { decomposeIntervention } from '../decomposition.js';
-import { assessAutoMerge, classifyAuthority } from '../authority.js';
+import { classifyAuthority } from '../authority.js';
 import { CONFIG, NOW } from './fixtures.js';
 
 describe('bounded recursive decomposition', () => {
@@ -66,7 +66,6 @@ describe('bounded recursive decomposition', () => {
     }
   });
 });
-
 describe('authority classification', () => {
   it('allows only public analysis, local tests/simulations, and branch preparation autonomously', () => {
     expect(classifyAuthority({ action: 'local-test', domains: ['code'] }).authorityClass).toBe('autonomous');
@@ -84,85 +83,5 @@ describe('authority classification', () => {
       expect(classifyAuthority({ action, domains: ['code'] }).authorityClass, action).toBe('agent-reviewed');
     }
     expect(classifyAuthority({ action: 'human-subjects', domains: ['code'] }).authorityClass).toBe('human-escalation');
-  });
-});
-
-describe('safe auto-merge guard', () => {
-  const controls = {
-    featureEnabled: true,
-    branchProtected: true,
-    autoMergeAllowedByRepository: true,
-    requiredChecks: ['typecheck', 'test', 'strategy-verify'],
-    passingChecks: ['typecheck', 'test', 'strategy-verify'],
-  };
-
-  it('permits a bounded backward-compatible code/test diff with behavior coverage', () => {
-    const result = assessAutoMerge(
-      {
-        files: [
-          { path: 'src/example.ts', additions: 10, deletions: 2 },
-          { path: 'src/example.test.ts', additions: 20, deletions: 0 },
-        ],
-        backwardCompatible: true,
-        behaviorCoveredByTests: true,
-        maximumChangedLines: 100,
-      },
-      controls,
-    );
-    expect(result.allowed).toBe(true);
-  });
-
-  it('denies forbidden domains, unprotected branches, failed checks, and disabled-by-default controls', () => {
-    const forbidden = assessAutoMerge(
-      {
-        files: [{ path: '.github/workflows/ci.yml', additions: 1, deletions: 1 }],
-        backwardCompatible: true,
-        behaviorCoveredByTests: true,
-        maximumChangedLines: 100,
-      },
-      controls,
-    );
-    expect(forbidden.allowed).toBe(false);
-    expect(forbidden.reasons.join(' ')).toMatch(/workflow/);
-
-    const disabled = assessAutoMerge(
-      {
-        files: [{ path: 'src/example.ts', additions: 1, deletions: 0 }],
-        backwardCompatible: true,
-        behaviorCoveredByTests: true,
-        maximumChangedLines: 100,
-      },
-      { ...controls, featureEnabled: false, branchProtected: false, passingChecks: [] },
-    );
-    expect(disabled.allowed).toBe(false);
-    expect(disabled.reasons).toEqual(expect.arrayContaining([
-      expect.stringMatching(/disabled/),
-      expect.stringMatching(/protected/),
-      expect.stringMatching(/checks/),
-    ]));
-  });
-
-  it('never auto-merges controller governance, network, security, or deployment code', () => {
-    for (const path of [
-      'src/master-plan-controller/controller.ts',
-      'src/network/client.ts',
-      'src/security/policy.ts',
-      'src/deployment/release.ts',
-    ]) {
-      const assessment = assessAutoMerge(
-        {
-          files: [
-            { path, additions: 1, deletions: 0 },
-            { path: 'src/example.test.ts', additions: 2, deletions: 0 },
-          ],
-          backwardCompatible: true,
-          behaviorCoveredByTests: true,
-          maximumChangedLines: 100,
-        },
-        controls,
-      );
-      expect(assessment.allowed, path).toBe(false);
-      expect(assessment.reasons.join(' '), path).toMatch(/governance|network|security|deployment/);
-    }
   });
 });

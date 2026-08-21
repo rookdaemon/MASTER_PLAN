@@ -25,7 +25,7 @@ const CONFIG: RepositoryControlObservationConfig = {
   branch: 'main',
   hypothesisId: 'hypothesis-live-stewardship-controls-aligned',
   branchProtected: true,
-  requiredStatusChecks: ['typecheck', 'test', 'strategy-verify', 'proposal-review', 'agent-review'],
+  requiredStatusChecks: ['typecheck', 'test', 'strategy-verify'],
   enforceAdmins: true,
 };
 const PUBLIC_URL = 'https://sources.example.test/works?from={windowStart}&until={now}';
@@ -68,7 +68,7 @@ function responses(overrides: { checks?: string[] } = {}) {
 
 async function repositorySnapshot(): Promise<Record<string, string>> {
   const source = new NodeFileSystem('.');
-  const paths = [...await source.listFiles('strategy/'), ...await source.listFiles('plan/')];
+  const paths = [...await source.listFiles('strategy/'), ...await source.listFiles('docs/')];
   return Object.fromEntries(await Promise.all(paths.map(async (path) => [path, await source.readText(path)])));
 }
 

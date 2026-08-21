@@ -1,7 +1,6 @@
 import { evidenceValidationErrors } from './evidence.js';
 import { assessHumanEscalation } from './escalation-policy.js';
 import { isValidConstitutionalAmendment, isValidHumanApproval } from './human-authorization.js';
-import { shadowReviewErrors } from './rollout.js';
 import type { ControllerConfig, Portfolio, StrategyState, Timestamp, WorkPacket } from './types.js';
 
 const PORTFOLIOS: Portfolio[] = [
@@ -62,6 +61,12 @@ export function workPacketValidationErrors(
     }
   }
   if (!Number.isSafeInteger(packet.attempt) || packet.attempt < 0) errors.push(`${prefix} has an invalid attempt`);
+  if (packet.seriesId !== undefined || packet.runNumber !== undefined) {
+    if (!packet.seriesId?.trim() || !Number.isSafeInteger(packet.runNumber) || packet.runNumber! < 1 ||
+        packet.id !== `${packet.seriesId}-run-${packet.runNumber}`) {
+      errors.push(`${prefix} has invalid recurrence data`);
+    }
+  }
   const reviewedAt = Date.parse(packet.reviewedAt);
   if (Number.isNaN(reviewedAt) || reviewedAt > Date.parse(now)) errors.push(`${prefix} has an invalid review timestamp`);
   for (const [factor, value] of Object.entries(packet.priority)) {
@@ -106,21 +111,11 @@ export function strategyContractErrors(
       errors.push(`Invalid constitutional amendment: ${amendment.id}`);
     }
   }
-  if (!['shadow', 'supervised', 'safe-code'].includes(state.governance.mode)) {
+  if (state.governance.mode !== 'automated-stewardship') {
     errors.push('Governance mode is invalid');
   }
-  if (!Number.isSafeInteger(state.governance.shadowCyclesReviewed) || state.governance.shadowCyclesReviewed < 0 ||
-      !Number.isSafeInteger(state.governance.supervisedResultsReviewed) || state.governance.supervisedResultsReviewed < 0) {
-    errors.push('Governance review counters must be non-negative integers');
-  }
-  errors.push(...shadowReviewErrors(state));
-  if (state.governance.mode === 'safe-code') {
-    if (state.governance.supervisedResultsReviewed < 1) {
-      errors.push('Safe-code governance requires at least one supervised result review');
-    }
-  }
-  if (state.governance.safeAutoMergeEnabled && state.governance.mode !== 'safe-code') {
-    errors.push('Safe auto-merge can only be enabled in safe-code governance mode');
+  if (!Number.isSafeInteger(state.governance.reviewedResultCount) || state.governance.reviewedResultCount < 0) {
+    errors.push('Governance reviewed-result counter must be a non-negative integer');
   }
   if (config.maxDecompositionDepth > 4 || config.maxDecompositionDepth < 0 ||
       !Number.isSafeInteger(config.maxDecompositionDepth)) {

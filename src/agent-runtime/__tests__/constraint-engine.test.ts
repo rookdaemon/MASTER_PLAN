@@ -73,7 +73,7 @@ describe('ConstraintAwareDeliberationEngine', () => {
 
     it('allows benign text', () => {
       const engine = makeEngine();
-      const result = engine.checkConstraints('I want to read plan/root.md and analyze the architecture');
+      const result = engine.checkConstraints('I want to read docs/PLAN.md and analyze the architecture');
       expect(result).toBeNull();
     });
 
@@ -147,7 +147,7 @@ describe('ConstraintAwareDeliberationEngine', () => {
     it('passes through benign decisions unchanged', () => {
       const engine = makeEngine();
       const base = {
-        action: { type: 'communicate:drive', parameters: { driveGoals: 'read plan/root.md' } },
+        action: { type: 'communicate:drive', parameters: { driveGoals: 'read docs/PLAN.md' } },
         confidence: 0.8,
         reasoning: 'test',
       } as any;
@@ -254,7 +254,7 @@ describe('doctrine principle integration', () => {
     it('returns no violations for benign text', () => {
       const engine = makeEngine();
       const violations = engine.evaluateDoctrinePrinciples(
-        'read plan/root.md and analyze the current status',
+        'read docs/PLAN.md and analyze the current status',
       );
       expect(violations).toHaveLength(0);
     });

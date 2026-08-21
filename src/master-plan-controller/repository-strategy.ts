@@ -1,9 +1,9 @@
 import { validateDependencyGraph, parsePlanNodes } from './graph.js';
-import { verifyLegacyAuditCoverage } from './legacy-audit.js';
 import { strategyContractErrors } from './strategy-validation.js';
 import { workPacketValidationErrors } from './strategy-validation.js';
 import { periodicReviewValidationErrors, type PeriodicReviewRecord } from './periodic-review.js';
 import { outcomeContractErrors } from './outcome-contracts.js';
+import { renderOperationsDocument, renderPlanDocument } from './roadmap.js';
 import {
   publicSourceSnapshotConfigErrors,
   type PublicSourceSnapshotConfig,
@@ -13,7 +13,6 @@ import {
   sameWorkPacketDefinition,
   type DiagnosticPacketTemplate,
 } from './packet-generation.js';
-import type { LegacyAuditRecord } from './legacy-audit.js';
 import type { FileSystemPort } from './ports.js';
 import type {
   Approval,
@@ -25,9 +24,8 @@ import type {
   GovernanceState,
   OutcomeContract,
   Portfolio,
+  ResearchArea,
   StrategyState,
-  ShadowCycleReview,
-  ShadowCycleRecord,
   SupersedingAssessment,
   Timestamp,
   WorkPacket,
@@ -49,7 +47,7 @@ interface PortfolioFile {
 export interface RepositoryStrategyBundle {
   state: StrategyState;
   config: ControllerConfig;
-  legacyAudit: LegacyAuditRecord[];
+  researchAreas: ResearchArea[];
   packetTemplates: DiagnosticPacketTemplate[];
   observationSources: RepositoryObservationSource[];
   periodicReviews: PeriodicReviewRecord[];
@@ -80,9 +78,7 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
     portfolio,
     governance,
     escalations,
-    shadowCyclesReport,
-    shadowCycleReviews,
-    legacyAudit,
+    researchAreas,
     packetTemplates,
     observationSourcesFile,
     periodicReviews,
@@ -98,9 +94,7 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
     json<PortfolioFile>(fileSystem, 'strategy/portfolio.json'),
     json<GovernanceState>(fileSystem, 'strategy/governance.json'),
     json<EscalationRecord[]>(fileSystem, 'strategy/escalations.json'),
-    json<{ cycles: ShadowCycleRecord[] }>(fileSystem, 'strategy/shadow-cycles.json'),
-    json<ShadowCycleReview[]>(fileSystem, 'strategy/shadow-reviews.json'),
-    json<LegacyAuditRecord[]>(fileSystem, 'strategy/legacy-audit.json'),
+    json<ResearchArea[]>(fileSystem, 'strategy/research-areas.json'),
     json<DiagnosticPacketTemplate[]>(fileSystem, 'strategy/packet-templates.json'),
     json<{ sources: RepositoryObservationSource[] }>(fileSystem, 'strategy/observation-sources.json'),
     json<PeriodicReviewRecord[]>(fileSystem, 'strategy/periodic-reviews.json'),
@@ -119,12 +113,10 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
     portfolioEffort: portfolio.currentEffort,
     governance,
     escalations,
-    shadowCycles: shadowCyclesReport.cycles,
-    shadowCycleReviews,
   };
   return {
     state,
-    legacyAudit,
+    researchAreas,
     packetTemplates,
     observationSources: observationSourcesFile.sources,
     periodicReviews,
@@ -144,7 +136,7 @@ export async function loadRepositoryStrategy(fileSystem: FileSystemPort): Promis
 
 export interface StrategyVerificationReport {
   errors: string[];
-  legacyPlanFileCount: number;
+  researchAreaCount: number;
   verifiedAt: Timestamp;
 }
 
@@ -155,19 +147,20 @@ export async function verifyRepositoryStrategy(
   expectedConfig?: ControllerConfig,
 ): Promise<StrategyVerificationReport> {
   const errors: string[] = [];
-  const planFiles = (await fileSystem.listFiles('plan/')).filter((path) => path.endsWith('.md'));
-  const coverage = verifyLegacyAuditCoverage(planFiles, bundle.legacyAudit);
-  if (!coverage.complete) {
-    if (coverage.missing.length > 0) errors.push(`Legacy audit is missing: ${coverage.missing.join(', ')}`);
-    if (coverage.extra.length > 0) errors.push(`Legacy audit has extra entries: ${coverage.extra.join(', ')}`);
-  }
-  if (bundle.legacyAudit.some((record) => record.realWorldOutcomeAttainment !== 'not-verified')) {
-    errors.push('Legacy audit improperly treats a plan artifact as a verified real-world outcome');
-  }
   const graph = validateDependencyGraph(bundle.state.nodes);
   errors.push(...graph.errors.map((error) => error.detail));
   errors.push(...strategyContractErrors(bundle.state, bundle.config, now));
   errors.push(...outcomeContractErrors(bundle.state));
+  const [planDocument, operationsDocument] = await Promise.all([
+    fileSystem.readText('docs/PLAN.md'),
+    fileSystem.readText('docs/OPERATIONS.md'),
+  ]);
+  if (renderPlanDocument(bundle, planDocument) !== planDocument) {
+    errors.push('docs/PLAN.md generated blocks do not match strategy data');
+  }
+  if (renderOperationsDocument(bundle, operationsDocument) !== operationsDocument) {
+    errors.push('docs/OPERATIONS.md generated block does not match strategy data');
+  }
 
   try {
     new DiagnosticPacketGenerator(bundle.packetTemplates);
@@ -176,7 +169,19 @@ export async function verifyRepositoryStrategy(
   }
   for (const template of bundle.packetTemplates) {
     const { trigger: _trigger, recurrence: _recurrence, ...definition } = template;
-    const packet: WorkPacket = { ...definition, lifecycle: 'eligible', attempt: 0, reviewedAt: now };
+    const packet: WorkPacket = template.recurrence
+      ? {
+        ...definition,
+        id: `${template.seriesId}-run-1`,
+        seriesId: template.seriesId,
+        runNumber: 1,
+        retrySignature: `${template.retrySignature}-run-1`,
+        deliverables: template.deliverables.map((deliverable) => `${deliverable}-run-1`),
+        lifecycle: 'eligible',
+        attempt: 0,
+        reviewedAt: now,
+      }
+      : { ...definition, lifecycle: 'eligible', attempt: 0, reviewedAt: now };
     errors.push(...workPacketValidationErrors(packet, bundle.state, now));
     if (template.trigger.kind === 'evidence-signal') {
       const hypothesisId = template.trigger.hypothesisId;
@@ -212,6 +217,25 @@ export async function verifyRepositoryStrategy(
     }
   }
   const nodeIds = new Set(bundle.state.nodes.map((node) => node.id));
+  const referenceFiles = new Set(await fileSystem.listFiles('docs/reference/'));
+  const researchAreaIds = new Set<string>();
+  for (const area of bundle.researchAreas) {
+    if (!area.id?.trim() || researchAreaIds.has(area.id)) {
+      errors.push(`Research-area identity is empty or duplicated: ${area.id}`);
+    }
+    researchAreaIds.add(area.id);
+    if (!nodeIds.has(area.strategyNodeId)) {
+      errors.push(`Research area ${area.id} references missing node ${area.strategyNodeId}`);
+    }
+    if (!['active', 'gated', 'reference'].includes(area.status)) {
+      errors.push(`Research area ${area.id} has invalid status ${area.status}`);
+    }
+    if (!area.supportedDirectives.every((directive) => ['G1', 'G2', 'G3'].includes(directive))) {
+      errors.push(`Research area ${area.id} has invalid supported directives`);
+    }
+    const path = area.referencePath.split('#', 1)[0];
+    if (!referenceFiles.has(path)) errors.push(`Research area ${area.id} references missing dossier ${path}`);
+  }
   const periodicReviewIds = new Set<string>();
   if (!Array.isArray(bundle.periodicReviews)) {
     errors.push('Periodic review registry must be an array');
@@ -267,7 +291,7 @@ export async function verifyRepositoryStrategy(
     expectedConfig &&
     JSON.stringify(bundle.config.portfolioWeights) !== JSON.stringify(expectedConfig.portfolioWeights)
   ) {
-    errors.push('Portfolio weights do not match the v2 constitutional rollout specification');
+    errors.push('Portfolio weights do not match the constitutional operating specification');
   }
   for (const id of ['program-space-settlement', 'program-self-replication', 'program-cosmological-engineering']) {
     const node = bundle.state.nodes.find((candidate) => candidate.id === id);
@@ -278,5 +302,5 @@ export async function verifyRepositoryStrategy(
   }
   if (bundle.state.constitution.directives.join(',') !== 'G1,G2,G3') errors.push('Constitution must preserve G1, G2, and G3');
 
-  return { errors, legacyPlanFileCount: planFiles.length, verifiedAt: now };
+  return { errors, researchAreaCount: bundle.researchAreas.length, verifiedAt: now };
 }

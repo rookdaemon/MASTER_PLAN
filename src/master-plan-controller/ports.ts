@@ -1,4 +1,3 @@
-import type { AutoMergeAssessment, AutoMergeRequest, DiffFile, RepositoryControls } from './authority.js';
 import type {
   EvidenceRecord,
   CanonicalSourceSnapshot,
@@ -15,7 +14,6 @@ import type {
 export interface ClockPort {
   now(): Timestamp;
 }
-
 export interface FileSystemPort {
   readText(path: string): Promise<string>;
   writeText(path: string, content: string): Promise<void>;
@@ -60,17 +58,6 @@ export interface ProcessPort {
   run(request: ProcessRequest): Promise<ProcessResult>;
 }
 
-export interface GitPort {
-  diff(base: string, head: string): Promise<DiffFile[]>;
-  prepareBranch(name: string): Promise<void>;
-}
-
-export interface GitHubPort {
-  getRepositoryControls(): Promise<RepositoryControls>;
-  requestAutoMerge(pullRequestNumber: number): Promise<void>;
-  recordAssessment?(pullRequestNumber: number, assessment: AutoMergeAssessment): Promise<void>;
-}
-
 export interface SchedulerPort {
   wait(milliseconds: number): Promise<void>;
 }
@@ -104,8 +91,4 @@ export interface PacketExecutorPort {
 
 export interface ReviewerPort {
   verify(packet: WorkPacket, result: ExecutionResult, now: Timestamp): Promise<PacketVerification>;
-}
-
-export interface AutoMergePort {
-  evaluateAndRequest(pullRequestNumber: number, request: AutoMergeRequest): Promise<AutoMergeAssessment>;
 }

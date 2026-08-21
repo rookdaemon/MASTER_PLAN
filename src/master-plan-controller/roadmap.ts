@@ -1,5 +1,5 @@
 import type { RepositoryStrategyBundle } from './repository-strategy.js';
-import type { Portfolio } from './types.js';
+import type { PlanNode, Portfolio } from './types.js';
 
 const PORTFOLIO_LABELS: Record<Portfolio, string> = {
   'consciousness-epistemics': 'Consciousness epistemics',
@@ -8,65 +8,85 @@ const PORTFOLIO_LABELS: Record<Portfolio, string> = {
   'institutional-continuity': 'Institutional continuity',
 };
 
+const DEFERRED_IDS = [
+  'program-space-settlement',
+  'program-self-replication',
+  'program-cosmological-engineering',
+] as const;
+
 function percent(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
-export function renderRoadmap(bundle: RepositoryStrategyBundle): string {
-  const objectives = bundle.state.nodes.filter((node) => node.kind === 'objective');
-  const deferredIds = [
-    'program-space-settlement',
-    'program-self-replication',
-    'program-cosmological-engineering',
-  ];
+function gateSummary(node: PlanNode): string {
+  const gates = node.activationGates.map((gate) => {
+    if (gate.type === 'node-verified') return gate.nodeId;
+    if (gate.type === 'minimum-confidence') return `confidence >= ${gate.minimum}`;
+    if (gate.type === 'fresh-evidence') return `fresh evidence >= ${gate.minimumStrength}`;
+    if (gate.type === 'metric-target') return `metric ${gate.metricId}`;
+    return 'verified dependencies';
+  });
+  return gates.length === 0 ? 'no activation gate' : gates.join(', ');
+}
+
+export function renderPortfolioBlock(bundle: RepositoryStrategyBundle): string {
   const lines = [
-    '# MASTER_PLAN v2 generated roadmap',
-    '',
-    'This file is deterministically rendered from the checked-in strategy graph, packets, and',
-    'portfolio configuration. It is a view of state, not independent evidence or authorization.',
-    '',
-    '## Constitutional objectives',
-    '',
-    ...objectives.map((node) => `- ${node.id} — ${node.title}.`),
-    '',
-    '## Bootstrap portfolio and bounded frontier',
-    '',
-    '| Portfolio | Target | Initial bounded packet |',
+    '| Portfolio | Target | Initial bounded intervention |',
     '|---|---:|---|',
   ];
   for (const [portfolio, weight] of Object.entries(bundle.config.portfolioWeights) as Array<[Portfolio, number]>) {
-    const packet = bundle.state.packets.find((candidate) => candidate.portfolio === portfolio);
-    lines.push(`| ${PORTFOLIO_LABELS[portfolio]} | ${percent(weight)} | ${packet?.title ?? 'No eligible packet'} |`);
+    const template = bundle.packetTemplates.find((candidate) => candidate.portfolio === portfolio);
+    lines.push(`| ${PORTFOLIO_LABELS[portfolio]} | ${percent(weight)} | ${template?.title ?? 'No current intervention'} |`);
   }
-  lines.push(
-    '',
-    'Only one packet may be active. Credible G1 extinction-prevention work has lexical priority',
-    'over expansion. Positive, negative, and null evidence are integrated without forcing success.',
-    '',
-    '## Deferred complete map',
-    '',
-  );
-  for (const id of deferredIds) {
+  return lines.join('\n');
+}
+
+export function renderGateBlock(bundle: RepositoryStrategyBundle): string {
+  const lines = ['### Current activation summary', ''];
+  for (const id of DEFERRED_IDS) {
     const node = bundle.state.nodes.find((candidate) => candidate.id === id);
     if (!node) continue;
-    const gates = node.activationGates
-      .map((gate) => gate.type === 'node-verified' ? gate.nodeId : gate.type)
-      .join(', ');
-    lines.push(`- ${node.title}: **${node.lifecycle}**; activation gates: ${gates}.`);
+    lines.push(`- ${node.title}: **${node.lifecycle}**; gated by ${gateSummary(node)}.`);
   }
-  lines.push(
-    '',
-    '## Operating status',
-    '',
-    `- Mode: **${bundle.state.governance.mode === 'shadow' ? 'shadow' : 'automated stewardship'}**.`,
-    `- Historical calibration: ${bundle.state.governance.shadowCyclesReviewed} agent-reviewed shadow records retained as evidence, never an operating prerequisite.`,
-    `- Automated results independently agent-reviewed: ${bundle.state.governance.supervisedResultsReviewed}.`,
-    `- Safe auto-merge enabled: ${bundle.state.governance.safeAutoMergeEnabled ? 'yes' : 'no'}.`,
-    '- Scheduled cycles integrate deduplicated external observations before diagnosis.',
-    '- Only fresh, matching adjudicated evidence can trigger recurring work.',
-    '- Automated execution requires every result to receive fresh independent agent review.',
-    '- Weekly portfolio review and quarterly evidence, weight, and constitutional-risk review are automated with independent agent review.',
-    '- The human servant leader is contacted only for an evidence-backed, intrinsically human escalation.',
+  return lines.join('\n');
+}
+
+export function renderOperatingStateBlock(bundle: RepositoryStrategyBundle): string {
+  const activePackets = bundle.state.packets.filter((packet) => packet.lifecycle === 'active').length;
+  return [
+    '- Mode: **automated stewardship**.',
+    '- Repository updates use deterministic CI only.',
+    `- Reviewed results since the current baseline: **${bundle.state.governance.reviewedResultCount}**.`,
+    `- Active work packets: **${activePackets}**.`,
+    '- Weekly portfolio and quarterly evidence, weight, and constitutional-risk reviews are scheduled.',
+    '- Human contact remains restricted to evidence-backed, intrinsically human escalation.',
+  ].join('\n');
+}
+
+export function replaceGeneratedBlock(
+  document: string,
+  name: 'PORTFOLIO' | 'GATES' | 'OPERATING-STATE',
+  content: string,
+): string {
+  const start = `<!-- GENERATED:${name}:START -->`;
+  const end = `<!-- GENERATED:${name}:END -->`;
+  const firstStart = document.indexOf(start);
+  const firstEnd = document.indexOf(end);
+  if (firstStart < 0 || firstEnd < firstStart || document.indexOf(start, firstStart + 1) >= 0 ||
+      document.indexOf(end, firstEnd + 1) >= 0) {
+    throw new Error(`Document must contain exactly one ordered ${name} generated block`);
+  }
+  return `${document.slice(0, firstStart + start.length)}\n${content}\n${document.slice(firstEnd)}`;
+}
+
+export function renderPlanDocument(bundle: RepositoryStrategyBundle, current: string): string {
+  return replaceGeneratedBlock(
+    replaceGeneratedBlock(current, 'PORTFOLIO', renderPortfolioBlock(bundle)),
+    'GATES',
+    renderGateBlock(bundle),
   );
-  return `${lines.join('\n')}\n`;
+}
+
+export function renderOperationsDocument(bundle: RepositoryStrategyBundle, current: string): string {
+  return replaceGeneratedBlock(current, 'OPERATING-STATE', renderOperatingStateBlock(bundle));
 }

@@ -3,7 +3,7 @@
  *
  * Types and interfaces for the hybrid laser-sail acceleration +
  * magnetic sail deceleration propulsion architecture defined in
- * plan/0.4.2.3-interstellar-propulsion-systems.md
+ * docs/reference/space-and-longevity.md
  *
  * Contracts implemented:
  *   PropulsionEnvelope — Interface with 0.4.2.1 Probe Architectures

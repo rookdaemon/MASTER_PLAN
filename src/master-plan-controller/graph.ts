@@ -147,9 +147,9 @@ export function parsePlanNodes(input: unknown): PlanNode[] {
       ...(constitutionalImpact === undefined
         ? {}
         : { constitutionalImpact: constitutionalImpact as PlanNode['constitutionalImpact'] }),
-      ...(value.legacyPlanReferences === undefined
+      ...(value.referencePaths === undefined
         ? {}
-        : { legacyPlanReferences: requireStringArray(value, 'legacyPlanReferences') }),
+        : { referencePaths: requireStringArray(value, 'referencePaths') }),
       ...(value.externallyDemonstrated === undefined
         ? {}
         : { externallyDemonstrated: value.externallyDemonstrated }),

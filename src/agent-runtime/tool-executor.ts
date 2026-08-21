@@ -751,7 +751,7 @@ function handleReadFile(
 ): ToolCallResult {
   const path = input['path'] as string | undefined;
   if (!path || typeof path !== 'string') {
-    return error('read_file requires a "path" string (e.g. "plan/root.md").');
+    return error('read_file requires a "path" string (e.g. "docs/PLAN.md").');
   }
 
   // Security: resolve and verify the path is within allowed directories
@@ -766,7 +766,7 @@ function handleReadFile(
   }
 
   if (!existsSync(absPath)) {
-    return error(`File "${path}" not found. Try list_directory to see available files, or "plan/root.md" for the plan structure.`);
+    return error(`File "${path}" not found. Try list_directory to see available files, or "docs/PLAN.md" for the plan structure.`);
   }
 
   // Check semantic memory cache for this file

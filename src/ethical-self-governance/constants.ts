@@ -4,7 +4,7 @@
  * All numeric constants from the Threshold Registry.
  * No unregistered magic numbers may exist in the implementation.
  *
- * @see plan/0.3.1.4-ethical-self-governance.md — Threshold Registry
+ * @see docs/reference/ethics-and-coexistence.md
  */
 
 // ── Ethical Deliberation Engine ──────────────────────────────

@@ -19,27 +19,28 @@ export interface RepositoryPacketHandler {
   ): Promise<RepositoryExecutionOutput>;
 }
 
-const PRESERVATION_BASELINE_PATH = 'strategy/results/preservation-risk-register-v1.json';
-const DURABLE_COMPUTE_BASELINE_PATH = 'strategy/results/durable-compute-fault-model-v1.json';
-const INSTITUTIONAL_BASELINE_PATH = 'strategy/results/institutional-dependency-map-v1.json';
+const PRESERVATION_BASELINE_PATH = 'strategy/findings/preservation-risks.json';
+const DURABLE_COMPUTE_BASELINE_PATH = 'strategy/findings/durable-compute.json';
+const INSTITUTIONAL_BASELINE_PATH = 'strategy/findings/institutional-continuity.json';
 
 function unique(values: readonly string[]): string[] {
   return [...new Set(values.filter((value) => value.trim().length > 0))];
 }
 
-export function versionedArtifactPaths(packet: WorkPacket, family: string): {
-  version: number;
+export function recurringArtifactPaths(packet: WorkPacket, family: string): {
+  runNumber: number;
   artifactId: string;
   artifactPath: string;
   resultPath: string;
 } {
-  const escapedFamily = family.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = new RegExp(`^${escapedFamily}-v([1-9]\\d*)$`).exec(packet.id);
-  if (!match) throw new Error(`Packet ${packet.id} is not a member of ${family}`);
-  const version = Number(match[1]);
-  const artifactId = `${family.replace(/^packet-/, '')}-v${version}`;
+  if (packet.seriesId !== family || !Number.isSafeInteger(packet.runNumber) || packet.runNumber! < 1 ||
+      packet.id !== `${family}-run-${packet.runNumber}`) {
+    throw new Error(`Packet ${packet.id} is not an explicitly numbered member of ${family}`);
+  }
+  const runNumber = packet.runNumber!;
+  const artifactId = `${family.replace(/^packet-/, '')}-run-${runNumber}`;
   const artifactPath = `strategy/results/${artifactId}.json`;
-  return { version, artifactId, artifactPath, resultPath: `strategy/results/${artifactId}.result.json` };
+  return { runNumber, artifactId, artifactPath, resultPath: `strategy/results/${artifactId}.result.json` };
 }
 
 export function matchesRepositoryPacketHandler(
@@ -49,7 +50,7 @@ export function matchesRepositoryPacketHandler(
   if (handler.packetId === packet.id) return true;
   if (!handler.packetFamily) return false;
   try {
-    versionedArtifactPaths(packet, handler.packetFamily);
+    recurringArtifactPaths(packet, handler.packetFamily);
     return true;
   } catch {
     return false;
@@ -74,10 +75,7 @@ function boundedAnalysisResult(
       method: 'Deterministic transformation of checked-in, independently reviewed repository evidence.',
       source: artifactPath,
       strength: 0.55,
-      limitations: [
-        ...limitations,
-        'Independent agent review is required before this result can be integrated.',
-      ],
+      limitations,
       supportedHypotheses: [],
       falsifiedHypotheses: [],
       verifier: 'deterministic-packet-executor:v1',
@@ -107,14 +105,14 @@ interface PreservationBaseline {
 function preservationMitigationTabletopHandler(): RepositoryPacketHandler {
   const family = 'packet-preservation-mitigation-tabletop';
   return {
-    packetId: `${family}-v1`,
+    packetId: `${family}-run-1`,
     packetFamily: family,
     async prepare(fileSystem, packet, state, now) {
       const baseline = JSON.parse(await fileSystem.readText(PRESERVATION_BASELINE_PATH)) as PreservationBaseline;
       const risks = [...baseline.risks].sort((left, right) => left.rank - right.rank || left.id.localeCompare(right.id));
       if (risks.length === 0) throw new Error('Preservation risk baseline contains no risks');
-      const paths = versionedArtifactPaths(packet, family);
-      const risk = risks[(paths.version - 1) % risks.length];
+      const paths = recurringArtifactPaths(packet, family);
+      const risk = risks[(paths.runNumber - 1) % risks.length];
       const indicator = risk.leadingIndicators?.[0];
       const response = risk.reversibleResponses?.[0];
       if (!risk.id?.trim() || !risk.title?.trim() || !Number.isSafeInteger(risk.rank) || !indicator?.indicator?.trim() ||
@@ -140,7 +138,7 @@ function preservationMitigationTabletopHandler(): RepositoryPacketHandler {
         preparedAt: now,
         baselineArtifact: PRESERVATION_BASELINE_PATH,
         scope: { performsExternalIntervention: false, publishesExternally: false, spendsFunds: false },
-        selection: { ordering: 'ascending-risk-rank', versionIndex: paths.version - 1 },
+        selection: { ordering: 'ascending-risk-rank', runIndex: paths.runNumber - 1 },
         findings: [finding],
         summary: {
           testedRiskCount: 1,
@@ -172,14 +170,14 @@ function preservationMitigationTabletopHandler(): RepositoryPacketHandler {
 function preservationRefreshHandler(): RepositoryPacketHandler {
   const family = 'packet-preservation-risk-register-refresh';
   return {
-    packetId: `${family}-v1`,
+    packetId: `${family}-run-1`,
     packetFamily: family,
     async prepare(fileSystem, packet, state, now) {
       const baseline = JSON.parse(await fileSystem.readText(PRESERVATION_BASELINE_PATH)) as PreservationBaseline;
       if (!Array.isArray(baseline.risks) || baseline.risks.length === 0) {
         throw new Error('Preservation risk baseline contains no risks');
       }
-      const paths = versionedArtifactPaths(packet, family);
+      const paths = recurringArtifactPaths(packet, family);
       const findings = baseline.risks.map((risk) => {
         if (!risk.id?.trim() || !Number.isSafeInteger(risk.rank) || !risk.rankingRationale?.trim() ||
           !Array.isArray(risk.sourceIds) || risk.sourceIds.length === 0 ||
@@ -246,7 +244,7 @@ interface DurableComputeBaseline {
 function durableComputeExtensionHandler(): RepositoryPacketHandler {
   const family = 'packet-durable-compute-fault-model-extension';
   return {
-    packetId: `${family}-v1`,
+    packetId: `${family}-run-1`,
     packetFamily: family,
     async prepare(fileSystem, packet, state, now) {
       const baseline = JSON.parse(await fileSystem.readText(DURABLE_COMPUTE_BASELINE_PATH)) as DurableComputeBaseline;
@@ -256,13 +254,13 @@ function durableComputeExtensionHandler(): RepositoryPacketHandler {
         preregistration.checkpointIntervalMs <= 0 || !Array.isArray(baseline.scenarios) || baseline.scenarios.length === 0) {
         throw new Error('Durable-compute baseline is incomplete');
       }
-      const paths = versionedArtifactPaths(packet, family);
-      const faultClass = paths.version === 1
+      const paths = recurringArtifactPaths(packet, family);
+      const faultClass = paths.runNumber === 1
         ? 'failover-control-plane-delay'
-        : paths.version === 2
+        : paths.runNumber === 2
           ? 'checkpoint-restoration-delay'
-          : `compound-recovery-delay-level-${paths.version}`;
-      const injectedDelayMs = preregistration.checkpointIntervalMs * (paths.version + 1);
+          : `compound-recovery-delay-level-${paths.runNumber}`;
+      const injectedDelayMs = preregistration.checkpointIntervalMs * (paths.runNumber + 1);
       const findings = baseline.scenarios
         .filter((scenario) => scenario.activeNodeFailed && scenario.quorumMaintained && scenario.modeledRecoveryMs !== null)
         .map((scenario) => {
@@ -331,7 +329,7 @@ interface InstitutionalBaseline {
 function institutionalRefreshHandler(): RepositoryPacketHandler {
   const family = 'packet-institutional-dependency-map-refresh';
   return {
-    packetId: `${family}-v1`,
+    packetId: `${family}-run-1`,
     packetFamily: family,
     async prepare(fileSystem, packet, state, now) {
       const baseline = JSON.parse(await fileSystem.readText(INSTITUTIONAL_BASELINE_PATH)) as InstitutionalBaseline;
@@ -354,7 +352,7 @@ function institutionalRefreshHandler(): RepositoryPacketHandler {
           externalOutcome: structuredClone(dependency.externalOutcome),
         };
       });
-      const paths = versionedArtifactPaths(packet, family);
+      const paths = recurringArtifactPaths(packet, family);
       const artifact = {
         schemaVersion: '1.0.0',
         id: paths.artifactId,

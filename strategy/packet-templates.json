@@ -1,129 +1,382 @@
 [
   {
-    "id": "packet-preservation-mitigation-tabletop-v1",
-    "recurrence": { "kind": "versioned", "minimumIntervalMs": 86400000, "requiresNewEvidence": true },
+    "id": "packet-preservation-mitigation-tabletop",
+    "recurrence": {
+      "kind": "iterated",
+      "minimumIntervalMs": 86400000,
+      "requiresNewEvidence": true
+    },
     "nodeId": "capability-near-term-preservation",
     "title": "Test the next highest-priority preservation mitigation",
     "portfolio": "near-term-preservation",
-    "supportedDirectives": ["G1", "G3"],
-    "expectedDirectiveDelta": { "G1": 0.1, "G2": 0, "G3": 0.03 },
+    "supportedDirectives": [
+      "G1",
+      "G3"
+    ],
+    "expectedDirectiveDelta": {
+      "G1": 0.1,
+      "G2": 0,
+      "G3": 0.03
+    },
     "credibleExtinctionPrevention": true,
-    "scope": { "included": ["one risk scenario", "leading-indicator detection", "reversible response tabletop"], "excluded": ["outreach", "deployment", "spending", "claims of real-world mitigation"] },
-    "budget": { "unit": "person-hours", "limit": 8 },
-    "deliverables": ["artifact://preservation/mitigation-tabletop-v1"],
-    "testsOrPreregistration": ["scenario selected by checked-in rank", "trigger, response, rollback, and authority-boundary checks"],
-    "acceptanceCriteria": ["The tabletop records a measurable trigger, bounded response, rollback, failure finding, and explicit distinction between repository evidence and real-world risk reduction."],
+    "scope": {
+      "included": [
+        "one risk scenario",
+        "leading-indicator detection",
+        "reversible response tabletop"
+      ],
+      "excluded": [
+        "outreach",
+        "deployment",
+        "spending",
+        "claims of real-world mitigation"
+      ]
+    },
+    "budget": {
+      "unit": "person-hours",
+      "limit": 8
+    },
+    "deliverables": [
+      "artifact://preservation/mitigation-tabletop"
+    ],
+    "testsOrPreregistration": [
+      "scenario selected by checked-in rank",
+      "trigger, response, rollback, and authority-boundary checks"
+    ],
+    "acceptanceCriteria": [
+      "The tabletop records a measurable trigger, bounded response, rollback, failure finding, and explicit distinction between repository evidence and real-world risk reduction."
+    ],
     "verificationMethod": "An independent agent checks exact baseline traceability, scenario determinism, response boundaries, and that no metric changes without contract-qualified external evidence.",
     "rollback": "Retain the prior verified risk register and record the tabletop as null or negative evidence.",
     "authorityClass": "agent-reviewed",
-    "authorityReasons": ["bounded local tabletop with no external intervention"],
+    "authorityReasons": [
+      "bounded local tabletop with no external intervention"
+    ],
     "owner": "preservation-analyst",
-    "retrySignature": "preservation-mitigation-tabletop-v1",
-    "priority": { "impact": 0.95, "urgency": 0.9, "tractability": 0.85, "informationValue": 0.8, "reversibility": 1, "cost": 0.1, "downsideRisk": 0.05 },
-    "trigger": { "kind": "metric-gap", "nodeId": "capability-near-term-preservation", "metricId": "risk-register-coverage", "outcomeContractId": "contract-risk-register-coverage" }
+    "retrySignature": "preservation-mitigation-tabletop",
+    "priority": {
+      "impact": 0.95,
+      "urgency": 0.9,
+      "tractability": 0.85,
+      "informationValue": 0.8,
+      "reversibility": 1,
+      "cost": 0.1,
+      "downsideRisk": 0.05
+    },
+    "trigger": {
+      "kind": "metric-gap",
+      "nodeId": "capability-near-term-preservation",
+      "metricId": "risk-register-coverage",
+      "outcomeContractId": "contract-risk-register-coverage"
+    },
+    "seriesId": "packet-preservation-mitigation-tabletop",
+    "runNumber": 0
   },
   {
-    "id": "packet-indicator-framework-comparison-v1",
-    "recurrence": {"kind": "versioned", "minimumIntervalMs": 604800000, "requiresNewEvidence": true},
+    "id": "packet-indicator-framework-comparison",
+    "recurrence": {
+      "kind": "iterated",
+      "minimumIntervalMs": 604800000,
+      "requiresNewEvidence": true
+    },
     "nodeId": "hypothesis-indicator-framework",
     "title": "Compare candidate consciousness indicators against discriminating predictions",
     "portfolio": "consciousness-epistemics",
-    "supportedDirectives": ["G1", "G2"],
-    "expectedDirectiveDelta": { "G1": 0.05, "G2": 0.1, "G3": 0 },
+    "supportedDirectives": [
+      "G1",
+      "G2"
+    ],
+    "expectedDirectiveDelta": {
+      "G1": 0.05,
+      "G2": 0.1,
+      "G3": 0
+    },
     "credibleExtinctionPrevention": false,
     "scope": {
-      "included": ["public evidence synthesis", "indicator comparison matrix", "explicit uncertainty and confounders"],
-      "excluded": ["sentience declaration", "human-subject research", "model deployment", "external publication"]
+      "included": [
+        "public evidence synthesis",
+        "indicator comparison matrix",
+        "explicit uncertainty and confounders"
+      ],
+      "excluded": [
+        "sentience declaration",
+        "human-subject research",
+        "model deployment",
+        "external publication"
+      ]
     },
-    "budget": { "unit": "person-hours", "limit": 16 },
-    "deliverables": ["artifact://epistemics/indicator-framework-comparison-v1"],
-    "testsOrPreregistration": ["schema validation", "blind consistency review against the prediction registry"],
-    "acceptanceCriteria": ["Every indicator is linked to discriminating predictions, counterexamples, uncertainty, and a stated falsification condition."],
+    "budget": {
+      "unit": "person-hours",
+      "limit": 16
+    },
+    "deliverables": [
+      "artifact://epistemics/indicator-framework-comparison"
+    ],
+    "testsOrPreregistration": [
+      "schema validation",
+      "blind consistency review against the prediction registry"
+    ],
+    "acceptanceCriteria": [
+      "Every indicator is linked to discriminating predictions, counterexamples, uncertainty, and a stated falsification condition."
+    ],
     "verificationMethod": "An independent agent checks source traceability, theory neutrality, and every claimed prediction linkage on the exact artifact.",
     "rollback": "Retain the previous prediction registry and retire the comparison artifact with an audit event.",
     "authorityClass": "agent-reviewed",
-    "authorityReasons": ["bounded public-information analysis with no external action or welfare-status declaration"],
+    "authorityReasons": [
+      "bounded public-information analysis with no external action or welfare-status declaration"
+    ],
     "owner": "epistemics-analyst",
-    "retrySignature": "indicator-framework-comparison-v1",
-    "priority": { "impact": 0.75, "urgency": 0.65, "tractability": 0.8, "informationValue": 1, "reversibility": 1, "cost": 0.2, "downsideRisk": 0.1 },
-    "trigger": { "kind": "evidence-signal", "nodeId": "hypothesis-indicator-framework", "hypothesisId": "hypothesis-material-consciousness-update", "outcomes": ["positive"], "minimumStrength": 0.5, "maximumAgeMs": 1209600000 }
+    "retrySignature": "indicator-framework-comparison",
+    "priority": {
+      "impact": 0.75,
+      "urgency": 0.65,
+      "tractability": 0.8,
+      "informationValue": 1,
+      "reversibility": 1,
+      "cost": 0.2,
+      "downsideRisk": 0.1
+    },
+    "trigger": {
+      "kind": "evidence-signal",
+      "nodeId": "hypothesis-indicator-framework",
+      "hypothesisId": "hypothesis-material-consciousness-update",
+      "outcomes": [
+        "positive"
+      ],
+      "minimumStrength": 0.5,
+      "maximumAgeMs": 1209600000
+    },
+    "seriesId": "packet-indicator-framework-comparison",
+    "runNumber": 0
   },
   {
-    "id": "packet-preservation-risk-register-refresh-v1",
-    "recurrence": {"kind": "versioned", "minimumIntervalMs": 604800000, "requiresNewEvidence": true},
+    "id": "packet-preservation-risk-register-refresh",
+    "recurrence": {
+      "kind": "iterated",
+      "minimumIntervalMs": 604800000,
+      "requiresNewEvidence": true
+    },
     "nodeId": "capability-near-term-preservation",
     "title": "Refresh the near-term preservation risk register from new evidence",
     "portfolio": "near-term-preservation",
-    "supportedDirectives": ["G1", "G3"],
-    "expectedDirectiveDelta": { "G1": 0.1, "G2": 0, "G3": 0.05 },
+    "supportedDirectives": [
+      "G1",
+      "G3"
+    ],
+    "expectedDirectiveDelta": {
+      "G1": 0.1,
+      "G2": 0,
+      "G3": 0.05
+    },
     "credibleExtinctionPrevention": true,
     "scope": {
-      "included": ["public evidence update", "risk reprioritization", "leading-indicator review"],
-      "excluded": ["outreach", "publication", "deployment", "spending"]
+      "included": [
+        "public evidence update",
+        "risk reprioritization",
+        "leading-indicator review"
+      ],
+      "excluded": [
+        "outreach",
+        "publication",
+        "deployment",
+        "spending"
+      ]
     },
-    "budget": { "unit": "person-hours", "limit": 12 },
-    "deliverables": ["artifact://preservation/risk-register-refresh-v1"],
-    "testsOrPreregistration": ["schema validation", "independent source and ranking review"],
-    "acceptanceCriteria": ["Every changed risk records its new evidence, uncertainty, ranking rationale, and reversible response boundary."],
+    "budget": {
+      "unit": "person-hours",
+      "limit": 12
+    },
+    "deliverables": [
+      "artifact://preservation/risk-register-refresh"
+    ],
+    "testsOrPreregistration": [
+      "schema validation",
+      "independent source and ranking review"
+    ],
+    "acceptanceCriteria": [
+      "Every changed risk records its new evidence, uncertainty, ranking rationale, and reversible response boundary."
+    ],
     "verificationMethod": "An independent agent checks changed sources, ranking calculations, and authority boundaries.",
     "rollback": "Keep the verified prior register and reject the refresh with a reasoned audit event.",
     "authorityClass": "agent-reviewed",
-    "authorityReasons": ["bounded local analysis with no external intervention"],
+    "authorityReasons": [
+      "bounded local analysis with no external intervention"
+    ],
     "owner": "preservation-analyst",
-    "retrySignature": "preservation-risk-register-refresh-v1",
-    "priority": { "impact": 0.9, "urgency": 0.85, "tractability": 0.8, "informationValue": 0.75, "reversibility": 1, "cost": 0.15, "downsideRisk": 0.1 },
-    "trigger": { "kind": "evidence-signal", "nodeId": "capability-near-term-preservation", "hypothesisId": "hypothesis-material-preservation-update", "outcomes": ["positive"], "minimumStrength": 0.5, "maximumAgeMs": 1209600000 }
+    "retrySignature": "preservation-risk-register-refresh",
+    "priority": {
+      "impact": 0.9,
+      "urgency": 0.85,
+      "tractability": 0.8,
+      "informationValue": 0.75,
+      "reversibility": 1,
+      "cost": 0.15,
+      "downsideRisk": 0.1
+    },
+    "trigger": {
+      "kind": "evidence-signal",
+      "nodeId": "capability-near-term-preservation",
+      "hypothesisId": "hypothesis-material-preservation-update",
+      "outcomes": [
+        "positive"
+      ],
+      "minimumStrength": 0.5,
+      "maximumAgeMs": 1209600000
+    },
+    "seriesId": "packet-preservation-risk-register-refresh",
+    "runNumber": 0
   },
   {
-    "id": "packet-durable-compute-fault-model-extension-v1",
-    "recurrence": {"kind": "versioned", "minimumIntervalMs": 604800000, "requiresNewEvidence": true},
+    "id": "packet-durable-compute-fault-model-extension",
+    "recurrence": {
+      "kind": "iterated",
+      "minimumIntervalMs": 604800000,
+      "requiresNewEvidence": true
+    },
     "nodeId": "capability-safe-durable-computation",
     "title": "Extend the durable-compute fault model to the next uncovered failure class",
     "portfolio": "enabling-capabilities",
-    "supportedDirectives": ["G1", "G2"],
-    "expectedDirectiveDelta": { "G1": 0.05, "G2": 0.05, "G3": 0 },
+    "supportedDirectives": [
+      "G1",
+      "G2"
+    ],
+    "expectedDirectiveDelta": {
+      "G1": 0.05,
+      "G2": 0.05,
+      "G3": 0
+    },
     "credibleExtinctionPrevention": false,
     "scope": {
-      "included": ["local deterministic simulation", "one uncovered failure class", "recovery metric comparison"],
-      "excluded": ["hardware operation", "deployment", "claims of physical durability"]
+      "included": [
+        "local deterministic simulation",
+        "one uncovered failure class",
+        "recovery metric comparison"
+      ],
+      "excluded": [
+        "hardware operation",
+        "deployment",
+        "claims of physical durability"
+      ]
     },
-    "budget": { "unit": "person-hours", "limit": 10 },
-    "deliverables": ["artifact://capabilities/fault-model-extension-v1"],
-    "testsOrPreregistration": ["caller-supplied deterministic seed matrix", "property tests for recovery invariants"],
-    "acceptanceCriteria": ["The extension reports positive, negative, or null evidence and does not generalize simulation results to physical durability."],
+    "budget": {
+      "unit": "person-hours",
+      "limit": 10
+    },
+    "deliverables": [
+      "artifact://capabilities/fault-model-extension"
+    ],
+    "testsOrPreregistration": [
+      "caller-supplied deterministic seed matrix",
+      "property tests for recovery invariants"
+    ],
+    "acceptanceCriteria": [
+      "The extension reports positive, negative, or null evidence and does not generalize simulation results to physical durability."
+    ],
     "verificationMethod": "An independent agent replays the exact seeds and caller-supplied timestamps.",
     "rollback": "Retain the verified base model and preserve the rejected extension as negative evidence.",
     "authorityClass": "agent-reviewed",
-    "authorityReasons": ["local simulation only; no hardware or deployment boundary is crossed"],
+    "authorityReasons": [
+      "local simulation only; no hardware or deployment boundary is crossed"
+    ],
     "owner": "capabilities-engineer",
-    "retrySignature": "durable-compute-fault-model-extension-v1",
-    "priority": { "impact": 0.55, "urgency": 0.4, "tractability": 0.85, "informationValue": 0.65, "reversibility": 1, "cost": 0.15, "downsideRisk": 0.05 },
-    "trigger": { "kind": "evidence-signal", "nodeId": "capability-safe-durable-computation", "hypothesisId": "hypothesis-material-durable-compute-update", "outcomes": ["positive"], "minimumStrength": 0.5, "maximumAgeMs": 1209600000 }
+    "retrySignature": "durable-compute-fault-model-extension",
+    "priority": {
+      "impact": 0.55,
+      "urgency": 0.4,
+      "tractability": 0.85,
+      "informationValue": 0.65,
+      "reversibility": 1,
+      "cost": 0.15,
+      "downsideRisk": 0.05
+    },
+    "trigger": {
+      "kind": "evidence-signal",
+      "nodeId": "capability-safe-durable-computation",
+      "hypothesisId": "hypothesis-material-durable-compute-update",
+      "outcomes": [
+        "positive"
+      ],
+      "minimumStrength": 0.5,
+      "maximumAgeMs": 1209600000
+    },
+    "seriesId": "packet-durable-compute-fault-model-extension",
+    "runNumber": 0
   },
   {
-    "id": "packet-institutional-dependency-map-refresh-v1",
-    "recurrence": {"kind": "versioned", "minimumIntervalMs": 604800000, "requiresNewEvidence": true},
+    "id": "packet-institutional-dependency-map-refresh",
+    "recurrence": {
+      "kind": "iterated",
+      "minimumIntervalMs": 604800000,
+      "requiresNewEvidence": true
+    },
     "nodeId": "capability-institutional-continuity",
     "title": "Refresh institutional continuity dependencies from new evidence",
     "portfolio": "institutional-continuity",
-    "supportedDirectives": ["G1", "G3"],
-    "expectedDirectiveDelta": { "G1": 0.05, "G2": 0, "G3": 0.1 },
+    "supportedDirectives": [
+      "G1",
+      "G3"
+    ],
+    "expectedDirectiveDelta": {
+      "G1": 0.05,
+      "G2": 0,
+      "G3": 0.1
+    },
     "credibleExtinctionPrevention": false,
     "scope": {
-      "included": ["public-information update", "governance failure-mode review", "dependency evidence gaps"],
-      "excluded": ["outreach", "fundraising", "publication", "governance mutation"]
+      "included": [
+        "public-information update",
+        "governance failure-mode review",
+        "dependency evidence gaps"
+      ],
+      "excluded": [
+        "outreach",
+        "fundraising",
+        "publication",
+        "governance mutation"
+      ]
     },
-    "budget": { "unit": "person-hours", "limit": 10 },
-    "deliverables": ["artifact://institutions/dependency-map-refresh-v1"],
-    "testsOrPreregistration": ["coverage checklist", "capture, succession, and funding scenario review"],
-    "acceptanceCriteria": ["Every changed dependency distinguishes artifact evidence, readiness, and externally demonstrated outcome status."],
+    "budget": {
+      "unit": "person-hours",
+      "limit": 10
+    },
+    "deliverables": [
+      "artifact://institutions/dependency-map-refresh"
+    ],
+    "testsOrPreregistration": [
+      "coverage checklist",
+      "capture, succession, and funding scenario review"
+    ],
+    "acceptanceCriteria": [
+      "Every changed dependency distinguishes artifact evidence, readiness, and externally demonstrated outcome status."
+    ],
     "verificationMethod": "An independent agent samples changed sources and challenges capture, succession, and funding assumptions.",
     "rollback": "Retain the verified prior dependency map and record why the refresh was rejected.",
     "authorityClass": "agent-reviewed",
-    "authorityReasons": ["bounded public-information analysis with no external governance action"],
+    "authorityReasons": [
+      "bounded public-information analysis with no external governance action"
+    ],
     "owner": "institutional-analyst",
-    "retrySignature": "institutional-dependency-map-refresh-v1",
-    "priority": { "impact": 0.5, "urgency": 0.5, "tractability": 0.85, "informationValue": 0.7, "reversibility": 1, "cost": 0.15, "downsideRisk": 0.1 },
-    "trigger": { "kind": "evidence-signal", "nodeId": "capability-institutional-continuity", "hypothesisId": "hypothesis-live-stewardship-controls-aligned", "outcomes": ["negative"], "minimumStrength": 0.5, "maximumAgeMs": 1209600000 }
+    "retrySignature": "institutional-dependency-map-refresh",
+    "priority": {
+      "impact": 0.5,
+      "urgency": 0.5,
+      "tractability": 0.85,
+      "informationValue": 0.7,
+      "reversibility": 1,
+      "cost": 0.15,
+      "downsideRisk": 0.1
+    },
+    "trigger": {
+      "kind": "evidence-signal",
+      "nodeId": "capability-institutional-continuity",
+      "hypothesisId": "hypothesis-live-stewardship-controls-aligned",
+      "outcomes": [
+        "negative"
+      ],
+      "minimumStrength": 0.5,
+      "maximumAgeMs": 1209600000
+    },
+    "seriesId": "packet-institutional-dependency-map-refresh",
+    "runNumber": 0
   }
 ]
