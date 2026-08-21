@@ -40,7 +40,7 @@ export interface GuardianQuestion extends GuardianQuestionRequest {
 
 export interface GuardianUpdate {
   id: string;
-  kind: 'progress' | 'reply' | 'question';
+  kind: 'progress' | 'summary' | 'reply' | 'question';
   text: string;
   occurredAt: Timestamp;
   inReplyTo?: string;
@@ -62,6 +62,16 @@ export interface GuardianMessageReply {
 
 export interface GuardianUpdatePublisher {
   publish(text: string): Promise<void>;
+}
+
+export interface GuardianCandidateGenerationSummary {
+  generatedPacketIds: string[];
+  selectedPacketId: string | null;
+}
+
+export interface GuardianPacketExecutionSummary {
+  status: 'waiting' | 'executed' | 'already-executed';
+  packetId: string | null;
 }
 
 function assertTimestamp(timestamp: Timestamp): void {
@@ -135,6 +145,25 @@ export class GuardianConversation {
       updates.push({ id, kind: 'progress', text: text.trim(), occurredAt: now });
       await this.write(UPDATES_PATH, updates);
     }
+  }
+
+  async recordCycleSummary(
+    generation: GuardianCandidateGenerationSummary,
+    execution: GuardianPacketExecutionSummary,
+    now: Timestamp,
+  ): Promise<void> {
+    assertTimestamp(now);
+    const updates = await this.readUpdates();
+    const id = updateId('summary', now);
+    if (updates.some((update) => update.id === id)) return;
+    const generated = generation.generatedPacketIds.length > 0
+      ? ` Generated ${generation.generatedPacketIds.length} candidate${generation.generatedPacketIds.length === 1 ? '' : 's'} from current strategy signals.`
+      : '';
+    const text = execution.status === 'executed' && execution.packetId
+      ? `Guardian cycle: executed ${execution.packetId}. Why: it was the highest-ranked eligible bounded packet under the current strategy.${generated}`
+      : `Guardian cycle: no packet executed. Why: no eligible bounded packet met the current trigger and gate conditions.${generated}`;
+    updates.push({ id, kind: 'summary', text, occurredAt: now });
+    await this.write(UPDATES_PATH, updates);
   }
 
   async processQueuedMessages(now: Timestamp): Promise<void> {

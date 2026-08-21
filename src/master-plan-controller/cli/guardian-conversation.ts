@@ -42,6 +42,18 @@ export async function runGuardianConversationCli(
     await guardian.recordProgress(stage, text, now);
     return 'Guardian progress recorded.';
   }
+  if (command === 'summary') {
+    const [now, generationJson, executionJson] = values;
+    if (!now || !generationJson || !executionJson || values.length !== 3) {
+      usage('Usage: guardian summary <timestamp> <generation-json> <execution-json>');
+    }
+    await guardian.recordCycleSummary(
+      JSON.parse(generationJson) as { generatedPacketIds: string[]; selectedPacketId: string | null },
+      JSON.parse(executionJson) as { status: 'waiting' | 'executed' | 'already-executed'; packetId: string | null },
+      now,
+    );
+    return 'Guardian cycle summary recorded.';
+  }
   if (command === 'communicate') {
     const [now] = values;
     if (!now || values.length !== 1) usage('Usage: guardian communicate <timestamp>');
@@ -55,5 +67,5 @@ export async function runGuardianConversationCli(
     await guardian.deliverPendingUpdates(new SlackWebhookPublisher(network, slackWebhookUrl), now);
     return 'Guardian updates delivered to Slack.';
   }
-  usage('Usage: guardian <status|inbox|progress|communicate|notify> ...');
+  usage('Usage: guardian <status|inbox|progress|summary|communicate|notify> ...');
 }
