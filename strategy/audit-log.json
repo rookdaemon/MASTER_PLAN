@@ -378,5 +378,20 @@
       "verifier": "deterministic-repository-executor",
       "metricUpdates": []
     }
+  },
+  {
+    "id": "audit:packet-preservation-risk-register-refresh-run-4:packet-verified:2026-08-21T22:42:27.000Z",
+    "type": "packet-verified",
+    "packetId": "packet-preservation-risk-register-refresh-run-4",
+    "occurredAt": "2026-08-21T22:42:27.000Z",
+    "details": {
+      "outcome": "null",
+      "artifactReferences": [
+        "strategy/results/preservation-risk-register-refresh-run-4.json",
+        "strategy/findings/preservation-risks.json"
+      ],
+      "verifier": "deterministic-repository-executor",
+      "metricUpdates": []
+    }
   }
 ]
