@@ -42,6 +42,18 @@ describe('streamlined update workflows', () => {
     }
   });
 
+  it('runs one bounded Guardian cycle every hour without a reviewer or pull-request detour', async () => {
+    const guardian = await fileSystem.readText('.github/workflows/guardian-cycle.yml');
+    expect(guardian).toContain("cron: '17 * * * *'");
+    expect(guardian).toContain('workflow_dispatch:');
+    expect(guardian).toContain('npm run strategy:generate -- "$cycle_time"');
+    expect(guardian).toContain('npm run strategy:execute -- "$cycle_time"');
+    expect(guardian).toContain('npm run strategy:verify');
+    expect(guardian).toContain('npm run docs:verify');
+    expect(guardian).toContain('git push origin HEAD:main');
+    expect(guardian).not.toMatch(/agent.review|copilot|pull request|gh pr/i);
+  });
+
   it('documents CI-only update handling without independent agent-review requirements', async () => {
     const [agents, operations] = await Promise.all([
       fileSystem.readText('AGENTS.md'),
