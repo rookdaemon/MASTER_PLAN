@@ -31,6 +31,8 @@ jobs:
           npm run strategy:execute -- "$cycle_time"
           npm run strategy:verify
           npm run docs:verify
+          npm run lint
+          npm test
       - name: Commit a changed cycle
         shell: bash
         run: |

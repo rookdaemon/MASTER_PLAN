@@ -14,6 +14,6 @@ describe('repository filesystem normalization', () => {
   });
 
   it('treats an absent output directory as an empty portable file set', async () => {
-    await expect(new NodeFileSystem('.').listFiles('strategy/results/')).resolves.toEqual([]);
+    await expect(new NodeFileSystem('.').listFiles('strategy/absent-output-fixture/')).resolves.toEqual([]);
   });
 });

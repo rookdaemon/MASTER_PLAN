@@ -27,6 +27,7 @@ async function repositorySnapshot(): Promise<Record<string, string>> {
     null,
     2,
   )}\n`;
+  const observedAt = nextRepositoryTimestamp(snapshot);
   const evidence = JSON.parse(snapshot['strategy/evidence.json']) as Array<Record<string, unknown>>;
   evidence.push({
     id: 'evidence-test-material-consciousness-update',
@@ -38,7 +39,7 @@ async function repositorySnapshot(): Promise<Record<string, string>> {
     supportedHypotheses: ['hypothesis-material-consciousness-update'],
     falsifiedHypotheses: [],
     verifier: 'test-adjudicator',
-    observedAt: '2026-08-04T09:05:46.000Z',
+    observedAt,
     outcome: 'positive',
   });
   snapshot['strategy/evidence.json'] = `${JSON.stringify(evidence, null, 2)}\n`;
