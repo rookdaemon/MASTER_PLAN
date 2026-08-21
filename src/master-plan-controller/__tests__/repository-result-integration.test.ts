@@ -118,12 +118,17 @@ describe('repository packet-result integration', () => {
     const governance = JSON.parse(await fileSystem.readText('strategy/governance.json')) as {
       reviewedResultCount: number;
     };
-    expect(governance.reviewedResultCount).toBe(1);
+    const initialGovernance = JSON.parse(initial['strategy/governance.json']) as {
+      reviewedResultCount: number;
+    };
+    expect(governance.reviewedResultCount).toBe(initialGovernance.reviewedResultCount + 1);
     expect(await fileSystem.readText('strategy/graph.json')).toBe(initial['strategy/graph.json']);
     const originalPackets = initial['strategy/work-packets.json'];
     expect((await fileSystem.readText('strategy/work-packets.json')).replace('"lifecycle": "verified"', '"lifecycle": "eligible"'))
       .toBe(originalPackets);
-    expect(await fileSystem.readText('docs/OPERATIONS.md')).toContain('Reviewed results since the current baseline: **1**.');
+    expect(await fileSystem.readText('docs/OPERATIONS.md')).toContain(
+      `Reviewed results since the current baseline: **${initialGovernance.reviewedResultCount + 1}**.`,
+    );
   });
 
   it('fails closed without writing when controller verification does not pass', async () => {
