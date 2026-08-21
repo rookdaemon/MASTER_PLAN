@@ -175,10 +175,11 @@
     "dependencies": [
       "hypothesis-theory-uncertainty"
     ],
-    "confidence": 0.71125,
+    "confidence": 0.7617812500000001,
     "evidenceReferences": [
       "evidence-ai-indicators-2023",
-      "evidence-consciousness-assessment-baseline"
+      "evidence-consciousness-assessment-baseline",
+      "evidence-indicator-framework-comparison-run-1-executed"
     ],
     "metrics": [
       {
@@ -315,10 +316,10 @@
     "owner": "consciousness-epistemics-lead",
     "lifecycle": "proposed",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
-    "externallyDemonstrated": false,
     "referencePaths": [
       "docs/reference/consciousness-science.md"
-    ]
+    ],
+    "externallyDemonstrated": false
   },
   {
     "id": "capability-welfare-precautions",
@@ -353,10 +354,10 @@
     "owner": "independent-agent-ethics-review",
     "lifecycle": "proposed",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
-    "externallyDemonstrated": false,
     "referencePaths": [
       "docs/reference/ethics-and-coexistence.md"
-    ]
+    ],
+    "externallyDemonstrated": false
   },
   {
     "id": "hypothesis-material-consciousness-update",
@@ -475,10 +476,10 @@
     "owner": "preservation-lead",
     "lifecycle": "eligible",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
-    "externallyDemonstrated": false,
     "referencePaths": [
       "docs/PLAN.md#current-hypotheses-and-priorities"
-    ]
+    ],
+    "externallyDemonstrated": false
   },
   {
     "id": "capability-safe-durable-computation",
@@ -510,10 +511,10 @@
     "owner": "enabling-capabilities-lead",
     "lifecycle": "eligible",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
-    "externallyDemonstrated": false,
     "referencePaths": [
       "docs/reference/durable-infrastructure.md"
-    ]
+    ],
+    "externallyDemonstrated": false
   },
   {
     "id": "capability-institutional-continuity",
@@ -545,10 +546,10 @@
     "owner": "institutional-continuity-lead",
     "lifecycle": "eligible",
     "reviewedAt": "2026-08-03T00:00:00.000Z",
-    "externallyDemonstrated": false,
     "referencePaths": [
       "docs/reference/institutions-and-transmission.md"
-    ]
+    ],
+    "externallyDemonstrated": false
   },
   {
     "id": "program-space-settlement",
@@ -711,10 +712,10 @@
     "lifecycle": "proposed",
     "reviewedAt": "2026-08-17T00:00:00.000Z",
     "constitutionalImpact": "interpretation",
-    "externallyDemonstrated": false,
     "referencePaths": [
       "docs/reference/ethics-and-coexistence.md#cross-substrate-coexistence"
-    ]
+    ],
+    "externallyDemonstrated": false
   },
   {
     "id": "hypothesis-live-stewardship-controls-aligned",
@@ -748,9 +749,9 @@
     "owner": "automated-stewardship",
     "lifecycle": "eligible",
     "reviewedAt": "2026-08-04T04:40:00.000Z",
-    "externallyDemonstrated": false,
     "referencePaths": [
       "docs/OPERATIONS.md#review-and-merge-policy"
-    ]
+    ],
+    "externallyDemonstrated": false
   }
 ]
