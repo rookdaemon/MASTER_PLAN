@@ -3,24 +3,42 @@
     "id": "guardian-progress:cycle-started:2026-08-21T10:11:17.000Z",
     "kind": "progress",
     "text": "The bounded Guardian cycle has started.",
-    "occurredAt": "2026-08-21T10:11:17.000Z"
+    "occurredAt": "2026-08-21T10:11:17.000Z",
+    "deliveredAt": "2026-08-21T11:42:11.000Z"
   },
   {
     "id": "guardian-progress:cycle-completed:2026-08-21T10:11:17.000Z",
     "kind": "progress",
     "text": "The bounded Guardian cycle completed its deterministic checks.",
-    "occurredAt": "2026-08-21T10:11:17.000Z"
+    "occurredAt": "2026-08-21T10:11:17.000Z",
+    "deliveredAt": "2026-08-21T11:42:11.000Z"
   },
   {
     "id": "guardian-progress:cycle-started:2026-08-21T10:47:59.000Z",
     "kind": "progress",
     "text": "The bounded Guardian cycle has started.",
-    "occurredAt": "2026-08-21T10:47:59.000Z"
+    "occurredAt": "2026-08-21T10:47:59.000Z",
+    "deliveredAt": "2026-08-21T11:42:11.000Z"
   },
   {
     "id": "guardian-progress:cycle-completed:2026-08-21T10:47:59.000Z",
     "kind": "progress",
     "text": "The bounded Guardian cycle completed its deterministic checks.",
-    "occurredAt": "2026-08-21T10:47:59.000Z"
+    "occurredAt": "2026-08-21T10:47:59.000Z",
+    "deliveredAt": "2026-08-21T11:42:11.000Z"
+  },
+  {
+    "id": "guardian-progress:cycle-started:2026-08-21T11:41:36.000Z",
+    "kind": "progress",
+    "text": "The bounded Guardian cycle has started.",
+    "occurredAt": "2026-08-21T11:41:36.000Z",
+    "deliveredAt": "2026-08-21T11:42:11.000Z"
+  },
+  {
+    "id": "guardian-progress:cycle-completed:2026-08-21T11:41:36.000Z",
+    "kind": "progress",
+    "text": "The bounded Guardian cycle completed its deterministic checks.",
+    "occurredAt": "2026-08-21T11:41:36.000Z",
+    "deliveredAt": "2026-08-21T11:42:11.000Z"
   }
 ]
