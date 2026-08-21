@@ -50,6 +50,8 @@ describe('streamlined update workflows', () => {
     expect(guardian).toContain('npm run strategy:execute -- "$cycle_time"');
     expect(guardian).toContain('npm run strategy:verify');
     expect(guardian).toContain('npm run docs:verify');
+    expect(guardian).toContain('npm run lint');
+    expect(guardian).toContain('npm test');
     expect(guardian).toContain('git push origin HEAD:main');
     expect(guardian).not.toMatch(/agent.review|copilot|pull request|gh pr/i);
   });
