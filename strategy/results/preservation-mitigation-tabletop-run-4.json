@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "preservation-mitigation-tabletop-run-4",
+  "packetId": "packet-preservation-mitigation-tabletop-run-4",
+  "preparedAt": "2026-08-21T21:39:16.000Z",
+  "baselineArtifact": "strategy/findings/preservation-risks.json",
+  "scope": {
+    "performsExternalIntervention": false,
+    "publishesExternally": false,
+    "spendsFunds": false
+  },
+  "selection": {
+    "ordering": "ascending-risk-rank",
+    "runIndex": 3
+  },
+  "findings": [
+    {
+      "riskId": "risk-climate-extremes",
+      "rank": 4,
+      "scenario": "Observe whether Global temperature anomaly, ocean heat content, sea-level trend, ice loss, and compound extreme records moves in the direction of concern: Persistent record values, accelerating trends, or correlated extremes across major producing and population regions",
+      "observationCadence": "quarterly indicator update and annual WMO refresh",
+      "measurableTrigger": "A verified trend acceleration or repeated exposure of a critical dependency",
+      "boundedResponse": "Map continuity-critical assets against public multi-hazard indicators and generate reversible adaptation experiments",
+      "rollback": "Remove unsupported exposure links and reinstate the last independently reviewed map",
+      "authorityBoundary": "Automated analysis and sandboxed simulations are autonomous. Changes to infrastructure, land, procurement, public claims, or third-party obligations need separately verified authority; escalate to a human only for an evidenced owner-only consent, legal, or physical constraint.",
+      "disposition": "requires-external-observation"
+    }
+  ],
+  "summary": {
+    "testedRiskCount": 1,
+    "realWorldRiskReductionClaimed": false,
+    "metricMeasurementProduced": false
+  }
+}
