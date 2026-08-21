@@ -4,6 +4,15 @@ on:
   schedule:
     - cron: '17 * * * *'
   workflow_dispatch:
+    inputs:
+      sender:
+        description: "Guardian message sender (for example, a Slack member ID)"
+        required: false
+        type: string
+      message:
+        description: "Message or answer <question-id> <text> for the Guardian"
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -24,15 +33,35 @@ jobs:
       - run: npm ci
       - name: Generate, execute, and integrate one bounded Guardian packet
         shell: bash
+        env:
+          GUARDIAN_SENDER: ${{ inputs.sender }}
+          GUARDIAN_MESSAGE: ${{ inputs.message }}
         run: |
           set -euo pipefail
           cycle_time="$(date --utc +%Y-%m-%dT%H:%M:%S.000Z)"
+          if [[ -n "${GUARDIAN_MESSAGE}" ]]; then
+            npm run guardian:inbox -- "$cycle_time" "${GUARDIAN_SENDER:-slack}" "$GUARDIAN_MESSAGE"
+          fi
+          npm run guardian:progress -- "$cycle_time" cycle-started "The bounded Guardian cycle has started."
           npm run strategy:generate -- "$cycle_time"
           npm run strategy:execute -- "$cycle_time"
           npm run strategy:verify
           npm run docs:verify
           npm run lint
           npm test
+          npm run guardian:progress -- "$cycle_time" cycle-completed "The bounded Guardian cycle completed its deterministic checks."
+          npm run guardian:communicate -- "$cycle_time"
+      - name: Publish Guardian updates to Slack
+        shell: bash
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SLACK_WEBHOOK_URL}" ]]; then
+            exit 0
+          fi
+          cycle_time="$(date --utc +%Y-%m-%dT%H:%M:%S.000Z)"
+          npm run guardian:notify -- "$cycle_time" || echo "Slack delivery failed; pending updates will be retried."
       - name: Commit a changed cycle
         shell: bash
         run: |

@@ -14,6 +14,11 @@
     "strategy:generate": "tsx src/master-plan-controller/cli/generate-candidates-main.ts",
     "strategy:execute": "tsx src/master-plan-controller/cli/execute-packet-main.ts",
     "strategy:integrate-result": "tsx src/master-plan-controller/cli/integrate-result-main.ts",
+    "guardian:status": "tsx src/master-plan-controller/cli/guardian-conversation-main.ts status",
+    "guardian:inbox": "tsx src/master-plan-controller/cli/guardian-conversation-main.ts inbox",
+    "guardian:progress": "tsx src/master-plan-controller/cli/guardian-conversation-main.ts progress",
+    "guardian:communicate": "tsx src/master-plan-controller/cli/guardian-conversation-main.ts communicate",
+    "guardian:notify": "tsx src/master-plan-controller/cli/guardian-conversation-main.ts notify",
     "test": "vitest run",
     "test:watch": "vitest"
   },

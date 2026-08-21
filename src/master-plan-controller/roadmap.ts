@@ -59,7 +59,7 @@ export function renderOperatingStateBlock(bundle: RepositoryStrategyBundle): str
     `- Reviewed results since the current baseline: **${bundle.state.governance.reviewedResultCount}**.`,
     `- Active work packets: **${activePackets}**.`,
     '- Guardian executes one bounded repository-only packet every hour.',
-    '- Human contact remains restricted to evidence-backed, intrinsically human escalation.',
+    '- Guardian publishes progress updates and accepts immediate status requests plus queued messages and answers through configured connectors.',
   ].join('\n');
 }
 

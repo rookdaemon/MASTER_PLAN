@@ -64,6 +64,23 @@ validation, or implementation without changing their meaning. A normative change
 
 The operating body prepares, tests, and merges the resulting change after that decision.
 
+## Guardian communication
+
+Guardian communication is collaborative rather than an update gate. A configured connector can ask
+for `status` or `help` and receive an immediate answer. Any other message is stored in the
+machine-readable Guardian inbox, included in the next bounded cycle, and answered through the
+Guardian update stream. Guardian publishes both cycle progress and completed-cycle updates.
+
+When an exceptional escalation requires an intrinsically human act, Guardian posts one bounded
+question. Reply with `answer <question-id> <text>`; the answer is recorded as input, not treated as
+an approval, consent record, credential, or constitutional amendment by itself.
+
+Slack is the supported transport. Set the repository secret `SLACK_WEBHOOK_URL` to an incoming
+webhook URL for outbound updates. A Slack slash-command relay can dispatch `guardian-cycle.yml`
+with its Slack member ID in `sender` and the command text in `message`; the workflow then queues the
+message and begins the next cycle immediately. The relay needs its own Slack signing secret and a
+GitHub workflow-dispatch credential; neither belongs in this repository.
+
 ## Update policy
 
 - Deterministic CI must pass type checking, unit and integration tests, documentation verification,
@@ -82,7 +99,7 @@ The operating body prepares, tests, and merges the resulting change after that d
 - Reviewed results since the current baseline: **2**.
 - Active work packets: **0**.
 - Guardian executes one bounded repository-only packet every hour.
-- Human contact remains restricted to evidence-backed, intrinsically human escalation.
+- Guardian publishes progress updates and accepts immediate status requests plus queued messages and answers through configured connectors.
 <!-- GENERATED:OPERATING-STATE:END -->
 
 ## Machine-readable state
@@ -102,6 +119,8 @@ The `strategy/` directory contains operational data rather than competing prose:
 - `governance.json`, `branch-protection.json`, `audit-log.json`, `approvals.json`,
   `assessments.json`, `escalations.json`, and `periodic-reviews.json` — current controls and auditable
   state.
+- `guardian-inbox.json`, `guardian-questions.json`, and `guardian-updates.json` — queued human
+  messages, bounded questions, and delivery-tracked progress or replies.
 
 ## Repository components
 
@@ -124,6 +143,10 @@ npm run strategy:observe
 npm run strategy:review
 npm run strategy:generate
 npm run strategy:execute
+npm run guardian:status
+npm run guardian:inbox -- <timestamp> <sender> <message>
+npm run guardian:communicate -- <timestamp>
+npm run guardian:notify -- <timestamp>
 ```
 
 The optional simulation UI runs with:

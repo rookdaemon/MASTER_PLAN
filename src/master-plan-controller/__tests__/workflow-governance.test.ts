@@ -46,6 +46,11 @@ describe('streamlined update workflows', () => {
     const guardian = await fileSystem.readText('.github/workflows/guardian-cycle.yml');
     expect(guardian).toContain("cron: '17 * * * *'");
     expect(guardian).toContain('workflow_dispatch:');
+    expect(guardian).toContain('message:');
+    expect(guardian).toContain('sender:');
+    expect(guardian).toContain('npm run guardian:inbox');
+    expect(guardian).toContain('npm run guardian:communicate');
+    expect(guardian).toContain('npm run guardian:notify');
     expect(guardian).toContain('npm run strategy:generate -- "$cycle_time"');
     expect(guardian).toContain('npm run strategy:execute -- "$cycle_time"');
     expect(guardian).toContain('npm run strategy:verify');
