@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "durable-compute-fault-model-extension-run-1",
+  "packetId": "packet-durable-compute-fault-model-extension-run-1",
+  "preparedAt": "2026-08-21T15:48:52.000Z",
+  "baselineArtifact": "strategy/findings/durable-compute.json",
+  "scope": {
+    "operatesHardware": false,
+    "deploysSystems": false,
+    "claimsPhysicalDurability": false
+  },
+  "preregistration": {
+    "priorFaultClass": "crash-stop",
+    "faultClass": "failover-control-plane-delay",
+    "injectedDelayMs": 10,
+    "recoveryBudgetMs": 50,
+    "seedSource": "strategy/findings/durable-compute.json"
+  },
+  "findings": [
+    {
+      "scenarioId": "seed-11:failures-1",
+      "seed": 11,
+      "faultClass": "failover-control-plane-delay",
+      "baselineRecoveryMs": 20.5,
+      "injectedDelayMs": 10,
+      "modeledRecoveryMs": 30.5,
+      "recoveryBudgetMs": 50,
+      "recoveryBudgetMet": true
+    },
+    {
+      "scenarioId": "seed-11:failures-2",
+      "seed": 11,
+      "faultClass": "failover-control-plane-delay",
+      "baselineRecoveryMs": 20.5,
+      "injectedDelayMs": 10,
+      "modeledRecoveryMs": 30.5,
+      "recoveryBudgetMs": 50,
+      "recoveryBudgetMet": true
+    },
+    {
+      "scenarioId": "seed-83:failures-1",
+      "seed": 83,
+      "faultClass": "failover-control-plane-delay",
+      "baselineRecoveryMs": 20.5,
+      "injectedDelayMs": 10,
+      "modeledRecoveryMs": 30.5,
+      "recoveryBudgetMs": 50,
+      "recoveryBudgetMet": true
+    },
+    {
+      "scenarioId": "seed-83:failures-2",
+      "seed": 83,
+      "faultClass": "failover-control-plane-delay",
+      "baselineRecoveryMs": 20.5,
+      "injectedDelayMs": 10,
+      "modeledRecoveryMs": 30.5,
+      "recoveryBudgetMs": 50,
+      "recoveryBudgetMet": true
+    }
+  ],
+  "summary": {
+    "scenarioCount": 4,
+    "recoveryBudgetFailures": 0
+  }
+}
