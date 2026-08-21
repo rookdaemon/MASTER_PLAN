@@ -2,6 +2,8 @@ export const GENERATED_CANDIDATE_FAMILIES = [
   'packet-indicator-framework-comparison',
   'packet-preservation-mitigation-tabletop',
   'packet-preservation-risk-register-refresh',
+  'packet-durable-compute-fault-model-extension',
+  'packet-institutional-dependency-map-refresh',
 ] as const;
 
 export function isRecurringPacketFamilyMember(

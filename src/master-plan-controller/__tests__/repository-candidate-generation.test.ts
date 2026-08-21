@@ -13,8 +13,8 @@ async function repositorySnapshot(): Promise<Record<string, string>> {
     ...(await source.listFiles('docs/')),
   ];
   const snapshot = Object.fromEntries(await Promise.all(paths.map(async (path) => [path, await source.readText(path)])));
-  // Reconstruct the state immediately before the two candidates under test. The repository snapshot
-  // may already contain them after a successful live cycle; unrelated historical work stays intact.
+  // Reconstruct the state before dynamically generated packets. The repository snapshot may already
+  // contain them after a successful live cycle; unrelated historical work stays intact.
   snapshot['strategy/work-packets.json'] = `${JSON.stringify(
     (JSON.parse(snapshot['strategy/work-packets.json']) as Array<{ id: string }>).filter((packet) =>
       !isRecurringPacketFamilyMember(packet.id)),
@@ -96,9 +96,19 @@ describe('repository candidate generation', () => {
   });
 
   it('fills an empty frontier with every feasible series, prioritizing the strongest bounded work', async () => {
-    const source = new NodeFileSystem('.');
-    const paths = [...(await source.listFiles('strategy/')), ...(await source.listFiles('docs/'))];
-    const snapshot = Object.fromEntries(await Promise.all(paths.map(async (path) => [path, await source.readText(path)])));
+    const snapshot = await repositorySnapshot();
+    const templates = JSON.parse(snapshot['strategy/packet-templates.json']) as Array<Record<string, unknown>>;
+    for (const template of templates) {
+      template.trigger = {
+        kind: 'evidence-signal',
+        nodeId: template.nodeId,
+        hypothesisId: 'hypothesis-material-durable-compute-update',
+        outcomes: ['positive'],
+        minimumStrength: 0.5,
+        maximumAgeMs: 86_400_000,
+      };
+    }
+    snapshot['strategy/packet-templates.json'] = `${JSON.stringify(templates, null, 2)}\n`;
     const fileSystem = new InMemoryFileSystem(snapshot);
     const result = await runRepositoryCandidateGeneration(fileSystem, nextRepositoryTimestamp(snapshot));
 
@@ -106,11 +116,11 @@ describe('repository candidate generation', () => {
         'packet-durable-compute-fault-model-extension-run-1',
         'packet-indicator-framework-comparison-run-1',
         'packet-institutional-dependency-map-refresh-run-1',
-        'packet-preservation-mitigation-tabletop-run-2',
-        'packet-preservation-risk-register-refresh-run-2',
+        'packet-preservation-mitigation-tabletop-run-1',
+        'packet-preservation-risk-register-refresh-run-1',
     ]));
     expect(result).toMatchObject({
-      selectedPacketId: 'packet-preservation-mitigation-tabletop-run-2',
+      selectedPacketId: 'packet-preservation-mitigation-tabletop-run-1',
     });
   });
 
