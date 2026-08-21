@@ -1,0 +1,45 @@
+name: Guardian cycle
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: guardian-cycle-main
+  cancel-in-progress: false
+
+jobs:
+  run-bounded-cycle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Generate, execute, and integrate one bounded Guardian packet
+        shell: bash
+        run: |
+          set -euo pipefail
+          cycle_time="$(date --utc +%Y-%m-%dT%H:%M:%S.000Z)"
+          npm run strategy:generate -- "$cycle_time"
+          npm run strategy:execute -- "$cycle_time"
+          npm run strategy:verify
+          npm run docs:verify
+      - name: Commit a changed cycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name 'MASTER_PLAN Guardian'
+          git config user.email 'guardian@users.noreply.github.com'
+          git add docs strategy
+          git commit -m 'chore: run guardian cycle'
+          git push origin HEAD:main

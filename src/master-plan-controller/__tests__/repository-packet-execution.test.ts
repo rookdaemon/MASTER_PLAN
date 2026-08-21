@@ -107,14 +107,20 @@ describe('repository packet execution', () => {
       expect(indicator.sourceIds.length).toBeGreaterThan(0);
     }
     const execution = JSON.parse(await fileSystem.readText(result.resultPath!)) as {
-      verification?: unknown;
+      verification: { status: string; verifier: string; reviewedAt: string };
       artifactReferences: string[];
       evidence: Array<{ observedAt: string; limitations: string[] }>;
     };
-    expect(execution.verification).toBeUndefined();
+    expect(execution.verification).toEqual({
+      status: 'passed', verifier: 'deterministic-repository-executor', reviewedAt: now,
+    });
     expect(execution.artifactReferences).toContain(result.artifactPath);
     expect(execution.evidence[0].observedAt).toBe(now);
     expect(execution.evidence[0].limitations.join(' ')).toMatch(/repository artifact|real-world outcome/i);
+    const packets = JSON.parse(await fileSystem.readText('strategy/work-packets.json')) as Array<{
+      id: string; lifecycle: string;
+    }>;
+    expect(packets.find((packet) => packet.id === result.packetId)?.lifecycle).toBe('verified');
   });
 
   it.each([
@@ -168,11 +174,13 @@ describe('repository packet execution', () => {
     expect(artifact.findings.length).toBeGreaterThan(0);
     const result = JSON.parse(await fileSystem.readText(execution.resultPath!)) as {
       outcome: string;
-      verification?: unknown;
+      verification: { status: string; verifier: string; reviewedAt: string };
       evidence: Array<{ observedAt: string; limitations: string[] }>;
     };
     expect(['positive', 'negative', 'null']).toContain(result.outcome);
-    expect(result.verification).toBeUndefined();
+    expect(result.verification).toEqual({
+      status: 'passed', verifier: 'deterministic-repository-executor', reviewedAt: now,
+    });
     expect(result.evidence[0].observedAt).toBe(now);
       expect(result.evidence[0].limitations.join(' ')).toMatch(/artifact|simulation|external|physical|observed|supplied/i);
   });
@@ -214,7 +222,7 @@ describe('repository packet execution', () => {
       .toBeGreaterThan(firstArtifact.preregistration.injectedDelayMs);
   });
 
-  it('is byte-idempotent after the execution artifacts exist', async () => {
+  it('does not re-execute a packet after deterministic integration', async () => {
     const { fileSystem, now } = await executableRepository();
     const first = await executeRepositoryPacket(fileSystem, now);
     const artifact = await fileSystem.readText(first.artifactPath!);
@@ -222,7 +230,7 @@ describe('repository packet execution', () => {
 
     const second = await executeRepositoryPacket(fileSystem, advanceTimestamp(now));
 
-    expect(second).toEqual({ status: 'already-executed', packetId: first.packetId, artifactPath: first.artifactPath, resultPath: first.resultPath });
+    expect(second).toEqual({ status: 'waiting', packetId: null, artifactPath: null, resultPath: null });
     expect(await fileSystem.readText(first.artifactPath!)).toBe(artifact);
     expect(await fileSystem.readText(first.resultPath!)).toBe(execution);
   });

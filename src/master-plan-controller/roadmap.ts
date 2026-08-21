@@ -58,7 +58,7 @@ export function renderOperatingStateBlock(bundle: RepositoryStrategyBundle): str
     '- Repository updates use deterministic CI only.',
     `- Reviewed results since the current baseline: **${bundle.state.governance.reviewedResultCount}**.`,
     `- Active work packets: **${activePackets}**.`,
-    '- Weekly portfolio and quarterly evidence, weight, and constitutional-risk reviews are scheduled.',
+    '- Guardian executes one bounded repository-only packet every hour.',
     '- Human contact remains restricted to evidence-backed, intrinsically human escalation.',
   ].join('\n');
 }

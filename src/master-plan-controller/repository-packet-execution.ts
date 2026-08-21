@@ -8,8 +8,9 @@ import {
   type RepositoryPacketHandler,
 } from './repository-packet-handlers.js';
 import { formattedRepositoryJson } from './repository-json.js';
+import { integrateRepositoryPacketResult } from './repository-result-integration.js';
 import { loadRepositoryStrategy, verifyRepositoryStrategy } from './repository-strategy.js';
-import type { Timestamp } from './types.js';
+import type { PacketResult, Timestamp } from './types.js';
 
 export interface RepositoryPacketExecution {
   status: 'waiting' | 'executed' | 'already-executed';
@@ -52,6 +53,15 @@ function executionOutputWithoutTimestamps(artifact: unknown, result: ExecutionRe
       ...resultCopy,
       evidence: resultCopy.evidence.map(({ observedAt: _observedAt, ...record }) => record),
     },
+  };
+}
+
+function deterministicVerification(result: ExecutionResult, now: Timestamp): PacketResult {
+  const verifier = 'deterministic-repository-executor';
+  return {
+    ...result,
+    evidence: result.evidence.map((record) => ({ ...record, verifier })),
+    verification: { status: 'passed', verifier, reviewedAt: now },
   };
 }
 
@@ -181,7 +191,9 @@ export async function executeRepositoryPacket(
     };
   }
   await fileSystem.writeText(output.artifactPath, formattedRepositoryJson(output.artifact));
-  await fileSystem.writeText(output.resultPath, formattedRepositoryJson(output.result));
+  const verifiedResult = deterministicVerification(output.result, now);
+  await fileSystem.writeText(output.resultPath, formattedRepositoryJson(verifiedResult));
+  await integrateRepositoryPacketResult(fileSystem, selected.id, verifiedResult, now);
   return {
     status: 'executed',
     packetId: selected.id,

@@ -81,7 +81,7 @@ The operating body prepares, tests, and merges the resulting change after that d
 - Repository updates use deterministic CI only.
 - Reviewed results since the current baseline: **0**.
 - Active work packets: **0**.
-- Weekly portfolio and quarterly evidence, weight, and constitutional-risk reviews are scheduled.
+- Guardian executes one bounded repository-only packet every hour.
 - Human contact remains restricted to evidence-backed, intrinsically human escalation.
 <!-- GENERATED:OPERATING-STATE:END -->
 
