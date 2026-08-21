@@ -320,7 +320,7 @@
     },
     "seriesId": "packet-preservation-risk-register-refresh",
     "runNumber": 2,
-    "lifecycle": "eligible",
+    "lifecycle": "verified",
     "attempt": 0,
     "reviewedAt": "2026-08-21T12:30:41.000Z"
   },
