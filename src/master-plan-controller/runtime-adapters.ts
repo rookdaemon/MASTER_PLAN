@@ -64,7 +64,12 @@ export class NodeFileSystem implements FileSystemPort {
         else if (entry.isFile()) results.push(normalizeRepositoryPath(relative(this.root, location)));
       }
     };
-    await walk(start);
+    try {
+      await walk(start);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+      throw error;
+    }
     return results.sort();
   }
 }
