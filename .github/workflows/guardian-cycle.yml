@@ -42,14 +42,15 @@ jobs:
           if [[ -n "${GUARDIAN_MESSAGE}" ]]; then
             npm run guardian:inbox -- "$cycle_time" "${GUARDIAN_SENDER:-slack}" "$GUARDIAN_MESSAGE"
           fi
-          npm run guardian:progress -- "$cycle_time" cycle-started "The bounded Guardian cycle has started."
-          npm run strategy:generate -- "$cycle_time"
-          npm run strategy:execute -- "$cycle_time"
+          generation="$(npm run --silent strategy:generate -- "$cycle_time")"
+          execution="$(npm run --silent strategy:execute -- "$cycle_time")"
+          printf '%s\n' "$generation"
+          printf '%s\n' "$execution"
           npm run strategy:verify
           npm run docs:verify
           npm run lint
           npm test
-          npm run guardian:progress -- "$cycle_time" cycle-completed "The bounded Guardian cycle completed its deterministic checks."
+          npm run guardian:summary -- "$cycle_time" "$generation" "$execution"
           npm run guardian:communicate -- "$cycle_time"
       - name: Publish Guardian updates to Slack
         shell: bash

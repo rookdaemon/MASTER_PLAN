@@ -69,8 +69,8 @@ npm run guardian:status
 gh workflow run guardian-cycle.yml --ref main --raw-field sender=U_TEST --raw-field message="status"
 ```
 
-Then confirm that the workflow completes and that `strategy/guardian-updates.json` receives start
-and completion entries. After `SLACK_WEBHOOK_URL` is configured, the next successful cycle delivers
+Then confirm that the workflow completes and that `strategy/guardian-updates.json` receives one
+explanatory cycle summary. After `SLACK_WEBHOOK_URL` is configured, the next successful cycle delivers
 all pending updates and marks them delivered. Test `/guardian help`, a normal message, and a bounded
 answer to an actual Guardian question.
 

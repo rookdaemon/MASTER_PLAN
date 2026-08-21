@@ -44,20 +44,28 @@ describe('GuardianConversation', () => {
     await expect(guardian.readInbox()).resolves.toEqual([]);
   });
 
-  it('queues a message, answers it on the next cycle, and records progress updates', async () => {
+  it('queues a message, answers it on the next cycle, and records one explanatory cycle summary', async () => {
     const guardian = conversation();
 
     await expect(guardian.receive({
       id: 'slack-message-1', sender: 'U123', text: 'Focus the next report on preservation risks.', receivedAt: NOW,
     })).resolves.toMatchObject({ disposition: 'queued' });
-    await guardian.recordProgress('cycle-started', 'The bounded Guardian cycle has started.', NOW);
+    await guardian.recordCycleSummary({
+      generatedPacketIds: ['packet-preservation-mitigation-tabletop-run-1'],
+      selectedPacketId: 'packet-preservation-mitigation-tabletop-run-1',
+    }, {
+      status: 'executed', packetId: 'packet-preservation-mitigation-tabletop-run-1',
+    }, NOW);
     await guardian.processQueuedMessages(LATER);
 
     await expect(guardian.readInbox()).resolves.toMatchObject([{
       id: 'slack-message-1', status: 'answered', answeredAt: LATER,
     }]);
     await expect(guardian.readUpdates()).resolves.toEqual(expect.arrayContaining([
-      expect.objectContaining({ kind: 'progress', text: 'The bounded Guardian cycle has started.' }),
+      expect.objectContaining({
+        kind: 'summary',
+        text: expect.stringMatching(/executed packet-preservation-mitigation-tabletop-run-1.*highest-ranked eligible bounded packet/i),
+      }),
       expect.objectContaining({ kind: 'reply', inReplyTo: 'slack-message-1', occurredAt: LATER }),
       expect.objectContaining({ kind: 'question', questionId: 'human-decision:escalation-7' }),
     ]));
@@ -82,7 +90,7 @@ describe('GuardianConversation', () => {
       'strategy/guardian-inbox.json': '[]\n',
       'strategy/guardian-questions.json': '[]\n',
       'strategy/guardian-updates.json': JSON.stringify([{
-        id: 'guardian-update-1', kind: 'progress', text: 'Cycle complete.', occurredAt: NOW,
+        id: 'guardian-update-1', kind: 'summary', text: 'Cycle complete.', occurredAt: NOW,
       }]),
     });
     const network = new InMemoryNetwork({

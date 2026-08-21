@@ -50,9 +50,11 @@ describe('streamlined update workflows', () => {
     expect(guardian).toContain('sender:');
     expect(guardian).toContain('npm run guardian:inbox');
     expect(guardian).toContain('npm run guardian:communicate');
+    expect(guardian).toContain('npm run guardian:summary');
     expect(guardian).toContain('npm run guardian:notify');
-    expect(guardian).toContain('npm run strategy:generate -- "$cycle_time"');
-    expect(guardian).toContain('npm run strategy:execute -- "$cycle_time"');
+    expect(guardian).not.toContain('npm run guardian:progress');
+    expect(guardian).toContain('npm run --silent strategy:generate -- "$cycle_time"');
+    expect(guardian).toContain('npm run --silent strategy:execute -- "$cycle_time"');
     expect(guardian).toContain('npm run strategy:verify');
     expect(guardian).toContain('npm run docs:verify');
     expect(guardian).toContain('npm run lint');

@@ -69,7 +69,8 @@ The operating body prepares, tests, and merges the resulting change after that d
 Guardian communication is collaborative rather than an update gate. A configured connector can ask
 for `status` or `help` and receive an immediate answer. Any other message is stored in the
 machine-readable Guardian inbox, included in the next bounded cycle, and answered through the
-Guardian update stream. Guardian publishes both cycle progress and completed-cycle updates.
+Guardian update stream. Guardian publishes one concise cycle summary explaining the executed work and
+its ranked-strategy reason, or why no work was eligible.
 
 When an exceptional escalation requires an intrinsically human act, Guardian posts one bounded
 question. Reply with `answer <question-id> <text>`; the answer is recorded as input, not treated as
