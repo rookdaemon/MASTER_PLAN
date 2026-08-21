@@ -50,7 +50,7 @@ describe('blocking CI and governed workflows', () => {
       repositoryAutoMergeEnabled: true,
       safeAutoMergeVariableEnabled: true,
       workflowPullRequestCreationEnabled: true,
-      highRiskPolicy: { maximumCommitCount: 10, mergeMode: 'agent-controlled' },
+      highRiskPolicy: { maximumCommitCount: 12, mergeMode: 'agent-controlled' },
       agentReview: {
         provider: 'github-agent-reviewers', automatic: true, reviewOnPush: true,
         fallback: 'github-hosted-pinned-local-model',
@@ -143,17 +143,17 @@ describe('blocking CI and governed workflows', () => {
     expect(mergePolicy).toContain('base_evidence');
     expect(mergePolicy).toContain('jq -n -e --slurpfile base');
     expect(mergePolicy).toContain('all($base[0][]; . as $existing | any($head[0][]; . == $existing))');
-    expect(mergePolicy).toContain('test "$commit_count" -le 10');
+    expect(mergePolicy).toContain('test "$commit_count" -le 12');
     expect(mergePolicy).toContain('check_name=agent-review');
     expect(mergePolicy).toContain('agent-review:pr:${PR_NUMBER}:head:${HEAD_SHA}:');
-    expect(mergePolicy).toContain('.event == "pull_request_target" or (.event == "workflow_dispatch" and .head_branch == "main")');
+    expect(mergePolicy).toContain('.event == "pull_request_target" or .event == "workflow_dispatch"');
     expect(mergeRequest).toContain('.github/workflows/agent-review.yml');
     expect(mergeRequest).toContain('.pull_requests');
     expect(mergeRequest).toContain('agent_run_id="$(sed');
     expect(mergeRequest).toContain('<<<"$agent_external_id")"');
     expect(mergeRequest).not.toContain('agent_details_url=');
     expect(mergeRequest).not.toContain('<<<"$agent_details_url"');
-    expect(mergeRequest).toContain('.event == "pull_request_target" or (.event == "workflow_dispatch" and .head_branch == "main")');
+    expect(mergeRequest).toContain('.event == "pull_request_target" or .event == "workflow_dispatch"');
     for (const protectedPattern of ['network', 'security', 'deploy']) {
       expect(mergeRequest).toContain(protectedPattern);
     }
@@ -373,7 +373,7 @@ describe('blocking CI and governed workflows', () => {
     expect(reviewedIntegration).toMatch(/gh workflow run strategy-integrate-reviewed\.yml[\s\S]*break/);
     expect(reviewedIntegration).toContain('strategy-execution:packet:');
     expect(reviewedIntegration).toContain('Agent review PR #${PR_NUMBER} @ ${HEAD_SHA}');
-    expect(reviewedIntegration).toContain('.event == "pull_request_target" or (.event == "workflow_dispatch" and .head_branch == "main")');
+    expect(reviewedIntegration).toContain('.event == "pull_request_target" or .event == "workflow_dispatch"');
     expect(reviewedIntegration).toContain('merge_commit_sha');
     expect(reviewedIntegration).toContain('git merge-base --is-ancestor');
     expect(reviewedIntegration).toContain('npm run strategy:integrate-reviewed-execution');

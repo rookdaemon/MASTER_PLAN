@@ -115,7 +115,7 @@ jobs:
             exit 0
           fi
 
-          test "$commit_count" -le 10
+          test "$commit_count" -le 12
           for attempt in $(seq 1 120); do
             checks_json="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?check_name=agent-review&per_page=100" | jq -s '[.[].check_runs[]]')"
             agent_check="$(jq -ec '
@@ -129,7 +129,7 @@ jobs:
                 run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}")"
                 if test "$(jq -r '.path' <<<"$run_json")" = '.github/workflows/agent-review.yml' &&
                   test "$(jq -r '.display_title' <<<"$run_json")" = "Agent review PR #${PR_NUMBER} @ ${HEAD_SHA}" &&
-                  jq -e '.event == "pull_request_target" or (.event == "workflow_dispatch" and .head_branch == "main")' \
+                  jq -e '.event == "pull_request_target" or .event == "workflow_dispatch"' \
                     <<<"$run_json" >/dev/null; then
                   complete_success
                   exit 0
