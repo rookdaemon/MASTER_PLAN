@@ -112,4 +112,12 @@ describe('unified documentation contract', () => {
       expect(content, path).not.toContain('plan/');
     }
   });
+
+  it('provides a controller-local Slack setup checklist', async () => {
+    const guide = await fileSystem.readText('src/master-plan-controller/README.md');
+    expect(guide).toContain('SLACK_WEBHOOK_URL');
+    expect(guide).toContain('guardian-cycle.yml');
+    expect(guide).toContain('slash command relay');
+    expect(guide).toContain('../../docs/OPERATIONS.md');
+  });
 });
