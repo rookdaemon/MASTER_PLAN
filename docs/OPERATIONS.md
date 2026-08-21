@@ -18,7 +18,8 @@ updates are integrated after deterministic verification.
 3. Adjudicate relevant evidence and update affected hypotheses.
 4. Diagnose high-value uncertainty, bottlenecks, neglected portfolios, failure modes, and metric
    gaps.
-5. Generate eligible bounded work from stable packet series.
+5. Generate eligible bounded work from stable packet series; when passive triggers are quiet, fill a
+   proactive bounded backlog from feasible series.
 6. Rank the frontier with preservation receiving lexical priority over expansion.
 7. Execute one packet within its authority boundary.
 8. Integrate positive, negative, or null evidence and re-evaluate the graph.
@@ -70,7 +71,8 @@ Guardian communication is collaborative rather than an update gate. A configured
 for `status` or `help` and receive an immediate answer. Any other message is stored in the
 machine-readable Guardian inbox, included in the next bounded cycle, and answered through the
 Guardian update stream. Guardian publishes one concise cycle summary explaining the executed work and
-its ranked-strategy reason, or why no work was eligible.
+its ranked-strategy reason. A successful cycle does not idle for a passive trigger: it selects the
+highest-ranked feasible packet from the proactive bounded backlog.
 
 When an exceptional escalation requires an intrinsically human act, Guardian posts one bounded
 question. Reply with `answer <question-id> <text>`; the answer is recorded as input, not treated as
@@ -99,8 +101,9 @@ GitHub workflow-dispatch credential; neither belongs in this repository.
 - Repository updates use deterministic CI only.
 - Reviewed results since the current baseline: **2**.
 - Active work packets: **0**.
-- Guardian executes one bounded repository-only packet every hour.
-- Guardian publishes progress updates and accepts immediate status requests plus queued messages and answers through configured connectors.
+- Guardian executes the highest-ranked feasible bounded packet every hour and proactively fills an empty frontier.
+- Guardian publishes one explanatory cycle summary and accepts immediate status requests plus queued messages and answers through configured connectors.
+- The controller maintains a proactive bounded backlog; a successful cycle does not idle for a passive trigger.
 <!-- GENERATED:OPERATING-STATE:END -->
 
 ## Machine-readable state

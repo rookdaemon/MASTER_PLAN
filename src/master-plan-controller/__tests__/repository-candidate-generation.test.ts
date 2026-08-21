@@ -95,6 +95,25 @@ describe('repository candidate generation', () => {
     expect(await fileSystem.readText('strategy/audit-log.json')).toBe(auditAfterFirst);
   });
 
+  it('fills an empty frontier with every feasible series, prioritizing the strongest bounded work', async () => {
+    const source = new NodeFileSystem('.');
+    const paths = [...(await source.listFiles('strategy/')), ...(await source.listFiles('docs/'))];
+    const snapshot = Object.fromEntries(await Promise.all(paths.map(async (path) => [path, await source.readText(path)])));
+    const fileSystem = new InMemoryFileSystem(snapshot);
+    const result = await runRepositoryCandidateGeneration(fileSystem, nextRepositoryTimestamp(snapshot));
+
+    expect(result.generatedPacketIds).toEqual(expect.arrayContaining([
+        'packet-durable-compute-fault-model-extension-run-1',
+        'packet-indicator-framework-comparison-run-1',
+        'packet-institutional-dependency-map-refresh-run-1',
+        'packet-preservation-mitigation-tabletop-run-2',
+        'packet-preservation-risk-register-refresh-run-2',
+    ]));
+    expect(result).toMatchObject({
+      selectedPacketId: 'packet-preservation-mitigation-tabletop-run-2',
+    });
+  });
+
   it('rejects an invalid supplied timestamp before writing', async () => {
     const initial = await repositorySnapshot();
     const fileSystem = new InMemoryFileSystem(initial);

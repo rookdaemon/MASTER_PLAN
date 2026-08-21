@@ -42,6 +42,7 @@ describe('unversioned repository strategy baseline', () => {
     expect(renderPortfolioBlock(bundle)).toContain('Consciousness epistemics');
     expect(renderGateBlock(bundle)).toContain('program-self-replication');
     expect(renderOperatingStateBlock(bundle)).toContain('automated stewardship');
+    expect(renderOperatingStateBlock(bundle)).toContain('proactive bounded backlog');
   });
 
   it('retains exactly four consolidated findings', async () => {

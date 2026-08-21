@@ -153,15 +153,17 @@ export class GuardianConversation {
     now: Timestamp,
   ): Promise<void> {
     assertTimestamp(now);
+    if ((execution.status !== 'executed' && execution.status !== 'already-executed') || !execution.packetId) {
+      throw new Error('A successful Guardian cycle must execute or confirm a bounded packet');
+    }
     const updates = await this.readUpdates();
     const id = updateId('summary', now);
     if (updates.some((update) => update.id === id)) return;
-    const generated = generation.generatedPacketIds.length > 0
-      ? ` Generated ${generation.generatedPacketIds.length} candidate${generation.generatedPacketIds.length === 1 ? '' : 's'} from current strategy signals.`
-      : '';
-    const text = execution.status === 'executed' && execution.packetId
-      ? `Guardian cycle: executed ${execution.packetId}. Why: it was the highest-ranked eligible bounded packet under the current strategy.${generated}`
-      : `Guardian cycle: no packet executed. Why: no eligible bounded packet met the current trigger and gate conditions.${generated}`;
+    const workDescription = generation.generatedPacketIds.length > 0
+      ? `generated ${generation.generatedPacketIds.length} candidate${generation.generatedPacketIds.length === 1 ? '' : 's'} and executed`
+      : 'executed';
+    const action = execution.status === 'executed' ? 'completed' : 'confirmed the existing deterministic result for';
+    const text = `Guardian cycle: ${action} ${execution.packetId}. What I did: ${workDescription} the highest-ranked feasible bounded task. Why this: it ranked first after feasibility and preservation-first priority.`;
     updates.push({ id, kind: 'summary', text, occurredAt: now });
     await this.write(UPDATES_PATH, updates);
   }

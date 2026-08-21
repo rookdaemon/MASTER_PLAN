@@ -35,8 +35,11 @@ export async function runRepositoryCandidateGeneration(
     return { generatedPacketIds: [], selectedPacketId: frontier.ranked[0].packet.id };
   }
 
-  const candidates = await new DiagnosticPacketGenerator(bundle.packetTemplates)
-    .generate(bundle.state, frontier.diagnosis, now);
+  const generator = new DiagnosticPacketGenerator(bundle.packetTemplates);
+  const diagnosticCandidates = await generator.generate(bundle.state, frontier.diagnosis, now);
+  const candidates = diagnosticCandidates.length > 0
+    ? diagnosticCandidates
+    : await generator.generateProactiveBacklog(bundle.state, now);
   const accepted: WorkPacket[] = [];
   for (const packet of candidates) {
     const errors = workPacketValidationErrors(packet, bundle.state, now);
@@ -46,7 +49,9 @@ export async function runRepositoryCandidateGeneration(
     if (errors.length > 0) throw new Error(`Generated packet ${packet.id} failed validation: ${errors.join('; ')}`);
     accepted.push(structuredClone(packet));
   }
-  if (accepted.length === 0) return { generatedPacketIds: [], selectedPacketId: null };
+  if (accepted.length === 0) {
+    throw new Error('No bounded work packet is available after proactive backlog generation');
+  }
 
   const state = {
     ...bundle.state,
@@ -58,6 +63,10 @@ export async function runRepositoryCandidateGeneration(
   if (after.errors.length > 0) throw new Error(`Generated strategy failed verification: ${after.errors.join('; ')}`);
 
   frontier = new Controller(state, bundle.config).evaluate(state, now);
+  const selectedPacketId = frontier.ranked[0]?.packet.id;
+  if (!selectedPacketId) {
+    throw new Error('Proactive backlog generation did not produce a feasible bounded packet');
+  }
   const [packetsText, auditText] = await Promise.all([
     fileSystem.readText('strategy/work-packets.json'),
     fileSystem.readText('strategy/audit-log.json'),
@@ -72,6 +81,6 @@ export async function runRepositoryCandidateGeneration(
   );
   return {
     generatedPacketIds: accepted.map((packet) => packet.id),
-    selectedPacketId: frontier.ranked[0]?.packet.id ?? null,
+    selectedPacketId,
   };
 }
