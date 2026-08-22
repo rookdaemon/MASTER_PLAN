@@ -647,5 +647,20 @@
     "verifier": "deterministic-repository-executor",
     "observedAt": "2026-08-22T15:35:27.000Z",
     "outcome": "positive"
+  },
+  {
+    "id": "evidence-institutional-dependency-map-refresh-run-6-executed",
+    "claim": "Institutional dependencies were re-evaluated while preserving distinctions among artifacts, readiness, and external outcomes.",
+    "method": "Deterministic transformation of checked-in, independently reviewed repository evidence.",
+    "source": "strategy/results/institutional-dependency-map-refresh-run-6.json",
+    "strength": 0.55,
+    "limitations": [
+      "No external institutional adoption, succession, or continuity outcome was observed by this local execution."
+    ],
+    "supportedHypotheses": [],
+    "falsifiedHypotheses": [],
+    "verifier": "deterministic-repository-executor",
+    "observedAt": "2026-08-22T16:41:19.000Z",
+    "outcome": "null"
   }
 ]
