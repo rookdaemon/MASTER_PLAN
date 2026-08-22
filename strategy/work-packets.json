@@ -1421,7 +1421,7 @@
     },
     "seriesId": "packet-institutional-dependency-map-refresh",
     "runNumber": 4,
-    "lifecycle": "eligible",
+    "lifecycle": "verified",
     "attempt": 0,
     "reviewedAt": "2026-08-22T03:57:14.000Z"
   }
