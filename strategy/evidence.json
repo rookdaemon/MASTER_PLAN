@@ -708,5 +708,23 @@
     "verifier": "deterministic-repository-executor",
     "observedAt": "2026-08-22T19:35:23.000Z",
     "outcome": "null"
+  },
+  {
+    "id": "evidence-indicator-framework-comparison-run-7-executed",
+    "claim": "A deterministic comparison maps each registered theory interpretation to predictions, counterexamples, uncertainty, and a falsification condition.",
+    "method": "Schema-checked transformation of the checked-in consciousness prediction registry.",
+    "source": "strategy/results/indicator-framework-comparison-run-7.json",
+    "strength": 0.7,
+    "limitations": [
+      "Execution establishes a repository artifact, not a real-world outcome.",
+      "The comparison does not establish consciousness or sentience in any biological or artificial system."
+    ],
+    "supportedHypotheses": [
+      "hypothesis-indicator-framework"
+    ],
+    "falsifiedHypotheses": [],
+    "verifier": "deterministic-repository-executor",
+    "observedAt": "2026-08-22T20:39:59.000Z",
+    "outcome": "positive"
   }
 ]
