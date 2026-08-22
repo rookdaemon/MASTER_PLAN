@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "preservation-mitigation-tabletop-run-6",
+  "packetId": "packet-preservation-mitigation-tabletop-run-6",
+  "preparedAt": "2026-08-22T08:47:59.000Z",
+  "baselineArtifact": "strategy/findings/preservation-risks.json",
+  "scope": {
+    "performsExternalIntervention": false,
+    "publishesExternally": false,
+    "spendsFunds": false
+  },
+  "selection": {
+    "ordering": "ascending-risk-rank",
+    "runIndex": 5
+  },
+  "findings": [
+    {
+      "riskId": "risk-biodiversity-water-health-nexus",
+      "rank": 6,
+      "scenario": "Observe whether Co-movement of biodiversity integrity, freshwater condition, nutrition, and zoonotic or health burden indicators moves in the direction of concern: Concurrent deterioration across multiple nexus domains or response in one domain shifting harm to another",
+      "observationCadence": "quarterly literature scan and on each IPBES assessment update",
+      "measurableTrigger": "A candidate intervention affects two or more nexus domains or a shared threshold indicator deteriorates",
+      "boundedResponse": "Create a cross-domain evidence graph that flags proposed responses with likely spillovers and unresolved tradeoffs",
+      "rollback": "Withdraw unsupported graph edges and preserve rejected hypotheses for later reassessment",
+      "authorityBoundary": "The automated body may synthesize public evidence and challenge tradeoffs. Field intervention, access to protected ecological data, land-use decisions, or stakeholder commitments require separate authority; human involvement is exceptional and evidence-triggered.",
+      "disposition": "requires-external-observation"
+    }
+  ],
+  "summary": {
+    "testedRiskCount": 1,
+    "realWorldRiskReductionClaimed": false,
+    "metricMeasurementProduced": false
+  }
+}
