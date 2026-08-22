@@ -688,5 +688,70 @@
       "verifier": "deterministic-repository-executor",
       "metricUpdates": []
     }
+  },
+  {
+    "id": "audit:packet-preservation-mitigation-tabletop-run-7:packet-generated:2026-08-22T13:45:02.000Z",
+    "type": "packet-generated",
+    "packetId": "packet-preservation-mitigation-tabletop-run-7",
+    "occurredAt": "2026-08-22T13:45:02.000Z",
+    "details": {
+      "source": "diagnosis",
+      "portfolio": "near-term-preservation"
+    }
+  },
+  {
+    "id": "audit:packet-indicator-framework-comparison-run-6:packet-generated:2026-08-22T13:45:02.000Z",
+    "type": "packet-generated",
+    "packetId": "packet-indicator-framework-comparison-run-6",
+    "occurredAt": "2026-08-22T13:45:02.000Z",
+    "details": {
+      "source": "diagnosis",
+      "portfolio": "consciousness-epistemics"
+    }
+  },
+  {
+    "id": "audit:packet-preservation-risk-register-refresh-run-7:packet-generated:2026-08-22T13:45:02.000Z",
+    "type": "packet-generated",
+    "packetId": "packet-preservation-risk-register-refresh-run-7",
+    "occurredAt": "2026-08-22T13:45:02.000Z",
+    "details": {
+      "source": "diagnosis",
+      "portfolio": "near-term-preservation"
+    }
+  },
+  {
+    "id": "audit:packet-durable-compute-fault-model-extension-run-6:packet-generated:2026-08-22T13:45:02.000Z",
+    "type": "packet-generated",
+    "packetId": "packet-durable-compute-fault-model-extension-run-6",
+    "occurredAt": "2026-08-22T13:45:02.000Z",
+    "details": {
+      "source": "diagnosis",
+      "portfolio": "enabling-capabilities"
+    }
+  },
+  {
+    "id": "audit:packet-institutional-dependency-map-refresh-run-6:packet-generated:2026-08-22T13:45:02.000Z",
+    "type": "packet-generated",
+    "packetId": "packet-institutional-dependency-map-refresh-run-6",
+    "occurredAt": "2026-08-22T13:45:02.000Z",
+    "details": {
+      "source": "diagnosis",
+      "portfolio": "institutional-continuity"
+    }
+  },
+  {
+    "id": "audit:packet-preservation-mitigation-tabletop-run-7:packet-verified:2026-08-22T13:45:02.000Z",
+    "type": "packet-verified",
+    "packetId": "packet-preservation-mitigation-tabletop-run-7",
+    "occurredAt": "2026-08-22T13:45:02.000Z",
+    "details": {
+      "outcome": "null",
+      "artifactReferences": [
+        "strategy/results/preservation-mitigation-tabletop-run-7.json",
+        "strategy/findings/preservation-risks.json"
+      ],
+      "verifier": "deterministic-repository-executor",
+      "metricUpdates": []
+    }
   }
 ]
