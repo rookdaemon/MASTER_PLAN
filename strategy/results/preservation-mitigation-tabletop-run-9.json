@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "preservation-mitigation-tabletop-run-9",
+  "packetId": "packet-preservation-mitigation-tabletop-run-9",
+  "preparedAt": "2026-08-22T23:34:50.000Z",
+  "baselineArtifact": "strategy/findings/preservation-risks.json",
+  "scope": {
+    "performsExternalIntervention": false,
+    "publishesExternally": false,
+    "spendsFunds": false
+  },
+  "selection": {
+    "ordering": "ascending-risk-rank",
+    "runIndex": 8
+  },
+  "findings": [
+    {
+      "riskId": "risk-severe-space-weather",
+      "rank": 9,
+      "scenario": "Observe whether NOAA watches and warnings, observed geomagnetic storm scale, and reported anomalies in grid, navigation, communications, or spacecraft systems moves in the direction of concern: Earth-directed events forecast at severe or extreme levels with correlated system anomalies",
+      "observationCadence": "daily automated public alert check and annual exercise review",
+      "measurableTrigger": "A severe NOAA watch or a newly identified unmitigated dependency",
+      "boundedResponse": "Maintain a tested offline continuity checklist and simulate loss of time, navigation, communications, and grid dependencies",
+      "rollback": "Restore the prior checklist and preserve simulation failures as evidence",
+      "authorityBoundary": "Automation may monitor public alerts and run local simulations. Operational control of grids, radio, spacecraft, or emergency services remains outside scope and requires separately verified authorization; contact a human only for an irreducible owner-controlled action.",
+      "disposition": "requires-external-observation"
+    }
+  ],
+  "summary": {
+    "testedRiskCount": 1,
+    "realWorldRiskReductionClaimed": false,
+    "metricMeasurementProduced": false
+  }
+}
