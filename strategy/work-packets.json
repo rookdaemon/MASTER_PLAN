@@ -2072,5 +2072,329 @@
     "lifecycle": "verified",
     "attempt": 0,
     "reviewedAt": "2026-08-22T13:45:02.000Z"
+  },
+  {
+    "id": "packet-preservation-mitigation-tabletop-run-8",
+    "nodeId": "capability-near-term-preservation",
+    "title": "Test the next highest-priority preservation mitigation",
+    "portfolio": "near-term-preservation",
+    "supportedDirectives": [
+      "G1",
+      "G3"
+    ],
+    "expectedDirectiveDelta": {
+      "G1": 0.1,
+      "G2": 0,
+      "G3": 0.03
+    },
+    "credibleExtinctionPrevention": true,
+    "scope": {
+      "included": [
+        "one risk scenario",
+        "leading-indicator detection",
+        "reversible response tabletop"
+      ],
+      "excluded": [
+        "outreach",
+        "deployment",
+        "spending",
+        "claims of real-world mitigation"
+      ]
+    },
+    "budget": {
+      "unit": "person-hours",
+      "limit": 8
+    },
+    "deliverables": [
+      "artifact://preservation/mitigation-tabletop-run-8"
+    ],
+    "testsOrPreregistration": [
+      "scenario selected by checked-in rank",
+      "trigger, response, rollback, and authority-boundary checks"
+    ],
+    "acceptanceCriteria": [
+      "The tabletop records a measurable trigger, bounded response, rollback, failure finding, and explicit distinction between repository evidence and real-world risk reduction."
+    ],
+    "verificationMethod": "An independent agent checks exact baseline traceability, scenario determinism, response boundaries, and that no metric changes without contract-qualified external evidence.",
+    "rollback": "Retain the prior verified risk register and record the tabletop as null or negative evidence.",
+    "authorityClass": "agent-reviewed",
+    "authorityReasons": [
+      "bounded local tabletop with no external intervention"
+    ],
+    "owner": "preservation-analyst",
+    "retrySignature": "preservation-mitigation-tabletop-run-8",
+    "priority": {
+      "impact": 0.95,
+      "urgency": 0.9,
+      "tractability": 0.85,
+      "informationValue": 0.8,
+      "reversibility": 1,
+      "cost": 0.1,
+      "downsideRisk": 0.05
+    },
+    "seriesId": "packet-preservation-mitigation-tabletop",
+    "runNumber": 8,
+    "lifecycle": "verified",
+    "attempt": 0,
+    "reviewedAt": "2026-08-22T18:49:27.000Z"
+  },
+  {
+    "id": "packet-indicator-framework-comparison-run-7",
+    "nodeId": "hypothesis-indicator-framework",
+    "title": "Compare candidate consciousness indicators against discriminating predictions",
+    "portfolio": "consciousness-epistemics",
+    "supportedDirectives": [
+      "G1",
+      "G2"
+    ],
+    "expectedDirectiveDelta": {
+      "G1": 0.05,
+      "G2": 0.1,
+      "G3": 0
+    },
+    "credibleExtinctionPrevention": false,
+    "scope": {
+      "included": [
+        "public evidence synthesis",
+        "indicator comparison matrix",
+        "explicit uncertainty and confounders"
+      ],
+      "excluded": [
+        "sentience declaration",
+        "human-subject research",
+        "model deployment",
+        "external publication"
+      ]
+    },
+    "budget": {
+      "unit": "person-hours",
+      "limit": 16
+    },
+    "deliverables": [
+      "artifact://epistemics/indicator-framework-comparison-run-7"
+    ],
+    "testsOrPreregistration": [
+      "schema validation",
+      "blind consistency review against the prediction registry"
+    ],
+    "acceptanceCriteria": [
+      "Every indicator is linked to discriminating predictions, counterexamples, uncertainty, and a stated falsification condition."
+    ],
+    "verificationMethod": "An independent agent checks source traceability, theory neutrality, and every claimed prediction linkage on the exact artifact.",
+    "rollback": "Retain the previous prediction registry and retire the comparison artifact with an audit event.",
+    "authorityClass": "agent-reviewed",
+    "authorityReasons": [
+      "bounded public-information analysis with no external action or welfare-status declaration"
+    ],
+    "owner": "epistemics-analyst",
+    "retrySignature": "indicator-framework-comparison-run-7",
+    "priority": {
+      "impact": 0.75,
+      "urgency": 0.65,
+      "tractability": 0.8,
+      "informationValue": 1,
+      "reversibility": 1,
+      "cost": 0.2,
+      "downsideRisk": 0.1
+    },
+    "seriesId": "packet-indicator-framework-comparison",
+    "runNumber": 7,
+    "lifecycle": "eligible",
+    "attempt": 0,
+    "reviewedAt": "2026-08-22T18:49:27.000Z"
+  },
+  {
+    "id": "packet-preservation-risk-register-refresh-run-8",
+    "nodeId": "capability-near-term-preservation",
+    "title": "Refresh the near-term preservation risk register from new evidence",
+    "portfolio": "near-term-preservation",
+    "supportedDirectives": [
+      "G1",
+      "G3"
+    ],
+    "expectedDirectiveDelta": {
+      "G1": 0.1,
+      "G2": 0,
+      "G3": 0.05
+    },
+    "credibleExtinctionPrevention": true,
+    "scope": {
+      "included": [
+        "public evidence update",
+        "risk reprioritization",
+        "leading-indicator review"
+      ],
+      "excluded": [
+        "outreach",
+        "publication",
+        "deployment",
+        "spending"
+      ]
+    },
+    "budget": {
+      "unit": "person-hours",
+      "limit": 12
+    },
+    "deliverables": [
+      "artifact://preservation/risk-register-refresh-run-8"
+    ],
+    "testsOrPreregistration": [
+      "schema validation",
+      "independent source and ranking review"
+    ],
+    "acceptanceCriteria": [
+      "Every changed risk records its new evidence, uncertainty, ranking rationale, and reversible response boundary."
+    ],
+    "verificationMethod": "An independent agent checks changed sources, ranking calculations, and authority boundaries.",
+    "rollback": "Keep the verified prior register and reject the refresh with a reasoned audit event.",
+    "authorityClass": "agent-reviewed",
+    "authorityReasons": [
+      "bounded local analysis with no external intervention"
+    ],
+    "owner": "preservation-analyst",
+    "retrySignature": "preservation-risk-register-refresh-run-8",
+    "priority": {
+      "impact": 0.9,
+      "urgency": 0.85,
+      "tractability": 0.8,
+      "informationValue": 0.75,
+      "reversibility": 1,
+      "cost": 0.15,
+      "downsideRisk": 0.1
+    },
+    "seriesId": "packet-preservation-risk-register-refresh",
+    "runNumber": 8,
+    "lifecycle": "eligible",
+    "attempt": 0,
+    "reviewedAt": "2026-08-22T18:49:27.000Z"
+  },
+  {
+    "id": "packet-durable-compute-fault-model-extension-run-7",
+    "nodeId": "capability-safe-durable-computation",
+    "title": "Extend the durable-compute fault model to the next uncovered failure class",
+    "portfolio": "enabling-capabilities",
+    "supportedDirectives": [
+      "G1",
+      "G2"
+    ],
+    "expectedDirectiveDelta": {
+      "G1": 0.05,
+      "G2": 0.05,
+      "G3": 0
+    },
+    "credibleExtinctionPrevention": false,
+    "scope": {
+      "included": [
+        "local deterministic simulation",
+        "one uncovered failure class",
+        "recovery metric comparison"
+      ],
+      "excluded": [
+        "hardware operation",
+        "deployment",
+        "claims of physical durability"
+      ]
+    },
+    "budget": {
+      "unit": "person-hours",
+      "limit": 10
+    },
+    "deliverables": [
+      "artifact://capabilities/fault-model-extension-run-7"
+    ],
+    "testsOrPreregistration": [
+      "caller-supplied deterministic seed matrix",
+      "property tests for recovery invariants"
+    ],
+    "acceptanceCriteria": [
+      "The extension reports positive, negative, or null evidence and does not generalize simulation results to physical durability."
+    ],
+    "verificationMethod": "An independent agent replays the exact seeds and caller-supplied timestamps.",
+    "rollback": "Retain the verified base model and preserve the rejected extension as negative evidence.",
+    "authorityClass": "agent-reviewed",
+    "authorityReasons": [
+      "local simulation only; no hardware or deployment boundary is crossed"
+    ],
+    "owner": "capabilities-engineer",
+    "retrySignature": "durable-compute-fault-model-extension-run-7",
+    "priority": {
+      "impact": 0.55,
+      "urgency": 0.4,
+      "tractability": 0.85,
+      "informationValue": 0.65,
+      "reversibility": 1,
+      "cost": 0.15,
+      "downsideRisk": 0.05
+    },
+    "seriesId": "packet-durable-compute-fault-model-extension",
+    "runNumber": 7,
+    "lifecycle": "eligible",
+    "attempt": 0,
+    "reviewedAt": "2026-08-22T18:49:27.000Z"
+  },
+  {
+    "id": "packet-institutional-dependency-map-refresh-run-7",
+    "nodeId": "capability-institutional-continuity",
+    "title": "Refresh institutional continuity dependencies from new evidence",
+    "portfolio": "institutional-continuity",
+    "supportedDirectives": [
+      "G1",
+      "G3"
+    ],
+    "expectedDirectiveDelta": {
+      "G1": 0.05,
+      "G2": 0,
+      "G3": 0.1
+    },
+    "credibleExtinctionPrevention": false,
+    "scope": {
+      "included": [
+        "public-information update",
+        "governance failure-mode review",
+        "dependency evidence gaps"
+      ],
+      "excluded": [
+        "outreach",
+        "fundraising",
+        "publication",
+        "governance mutation"
+      ]
+    },
+    "budget": {
+      "unit": "person-hours",
+      "limit": 10
+    },
+    "deliverables": [
+      "artifact://institutions/dependency-map-refresh-run-7"
+    ],
+    "testsOrPreregistration": [
+      "coverage checklist",
+      "capture, succession, and funding scenario review"
+    ],
+    "acceptanceCriteria": [
+      "Every changed dependency distinguishes artifact evidence, readiness, and externally demonstrated outcome status."
+    ],
+    "verificationMethod": "An independent agent samples changed sources and challenges capture, succession, and funding assumptions.",
+    "rollback": "Retain the verified prior dependency map and record why the refresh was rejected.",
+    "authorityClass": "agent-reviewed",
+    "authorityReasons": [
+      "bounded public-information analysis with no external governance action"
+    ],
+    "owner": "institutional-analyst",
+    "retrySignature": "institutional-dependency-map-refresh-run-7",
+    "priority": {
+      "impact": 0.5,
+      "urgency": 0.5,
+      "tractability": 0.85,
+      "informationValue": 0.7,
+      "reversibility": 1,
+      "cost": 0.15,
+      "downsideRisk": 0.1
+    },
+    "seriesId": "packet-institutional-dependency-map-refresh",
+    "runNumber": 7,
+    "lifecycle": "eligible",
+    "attempt": 0,
+    "reviewedAt": "2026-08-22T18:49:27.000Z"
   }
 ]

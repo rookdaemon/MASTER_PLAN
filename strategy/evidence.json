@@ -677,5 +677,21 @@
     "verifier": "deterministic-repository-executor",
     "observedAt": "2026-08-22T17:35:56.000Z",
     "outcome": "null"
+  },
+  {
+    "id": "evidence-preservation-mitigation-tabletop-run-8-executed",
+    "claim": "A deterministic tabletop specified a measurable trigger and reversible response for ranked risk risk-critical-infrastructure-cyber.",
+    "method": "Deterministic transformation of checked-in, independently reviewed repository evidence.",
+    "source": "strategy/results/preservation-mitigation-tabletop-run-8.json",
+    "strength": 0.55,
+    "limitations": [
+      "The tabletop is a repository artifact and does not establish real-world risk reduction.",
+      "The contracted metric remains unchanged until qualifying external outcome evidence is independently reviewed."
+    ],
+    "supportedHypotheses": [],
+    "falsifiedHypotheses": [],
+    "verifier": "deterministic-repository-executor",
+    "observedAt": "2026-08-22T18:49:27.000Z",
+    "outcome": "null"
   }
 ]
