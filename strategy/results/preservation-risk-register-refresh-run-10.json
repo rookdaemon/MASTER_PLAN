@@ -1,0 +1,257 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "preservation-risk-register-refresh-run-10",
+  "packetId": "packet-preservation-risk-register-refresh-run-10",
+  "preparedAt": "2026-08-23T07:01:36.000Z",
+  "baselineArtifact": "strategy/findings/preservation-risks.json",
+  "scope": {
+    "performsExternalIntervention": false,
+    "publishesExternally": false,
+    "spendsFunds": false
+  },
+  "findings": [
+    {
+      "riskId": "risk-nuclear-escalation",
+      "previousRank": 1,
+      "currentRank": 1,
+      "changed": false,
+      "sourceIds": [
+        "sipri-yearbook-2026"
+      ],
+      "uncertainty": {
+        "confidence": 0.86,
+        "keyUnknowns": [
+          "classified doctrine, command reliability, and actual readiness",
+          "the probability that regional conflict or false warning crosses nuclear thresholds"
+        ]
+      },
+      "rankingRationale": "Immediate high-consequence potential, large deployed arsenals, high-alert forces, and eroding arms-control constraints give this risk the strongest combination of directive impact and urgency despite limited tractability for this program.",
+      "reversibleResponseBoundaries": [
+        {
+          "rollback": "Retire the dashboard version, preserve its evidence record, and restore the last verified indicator definitions",
+          "authorityBoundary": "The automated body may monitor public data and draft bounded options. Any credentialed access, outreach, spending, physical action, or legal commitment requires a separately classified packet; human escalation is allowed only when a documented owner-only capability remains truly unautomatable."
+        }
+      ]
+    },
+    {
+      "riskId": "risk-advanced-ai",
+      "previousRank": 2,
+      "currentRank": 2,
+      "changed": false,
+      "sourceIds": [
+        "international-ai-safety-report-2026"
+      ],
+      "uncertainty": {
+        "confidence": 0.72,
+        "keyUnknowns": [
+          "future capability scaling and deployment concentration",
+          "real-world effectiveness and circumvention resistance of layered safeguards",
+          "likelihood and severity of loss-of-control pathways"
+        ]
+      },
+      "rankingRationale": "Rapidly changing general-purpose capabilities can amplify cyber, biological, manipulation, and autonomy hazards. Consequences could be severe and safeguards remain incomplete, while uncertainty keeps the rank below the more directly observed nuclear condition.",
+      "reversibleResponseBoundaries": [
+        {
+          "rollback": "Revert disputed classifications to unverified and preserve the challenged evidence and reviewer rationale",
+          "authorityBoundary": "Automation may analyze public evidence, test local non-deployed controls, and prepare reviewable changes. It may not access restricted systems, release hazardous capability details, or deploy autonomous agents without a bounded authority assessment; humans are an exceptional escalation endpoint, not routine operators."
+        }
+      ]
+    },
+    {
+      "riskId": "risk-pandemic-biological-event",
+      "previousRank": 3,
+      "currentRank": 3,
+      "changed": false,
+      "sourceIds": [
+        "who-changing-pandemic-risk-2025"
+      ],
+      "uncertainty": {
+        "confidence": 0.83,
+        "keyUnknowns": [
+          "undetected transmission where surveillance is weak",
+          "pathogen-specific severity, transmissibility, and countermeasure escape",
+          "public trust and equitable access to countermeasures"
+        ]
+      },
+      "rankingRationale": "Recent emergence across multiple pathogen families, global connectivity, and uneven surveillance create high near-term preservation relevance. Monitoring and preparedness are comparatively tractable and reversible, raising information value.",
+      "reversibleResponseBoundaries": [
+        {
+          "rollback": "Archive superseded triggers and restore the last verified checklist if evidence is retracted",
+          "authorityBoundary": "The automated body may monitor, model, and draft preparedness material from public sources. Medical guidance, biological experimentation, protected health data, procurement, and external coordination require separate authority and safety review; human escalation is reserved for a proven non-delegable decision."
+        }
+      ]
+    },
+    {
+      "riskId": "risk-climate-extremes",
+      "previousRank": 4,
+      "currentRank": 4,
+      "changed": false,
+      "sourceIds": [
+        "wmo-state-global-climate-2025"
+      ],
+      "uncertainty": {
+        "confidence": 0.91,
+        "keyUnknowns": [
+          "regional compound-event timing and adaptation performance",
+          "the timing and reversibility of specific tipping elements",
+          "future emissions and aerosol trajectories"
+        ]
+      },
+      "rankingRationale": "Observed warming, record ocean heat, sea-level rise, and recurring extremes create persistent, geographically broad harm and amplify other risks. Some effects are already measured, though the most catastrophic thresholds and timing remain uncertain.",
+      "reversibleResponseBoundaries": [
+        {
+          "rollback": "Remove unsupported exposure links and reinstate the last independently reviewed map",
+          "authorityBoundary": "Automated analysis and sandboxed simulations are autonomous. Changes to infrastructure, land, procurement, public claims, or third-party obligations need separately verified authority; escalate to a human only for an evidenced owner-only consent, legal, or physical constraint."
+        }
+      ]
+    },
+    {
+      "riskId": "risk-food-system-shock",
+      "previousRank": 5,
+      "currentRank": 5,
+      "changed": false,
+      "sourceIds": [
+        "fao-global-report-food-crises-2026"
+      ],
+      "uncertainty": {
+        "confidence": 0.88,
+        "keyUnknowns": [
+          "conditions in inaccessible or unassessed populations",
+          "joint effects of conflict, trade restrictions, input prices, and extreme weather",
+          "timeliness and durability of humanitarian access"
+        ]
+      },
+      "rankingRationale": "Acute food insecurity is widespread and entwined with conflict, economic shocks, weather extremes, and displacement. The harm is current and cascading, with useful public indicators and reversible analytical preparedness options.",
+      "reversibleResponseBoundaries": [
+        {
+          "rollback": "Quarantine unreliable feeds and restore the last verified dependency snapshot",
+          "authorityBoundary": "Automation may assemble and test public-data maps. Aid allocation, market participation, outreach, and procurement are external actions requiring bounded authorization; a human is contacted only when automation proves it cannot obtain necessary consent or exercise a legally reserved authority."
+        }
+      ]
+    },
+    {
+      "riskId": "risk-biodiversity-water-health-nexus",
+      "previousRank": 6,
+      "currentRank": 6,
+      "changed": false,
+      "sourceIds": [
+        "ipbes-nexus-assessment-2024"
+      ],
+      "uncertainty": {
+        "confidence": 0.84,
+        "keyUnknowns": [
+          "local threshold behavior and delayed feedbacks",
+          "distributional effects and transferability of response options",
+          "interactions with climate, trade, land use, and emerging disease"
+        ]
+      },
+      "rankingRationale": "Interdependent ecological and social systems can transmit losses across health, water security, food production, and resilience. The slower, distributed dynamics lower immediate rank but raise systemic and irreversible downside.",
+      "reversibleResponseBoundaries": [
+        {
+          "rollback": "Withdraw unsupported graph edges and preserve rejected hypotheses for later reassessment",
+          "authorityBoundary": "The automated body may synthesize public evidence and challenge tradeoffs. Field intervention, access to protected ecological data, land-use decisions, or stakeholder commitments require separate authority; human involvement is exceptional and evidence-triggered."
+        }
+      ]
+    },
+    {
+      "riskId": "risk-cascading-disaster",
+      "previousRank": 7,
+      "currentRank": 7,
+      "changed": false,
+      "sourceIds": [
+        "undrr-gar-2025"
+      ],
+      "uncertainty": {
+        "confidence": 0.81,
+        "keyUnknowns": [
+          "unreported indirect and non-market losses",
+          "cross-border propagation through opaque financial and supply networks",
+          "whether resilience investment reaches the most exposed systems"
+        ]
+      },
+      "rankingRationale": "Disasters propagate through debt, insurance, supply chains, ecosystems, and public capacity. These connections can turn otherwise bounded hazards into persistent continuity failures, while dependency mapping offers high information value at low reversible cost.",
+      "reversibleResponseBoundaries": [
+        {
+          "rollback": "Remove unverified dependencies and reset scenarios to the last reproducible model version",
+          "authorityBoundary": "Automation owns public-data modeling and sandboxed exercises. Financial transactions, insurance decisions, emergency operations, and third-party coordination need separately classified authority; escalate only a substantiated nonautomatable barrier."
+        }
+      ]
+    },
+    {
+      "riskId": "risk-critical-infrastructure-cyber",
+      "previousRank": 8,
+      "currentRank": 8,
+      "changed": false,
+      "sourceIds": [
+        "cisa-state-sponsored-networks-2025"
+      ],
+      "uncertainty": {
+        "confidence": 0.79,
+        "keyUnknowns": [
+          "undetected persistence and concentration in shared suppliers",
+          "conversion of espionage access into destructive action",
+          "recovery performance under concurrent physical disruption"
+        ]
+      },
+      "rankingRationale": "Documented state-sponsored access to global networks can create correlated communications and service disruption. It is urgent and tractable for defensive monitoring, but this register has only a threat-cluster source and cannot infer global failure probability.",
+      "reversibleResponseBoundaries": [
+        {
+          "rollback": "Discard unverified indicators, isolate test artifacts, and restore the last known-good simulation baseline",
+          "authorityBoundary": "Automation may use public advisories and isolated test environments. Scanning third-party systems, accessing credentials, changing production networks, or disclosing sensitive findings requires explicit bounded authority; human escalation is limited to a proven credential, consent, or legal barrier."
+        }
+      ]
+    },
+    {
+      "riskId": "risk-severe-space-weather",
+      "previousRank": 9,
+      "currentRank": 9,
+      "changed": false,
+      "sourceIds": [
+        "noaa-space-weather-exercise-2025"
+      ],
+      "uncertainty": {
+        "confidence": 0.82,
+        "keyUnknowns": [
+          "actual failure propagation across modern interconnected infrastructure",
+          "operator response quality outside the exercise participants",
+          "severity and orientation of future Earth-directed solar events"
+        ]
+      },
+      "rankingRationale": "Extreme geomagnetic events can produce correlated infrastructure stress, and the May 2024 G5 event demonstrates contemporary relevance. Lower frequency and useful warning systems reduce rank relative to persistent terrestrial risks.",
+      "reversibleResponseBoundaries": [
+        {
+          "rollback": "Restore the prior checklist and preserve simulation failures as evidence",
+          "authorityBoundary": "Automation may monitor public alerts and run local simulations. Operational control of grids, radio, spacecraft, or emergency services remains outside scope and requires separately verified authorization; contact a human only for an irreducible owner-controlled action."
+        }
+      ]
+    },
+    {
+      "riskId": "risk-knowledge-loss",
+      "previousRank": 10,
+      "currentRank": 10,
+      "changed": false,
+      "sourceIds": [
+        "unesco-documentary-heritage-disasters-2026"
+      ],
+      "uncertainty": {
+        "confidence": 0.74,
+        "keyUnknowns": [
+          "global prevalence of untested disaster plans and inaccessible formats",
+          "concentration in fragile storage, vendors, credentials, or tacit expertise",
+          "whether backups can be independently restored under degraded conditions"
+        ]
+      },
+      "rankingRationale": "Loss of records and recovery knowledge magnifies every other continuity risk and can be irreversible, but available evidence here is narrower and the program can take many low-risk reversible preservation steps.",
+      "reversibleResponseBoundaries": [
+        {
+          "rollback": "Preserve source media unchanged, revert catalog mutations, and restore the last verified manifest",
+          "authorityBoundary": "Automation may inspect in-scope public or repository artifacts and run nondestructive local recovery tests. Restricted archives, third-party data, credentialed storage, destructive migration, or physical custody changes require separate authorization; escalate to a human only when access or custody is demonstrably nonautomatable."
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "changedRiskCount": 0,
+    "disposition": "null-update"
+  }
+}
