@@ -2847,7 +2847,7 @@
     },
     "seriesId": "packet-indicator-framework-comparison",
     "runNumber": 9,
-    "lifecycle": "eligible",
+    "lifecycle": "verified",
     "attempt": 0,
     "reviewedAt": "2026-08-23T05:45:47.000Z"
   },
