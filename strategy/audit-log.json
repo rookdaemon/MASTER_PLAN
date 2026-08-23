@@ -1533,5 +1533,20 @@
       "verifier": "deterministic-repository-executor",
       "metricUpdates": []
     }
+  },
+  {
+    "id": "audit:packet-institutional-dependency-map-refresh-run-12:packet-verified:2026-08-23T23:35:25.000Z",
+    "type": "packet-verified",
+    "packetId": "packet-institutional-dependency-map-refresh-run-12",
+    "occurredAt": "2026-08-23T23:35:25.000Z",
+    "details": {
+      "outcome": "null",
+      "artifactReferences": [
+        "strategy/results/institutional-dependency-map-refresh-run-12.json",
+        "strategy/findings/institutional-continuity.json"
+      ],
+      "verifier": "deterministic-repository-executor",
+      "metricUpdates": []
+    }
   }
 ]
