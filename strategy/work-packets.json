@@ -3624,7 +3624,7 @@
     },
     "seriesId": "packet-durable-compute-fault-model-extension",
     "runNumber": 11,
-    "lifecycle": "eligible",
+    "lifecycle": "verified",
     "attempt": 0,
     "reviewedAt": "2026-08-23T15:36:39.000Z"
   },
