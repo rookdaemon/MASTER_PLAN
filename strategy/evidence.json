@@ -1452,5 +1452,20 @@
     "verifier": "deterministic-repository-executor",
     "observedAt": "2026-08-24T21:44:48.000Z",
     "outcome": "null"
+  },
+  {
+    "id": "evidence-durable-compute-fault-model-extension-run-16-executed",
+    "claim": "A deterministic local extension evaluated the previously uncovered compound-recovery-delay-level-16 fault class.",
+    "method": "Deterministic transformation of checked-in, independently reviewed repository evidence.",
+    "source": "strategy/results/durable-compute-fault-model-extension-run-16.json",
+    "strength": 0.55,
+    "limitations": [
+      "The model is a local simulation and does not establish physical durability or deployment readiness."
+    ],
+    "supportedHypotheses": [],
+    "falsifiedHypotheses": [],
+    "verifier": "deterministic-repository-executor",
+    "observedAt": "2026-08-24T22:44:53.000Z",
+    "outcome": "null"
   }
 ]
