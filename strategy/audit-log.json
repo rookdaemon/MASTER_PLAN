@@ -1643,5 +1643,20 @@
       "verifier": "deterministic-repository-executor",
       "metricUpdates": []
     }
+  },
+  {
+    "id": "audit:packet-indicator-framework-comparison-run-13:packet-verified:2026-08-24T05:02:02.000Z",
+    "type": "packet-verified",
+    "packetId": "packet-indicator-framework-comparison-run-13",
+    "occurredAt": "2026-08-24T05:02:02.000Z",
+    "details": {
+      "outcome": "positive",
+      "artifactReferences": [
+        "strategy/results/indicator-framework-comparison-run-13.json",
+        "strategy/findings/consciousness-assessment.json"
+      ],
+      "verifier": "deterministic-repository-executor",
+      "metricUpdates": []
+    }
   }
 ]
