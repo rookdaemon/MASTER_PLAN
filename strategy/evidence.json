@@ -1246,5 +1246,20 @@
     "verifier": "deterministic-repository-executor",
     "observedAt": "2026-08-24T09:04:59.000Z",
     "outcome": "null"
+  },
+  {
+    "id": "evidence-preservation-risk-register-refresh-run-15-executed",
+    "claim": "The checked-in preservation register was re-evaluated without unsupported rank changes.",
+    "method": "Deterministic transformation of checked-in, independently reviewed repository evidence.",
+    "source": "strategy/results/preservation-risk-register-refresh-run-15.json",
+    "strength": 0.55,
+    "limitations": [
+      "No new independently verified risk source was supplied to this bounded execution."
+    ],
+    "supportedHypotheses": [],
+    "falsifiedHypotheses": [],
+    "verifier": "deterministic-repository-executor",
+    "observedAt": "2026-08-24T10:04:42.000Z",
+    "outcome": "null"
   }
 ]
