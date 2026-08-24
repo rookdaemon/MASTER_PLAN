@@ -621,5 +621,12 @@
     "text": "Guardian cycle: completed packet-durable-compute-fault-model-extension-run-16. What I did: executed the highest-ranked feasible bounded task. Why this: it ranked first after feasibility and preservation-first priority.",
     "occurredAt": "2026-08-24T22:44:53.000Z",
     "deliveredAt": "2026-08-24T22:45:20.000Z"
+  },
+  {
+    "id": "guardian-summary:2026-08-24T23:35:46.000Z",
+    "kind": "summary",
+    "text": "Guardian cycle: completed packet-preservation-mitigation-tabletop-run-18. What I did: generated 5 candidates and executed the highest-ranked feasible bounded task. Why this: it ranked first after feasibility and preservation-first priority.",
+    "occurredAt": "2026-08-24T23:35:46.000Z",
+    "deliveredAt": "2026-08-24T23:36:08.000Z"
   }
 ]
