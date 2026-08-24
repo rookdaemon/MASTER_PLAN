@@ -1230,5 +1230,21 @@
     "verifier": "deterministic-repository-executor",
     "observedAt": "2026-08-24T07:29:18.000Z",
     "outcome": "null"
+  },
+  {
+    "id": "evidence-preservation-mitigation-tabletop-run-15-executed",
+    "claim": "A deterministic tabletop specified a measurable trigger and reversible response for ranked risk risk-food-system-shock.",
+    "method": "Deterministic transformation of checked-in, independently reviewed repository evidence.",
+    "source": "strategy/results/preservation-mitigation-tabletop-run-15.json",
+    "strength": 0.55,
+    "limitations": [
+      "The tabletop is a repository artifact and does not establish real-world risk reduction.",
+      "The contracted metric remains unchanged until qualifying external outcome evidence is independently reviewed."
+    ],
+    "supportedHypotheses": [],
+    "falsifiedHypotheses": [],
+    "verifier": "deterministic-repository-executor",
+    "observedAt": "2026-08-24T09:04:59.000Z",
+    "outcome": "null"
   }
 ]
