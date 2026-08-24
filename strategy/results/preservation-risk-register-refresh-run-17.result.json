@@ -1,0 +1,36 @@
+{
+  "outcome": "null",
+  "artifactReferences": [
+    "strategy/results/preservation-risk-register-refresh-run-17.json",
+    "strategy/findings/preservation-risks.json"
+  ],
+  "evidence": [
+    {
+      "id": "evidence-preservation-risk-register-refresh-run-17-executed",
+      "claim": "The checked-in preservation register was re-evaluated without unsupported rank changes.",
+      "method": "Deterministic transformation of checked-in, independently reviewed repository evidence.",
+      "source": "strategy/results/preservation-risk-register-refresh-run-17.json",
+      "strength": 0.55,
+      "limitations": [
+        "No new independently verified risk source was supplied to this bounded execution."
+      ],
+      "supportedHypotheses": [],
+      "falsifiedHypotheses": [],
+      "verifier": "deterministic-repository-executor",
+      "observedAt": "2026-08-24T19:45:31.000Z",
+      "outcome": "null"
+    }
+  ],
+  "acceptanceCriteriaMet": true,
+  "portfolioEffortAfter": {
+    "consciousness-epistemics": 0.35,
+    "near-term-preservation": 0.3,
+    "enabling-capabilities": 0.2,
+    "institutional-continuity": 0.15
+  },
+  "verification": {
+    "status": "passed",
+    "verifier": "deterministic-repository-executor",
+    "reviewedAt": "2026-08-24T19:45:31.000Z"
+  }
+}
