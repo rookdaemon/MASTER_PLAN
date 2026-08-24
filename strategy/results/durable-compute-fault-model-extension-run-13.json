@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "durable-compute-fault-model-extension-run-13",
+  "packetId": "packet-durable-compute-fault-model-extension-run-13",
+  "preparedAt": "2026-08-24T07:29:18.000Z",
+  "baselineArtifact": "strategy/findings/durable-compute.json",
+  "scope": {
+    "operatesHardware": false,
+    "deploysSystems": false,
+    "claimsPhysicalDurability": false
+  },
+  "preregistration": {
+    "priorFaultClass": "crash-stop",
+    "faultClass": "compound-recovery-delay-level-13",
+    "injectedDelayMs": 70,
+    "recoveryBudgetMs": 50,
+    "seedSource": "strategy/findings/durable-compute.json"
+  },
+  "findings": [
+    {
+      "scenarioId": "seed-11:failures-1",
+      "seed": 11,
+      "faultClass": "compound-recovery-delay-level-13",
+      "baselineRecoveryMs": 20.5,
+      "injectedDelayMs": 70,
+      "modeledRecoveryMs": 90.5,
+      "recoveryBudgetMs": 50,
+      "recoveryBudgetMet": false
+    },
+    {
+      "scenarioId": "seed-11:failures-2",
+      "seed": 11,
+      "faultClass": "compound-recovery-delay-level-13",
+      "baselineRecoveryMs": 20.5,
+      "injectedDelayMs": 70,
+      "modeledRecoveryMs": 90.5,
+      "recoveryBudgetMs": 50,
+      "recoveryBudgetMet": false
+    },
+    {
+      "scenarioId": "seed-83:failures-1",
+      "seed": 83,
+      "faultClass": "compound-recovery-delay-level-13",
+      "baselineRecoveryMs": 20.5,
+      "injectedDelayMs": 70,
+      "modeledRecoveryMs": 90.5,
+      "recoveryBudgetMs": 50,
+      "recoveryBudgetMet": false
+    },
+    {
+      "scenarioId": "seed-83:failures-2",
+      "seed": 83,
+      "faultClass": "compound-recovery-delay-level-13",
+      "baselineRecoveryMs": 20.5,
+      "injectedDelayMs": 70,
+      "modeledRecoveryMs": 90.5,
+      "recoveryBudgetMs": 50,
+      "recoveryBudgetMet": false
+    }
+  ],
+  "summary": {
+    "scenarioCount": 4,
+    "recoveryBudgetFailures": 4
+  }
+}

@@ -509,5 +509,12 @@
     "text": "Guardian cycle: completed packet-institutional-dependency-map-refresh-run-13. What I did: executed the highest-ranked feasible bounded task. Why this: it ranked first after feasibility and preservation-first priority.",
     "occurredAt": "2026-08-24T05:54:29.000Z",
     "deliveredAt": "2026-08-24T05:55:05.000Z"
+  },
+  {
+    "id": "guardian-summary:2026-08-24T07:29:18.000Z",
+    "kind": "summary",
+    "text": "Guardian cycle: completed packet-durable-compute-fault-model-extension-run-13. What I did: executed the highest-ranked feasible bounded task. Why this: it ranked first after feasibility and preservation-first priority.",
+    "occurredAt": "2026-08-24T07:29:18.000Z",
+    "deliveredAt": "2026-08-24T07:29:54.000Z"
   }
 ]
