@@ -5309,7 +5309,7 @@
     },
     "seriesId": "packet-institutional-dependency-map-refresh",
     "runNumber": 16,
-    "lifecycle": "eligible",
+    "lifecycle": "verified",
     "attempt": 0,
     "reviewedAt": "2026-08-24T18:59:47.000Z"
   }
