@@ -4920,7 +4920,7 @@
     },
     "seriesId": "packet-durable-compute-fault-model-extension",
     "runNumber": 15,
-    "lifecycle": "eligible",
+    "lifecycle": "verified",
     "attempt": 0,
     "reviewedAt": "2026-08-24T14:04:32.000Z"
   },
