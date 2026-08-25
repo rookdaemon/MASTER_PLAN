@@ -1,0 +1,37 @@
+{
+  "outcome": "null",
+  "artifactReferences": [
+    "strategy/results/preservation-mitigation-tabletop-run-19.json",
+    "strategy/findings/preservation-risks.json"
+  ],
+  "evidence": [
+    {
+      "id": "evidence-preservation-mitigation-tabletop-run-19-executed",
+      "claim": "A deterministic tabletop specified a measurable trigger and reversible response for ranked risk risk-severe-space-weather.",
+      "method": "Deterministic transformation of checked-in, independently reviewed repository evidence.",
+      "source": "strategy/results/preservation-mitigation-tabletop-run-19.json",
+      "strength": 0.55,
+      "limitations": [
+        "The tabletop is a repository artifact and does not establish real-world risk reduction.",
+        "The contracted metric remains unchanged until qualifying external outcome evidence is independently reviewed."
+      ],
+      "supportedHypotheses": [],
+      "falsifiedHypotheses": [],
+      "verifier": "deterministic-repository-executor",
+      "observedAt": "2026-08-25T05:48:17.000Z",
+      "outcome": "null"
+    }
+  ],
+  "acceptanceCriteriaMet": true,
+  "portfolioEffortAfter": {
+    "consciousness-epistemics": 0.35,
+    "near-term-preservation": 0.3,
+    "enabling-capabilities": 0.2,
+    "institutional-continuity": 0.15
+  },
+  "verification": {
+    "status": "passed",
+    "verifier": "deterministic-repository-executor",
+    "reviewedAt": "2026-08-25T05:48:17.000Z"
+  }
+}
