@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/agent-runtime/main.ts",
+    "guardian:host-cycle": "tsx src/master-plan-controller/cli/host-guardian-supervisor-main.ts",
     "build": "tsc",
     "lint": "tsc --noEmit",
     "strategy:verify": "tsx src/master-plan-controller/cli/verify-strategy.ts",

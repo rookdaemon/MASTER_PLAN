@@ -42,25 +42,14 @@ describe('streamlined update workflows', () => {
     }
   });
 
-  it('runs one bounded Guardian cycle every hour without a reviewer or pull-request detour', async () => {
+  it('keeps Guardian execution off CI and leaves a read-only handoff workflow', async () => {
     const guardian = await fileSystem.readText('.github/workflows/guardian-cycle.yml');
-    expect(guardian).toContain("cron: '17 * * * *'");
     expect(guardian).toContain('workflow_dispatch:');
-    expect(guardian).toContain('message:');
-    expect(guardian).toContain('sender:');
-    expect(guardian).toContain('npm run guardian:inbox');
-    expect(guardian).toContain('npm run guardian:communicate');
-    expect(guardian).toContain('npm run guardian:summary');
-    expect(guardian).toContain('npm run guardian:notify');
-    expect(guardian).not.toContain('npm run guardian:progress');
-    expect(guardian).toContain('npm run --silent strategy:generate -- "$cycle_time"');
-    expect(guardian).toContain('npm run --silent strategy:execute -- "$cycle_time"');
-    expect(guardian).toContain('npm run strategy:verify');
-    expect(guardian).toContain('npm run docs:verify');
-    expect(guardian).toContain('npm run lint');
-    expect(guardian).toContain('npm test');
-    expect(guardian).toContain('git push origin HEAD:main');
-    expect(guardian).not.toMatch(/agent.review|copilot|pull request|gh pr/i);
+    expect(guardian).not.toContain('schedule:');
+    expect(guardian).toContain('contents: read');
+    expect(guardian).toContain('authenticated host runs Guardian cycles');
+    expect(guardian).not.toContain('npm run strategy:');
+    expect(guardian).not.toContain('git push');
   });
 
   it('documents CI-only update handling without independent agent-review requirements', async () => {

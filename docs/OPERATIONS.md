@@ -24,6 +24,16 @@ updates are integrated after deterministic verification.
 7. Execute one packet within its authority boundary.
 8. Integrate positive, negative, or null evidence and re-evaluate the graph.
 
+## Host Guardian
+
+The authenticated repository host, not GitHub Actions, owns scheduled Guardian
+execution. Its cron entry runs `scripts/run-host-guardian-cycle.sh`, which
+locks a dedicated Git worktree, invokes Codex with workspace-write sandboxing,
+then performs one deterministic bounded cycle. A changed cycle is pushed on a
+Guardian branch; CI remains responsible for deterministic validation of that
+commit. The host's Codex and GitHub CLI credentials stay in the service
+account and are never added to this repository or passed to CI.
+
 All filesystem, time, network, process, and command-line behavior crosses injectable interfaces.
 Methods receive referenced timestamps from callers; strategy logic does not read ambient time.
 
