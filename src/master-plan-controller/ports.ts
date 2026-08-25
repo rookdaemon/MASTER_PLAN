@@ -46,6 +46,7 @@ export interface ProcessRequest {
   args: string[];
   cwd?: string;
   environment?: Record<string, string>;
+  timeoutMs?: number;
 }
 
 export interface ProcessResult {

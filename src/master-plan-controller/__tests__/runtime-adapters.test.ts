@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NodeFileSystem, normalizeRepositoryPath, normalizeRepositoryText } from '../runtime-adapters.js';
+import { NodeFileSystem, NodeProcess, normalizeRepositoryPath, normalizeRepositoryText } from '../runtime-adapters.js';
 
 describe('repository filesystem normalization', () => {
   it('returns portable repository paths from platform-specific paths', () => {
@@ -15,5 +15,18 @@ describe('repository filesystem normalization', () => {
 
   it('treats an absent output directory as an empty portable file set', async () => {
     await expect(new NodeFileSystem('.').listFiles('strategy/absent-output-fixture/')).resolves.toEqual([]);
+  });
+});
+
+describe('node process adapter', () => {
+  it('terminates a timed-out command and reports a bounded failure', async () => {
+    const result = await new NodeProcess().run({
+      command: process.execPath,
+      args: ['-e', 'setInterval(() => undefined, 1_000)'],
+      timeoutMs: 50,
+    });
+
+    expect(result.exitCode).toBe(124);
+    expect(result.stderr).toContain('Process timed out after 50ms.');
   });
 });

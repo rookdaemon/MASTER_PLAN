@@ -6,6 +6,8 @@ export interface HostGuardianConfig {
   statePath: string;
   intervalMs: number;
   codexModel: string;
+  codexTimeoutMs: number;
+  deterministicCommandTimeoutMs: number;
 }
 
 export interface HostGuardianDeps {
@@ -22,6 +24,8 @@ export async function runHostGuardianSupervisor(
 ): Promise<{ ran: boolean }> {
   const now = deps.clock.now();
   assertTimestamp(now);
+  assertPositiveDuration(config.codexTimeoutMs, 'Codex timeout');
+  assertPositiveDuration(config.deterministicCommandTimeoutMs, 'deterministic command timeout');
   const state = await loadState(deps.fs, config.statePath);
   if (!isDue(state.completedAt, config.intervalMs, now)) return { ran: false };
 
@@ -37,6 +41,7 @@ export async function runHostGuardianSupervisor(
   }
   const summary = await deps.process.run({
     command: 'npm', args: ['run', 'guardian:summary', '--', now, generation, execution], cwd: config.workingDirectory,
+    timeoutMs: config.deterministicCommandTimeoutMs,
   });
   if (summary.exitCode !== 0) {
     throw new Error(`host guardian command failed: ${summary.stderr.trim() || summary.stdout.trim() || `exit code ${summary.exitCode}`}`);
@@ -55,11 +60,12 @@ function commands(now: string, config: HostGuardianConfig): ProcessRequest[] {
     'Respect strategy authority boundaries and do not use credentials, push, commit, alter CI, or perform external actions.',
     'Work only in this worktree. If no safe material improvement is available, make no change and exit.',
   ].join(' ');
-  const npm = (args: string[]): ProcessRequest => ({ command: 'npm', args, cwd });
+  const npm = (args: string[]): ProcessRequest => ({ command: 'npm', args, cwd, timeoutMs: config.deterministicCommandTimeoutMs });
   const agent: ProcessRequest = {
     command: 'codex',
     args: ['exec', '--approve-for-me', '--json', '--color', 'never', '--ephemeral', '-m', config.codexModel, '-C', cwd, prompt],
     cwd,
+    timeoutMs: config.codexTimeoutMs,
   };
   const generation = npm(['run', 'strategy:generate', '--', now]);
   const execution = npm(['run', 'strategy:execute', '--', now]);
@@ -91,8 +97,12 @@ function isMissingFile(error: unknown): boolean {
 }
 
 function isDue(last: string | undefined, intervalMs: number, now: string): boolean {
-  if (!Number.isSafeInteger(intervalMs) || intervalMs <= 0) throw new Error('host Guardian interval must be positive');
+  assertPositiveDuration(intervalMs, 'host Guardian interval');
   return !last || Date.parse(now) - Date.parse(last) >= intervalMs;
+}
+
+function assertPositiveDuration(value: number, label: string): void {
+  if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} must be positive`);
 }
 
 function assertTimestamp(value: string): void {

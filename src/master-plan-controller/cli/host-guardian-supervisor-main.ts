@@ -10,6 +10,8 @@ async function main(): Promise<void> {
       statePath: '.guardian/host-guardian-state.json',
       intervalMs: 60 * 60 * 1_000,
       codexModel: process.env['MASTER_PLAN_CODEX_MODEL'] ?? 'gpt-5.6-sol',
+      codexTimeoutMs: 15 * 60 * 1_000,
+      deterministicCommandTimeoutMs: 5 * 60 * 1_000,
     },
   );
   process.stdout.write(`${JSON.stringify(result)}\n`);

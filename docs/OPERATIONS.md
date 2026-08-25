@@ -34,6 +34,10 @@ Guardian branch; CI remains responsible for deterministic validation of that
 commit. The host's Codex and GitHub CLI credentials stay in the service
 account and are never added to this repository or passed to CI.
 
+Each subprocess has a hard deadline: 15 minutes for Codex and five minutes
+for each deterministic command. A deadline expires the subprocess group,
+records a failure, and releases the cron lock for the next scheduled attempt.
+
 All filesystem, time, network, process, and command-line behavior crosses injectable interfaces.
 Methods receive referenced timestamps from callers; strategy logic does not read ambient time.
 
