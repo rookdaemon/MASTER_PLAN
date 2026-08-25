@@ -20,7 +20,7 @@ if test -n "$(git -C "$repo_root" status --porcelain)"; then
 fi
 git -C "$repo_root" fetch origin main
 if test -e "$worktree_dir/.git"; then
-  test -z "$(git -C "$worktree_dir" status --porcelain)"
+  test -z "$(git -C "$worktree_dir" status --porcelain --untracked-files=no)"
   git -C "$worktree_dir" fetch origin main
   git -C "$worktree_dir" reset --hard origin/main
 else

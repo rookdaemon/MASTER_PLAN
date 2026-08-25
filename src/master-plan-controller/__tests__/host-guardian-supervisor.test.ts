@@ -28,6 +28,7 @@ describe('host Guardian supervisor', () => {
       expect.objectContaining({ command: 'npm', args: ['test'] }),
       expect.objectContaining({ command: 'npm', args: ['run', 'guardian:summary', '--', NOW, '{}', '{}'] }),
     ]);
+    expect(process.requests[0].args.at(-1)).toContain('Only modify docs/ and strategy/.');
     expect(JSON.parse(await fs.readText(config.statePath))).toEqual({ version: 1, completedAt: NOW });
   });
 
