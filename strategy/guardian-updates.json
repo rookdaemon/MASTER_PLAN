@@ -628,5 +628,12 @@
     "text": "Guardian cycle: completed packet-preservation-mitigation-tabletop-run-18. What I did: generated 5 candidates and executed the highest-ranked feasible bounded task. Why this: it ranked first after feasibility and preservation-first priority.",
     "occurredAt": "2026-08-24T23:35:46.000Z",
     "deliveredAt": "2026-08-24T23:36:08.000Z"
+  },
+  {
+    "id": "guardian-summary:2026-08-25T01:53:04.000Z",
+    "kind": "summary",
+    "text": "Guardian cycle: completed packet-preservation-risk-register-refresh-run-18. What I did: executed the highest-ranked feasible bounded task. Why this: it ranked first after feasibility and preservation-first priority.",
+    "occurredAt": "2026-08-25T01:53:04.000Z",
+    "deliveredAt": "2026-08-25T01:53:37.000Z"
   }
 ]
