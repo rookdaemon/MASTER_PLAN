@@ -38,7 +38,7 @@ git -C "$worktree_dir" config user.email 'guardian@users.noreply.github.com'
 (
   cd "$worktree_dir"
   npm run guardian:host-cycle
-  if test -n "$(git status --porcelain)"; then
+  if test -n "$(git status --porcelain --untracked-files=no)"; then
     git add docs strategy
     git commit -m 'chore: run host guardian cycle'
   fi
