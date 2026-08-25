@@ -2173,5 +2173,20 @@
       "verifier": "deterministic-repository-executor",
       "metricUpdates": []
     }
+  },
+  {
+    "id": "audit:packet-durable-compute-fault-model-extension-run-17:packet-verified:2026-08-25T04:54:42.000Z",
+    "type": "packet-verified",
+    "packetId": "packet-durable-compute-fault-model-extension-run-17",
+    "occurredAt": "2026-08-25T04:54:42.000Z",
+    "details": {
+      "outcome": "null",
+      "artifactReferences": [
+        "strategy/results/durable-compute-fault-model-extension-run-17.json",
+        "strategy/findings/durable-compute.json"
+      ],
+      "verifier": "deterministic-repository-executor",
+      "metricUpdates": []
+    }
   }
 ]
