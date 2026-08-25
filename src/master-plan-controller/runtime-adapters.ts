@@ -122,6 +122,7 @@ export class NodeProcess implements ProcessPort {
         env: request.environment === undefined ? process.env : { ...process.env, ...request.environment },
         shell: false,
         detached: process.platform !== 'win32',
+        stdio: ['ignore', 'pipe', 'pipe'],
       });
       let stdout = '';
       let stderr = '';

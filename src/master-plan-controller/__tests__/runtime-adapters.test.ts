@@ -19,6 +19,16 @@ describe('repository filesystem normalization', () => {
 });
 
 describe('node process adapter', () => {
+  it('closes stdin for an unattended command', async () => {
+    const result = await new NodeProcess().run({
+      command: process.execPath,
+      args: ['-e', "process.stdin.on('end', () => process.stdout.write('stdin closed'))"],
+      timeoutMs: 500,
+    });
+
+    expect(result).toEqual({ exitCode: 0, stdout: '', stderr: '' });
+  });
+
   it('terminates a timed-out command and reports a bounded failure', async () => {
     const result = await new NodeProcess().run({
       command: process.execPath,
