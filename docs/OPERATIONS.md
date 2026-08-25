@@ -28,7 +28,7 @@ updates are integrated after deterministic verification.
 
 The authenticated repository host, not GitHub Actions, owns scheduled Guardian
 execution. Its cron entry runs `scripts/run-host-guardian-cycle.sh`, which
-locks a dedicated Git worktree, invokes Codex with workspace-write sandboxing,
+locks a dedicated Git worktree, invokes Codex non-interactively with workspace-write sandboxing,
 then performs one deterministic bounded cycle. A changed cycle is pushed on a
 Guardian branch; CI remains responsible for deterministic validation of that
 commit. The host's Codex and GitHub CLI credentials stay in the service

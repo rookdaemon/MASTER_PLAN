@@ -21,7 +21,7 @@ describe('host Guardian supervisor', () => {
 
     expect(result.ran).toBe(true);
     expect(process.requests).toEqual([
-      expect.objectContaining({ command: 'codex', timeoutMs: 15 * 60 * 1_000, args: expect.arrayContaining(['exec', '--approve-for-me', '--ephemeral', '-m', 'gpt-5.6-sol']) }),
+      expect.objectContaining({ command: 'codex', timeoutMs: 15 * 60 * 1_000, args: expect.arrayContaining(['--ask-for-approval', 'never', 'exec', '--sandbox', 'workspace-write', '--ephemeral', '-m', 'gpt-5.6-sol']) }),
       expect.objectContaining({ command: 'npm', timeoutMs: 5 * 60 * 1_000, args: ['run', 'strategy:generate', '--', NOW] }),
       expect.objectContaining({ command: 'npm', args: ['run', 'strategy:execute', '--', NOW] }),
       expect.objectContaining({ command: 'npm', args: ['run', 'strategy:verify'] }),
@@ -30,7 +30,7 @@ describe('host Guardian supervisor', () => {
       expect.objectContaining({ command: 'npm', args: ['test'] }),
       expect.objectContaining({ command: 'npm', args: ['run', 'guardian:summary', '--', NOW, '{}', '{}'] }),
     ]);
-    expect(process.requests[0].args).not.toContain('--sandbox');
+    expect(process.requests[0].args).not.toContain('--approve-for-me');
     expect(process.requests[0].args.at(-1)).toContain('Only modify docs/ and strategy/.');
     expect(JSON.parse(await fs.readText(config.statePath))).toEqual({ version: 1, completedAt: NOW });
   });

@@ -63,7 +63,7 @@ function commands(now: string, config: HostGuardianConfig): ProcessRequest[] {
   const npm = (args: string[]): ProcessRequest => ({ command: 'npm', args, cwd, timeoutMs: config.deterministicCommandTimeoutMs });
   const agent: ProcessRequest = {
     command: 'codex',
-    args: ['exec', '--approve-for-me', '--json', '--color', 'never', '--ephemeral', '-m', config.codexModel, '-C', cwd, prompt],
+    args: ['--ask-for-approval', 'never', 'exec', '--sandbox', 'workspace-write', '--json', '--color', 'never', '--ephemeral', '-m', config.codexModel, '-C', cwd, prompt],
     cwd,
     timeoutMs: config.codexTimeoutMs,
   };
