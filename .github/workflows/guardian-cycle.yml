@@ -1,77 +1,13 @@
-name: Guardian cycle
+name: Guardian cycle handoff
 
 on:
-  schedule:
-    - cron: '17 * * * *'
   workflow_dispatch:
-    inputs:
-      sender:
-        description: "Guardian message sender (for example, a Slack member ID)"
-        required: false
-        type: string
-      message:
-        description: "Message or answer <question-id> <text> for the Guardian"
-        required: false
-        type: string
 
 permissions:
-  contents: write
-
-concurrency:
-  group: guardian-cycle-main
-  cancel-in-progress: false
+  contents: read
 
 jobs:
-  run-bounded-cycle:
+  host-owned-guardian:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - name: Generate, execute, and integrate one bounded Guardian packet
-        shell: bash
-        env:
-          GUARDIAN_SENDER: ${{ inputs.sender }}
-          GUARDIAN_MESSAGE: ${{ inputs.message }}
-        run: |
-          set -euo pipefail
-          cycle_time="$(date --utc +%Y-%m-%dT%H:%M:%S.000Z)"
-          if [[ -n "${GUARDIAN_MESSAGE}" ]]; then
-            npm run guardian:inbox -- "$cycle_time" "${GUARDIAN_SENDER:-slack}" "$GUARDIAN_MESSAGE"
-          fi
-          generation="$(npm run --silent strategy:generate -- "$cycle_time")"
-          execution="$(npm run --silent strategy:execute -- "$cycle_time")"
-          printf '%s\n' "$generation"
-          printf '%s\n' "$execution"
-          npm run strategy:verify
-          npm run docs:verify
-          npm run lint
-          npm test
-          npm run guardian:summary -- "$cycle_time" "$generation" "$execution"
-          npm run guardian:communicate -- "$cycle_time"
-      - name: Publish Guardian updates to Slack
-        shell: bash
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: |
-          set -euo pipefail
-          if [[ -z "${SLACK_WEBHOOK_URL}" ]]; then
-            exit 0
-          fi
-          cycle_time="$(date --utc +%Y-%m-%dT%H:%M:%S.000Z)"
-          npm run guardian:notify -- "$cycle_time" || echo "Slack delivery failed; pending updates will be retried."
-      - name: Commit a changed cycle
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet; then
-            exit 0
-          fi
-          git config user.name 'MASTER_PLAN Guardian'
-          git config user.email 'guardian@users.noreply.github.com'
-          git add docs strategy
-          git commit -m 'chore: run guardian cycle'
-          git push origin HEAD:main
+      - run: echo "The authenticated host runs Guardian cycles; CI validates its resulting commits."
