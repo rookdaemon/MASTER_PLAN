@@ -58,7 +58,7 @@ function commands(now: string, config: HostGuardianConfig): ProcessRequest[] {
   const npm = (args: string[]): ProcessRequest => ({ command: 'npm', args, cwd });
   const agent: ProcessRequest = {
     command: 'codex',
-    args: ['exec', '--sandbox', 'workspace-write', '--approve-for-me', '--json', '--color', 'never', '--ephemeral', '-m', config.codexModel, '-C', cwd, prompt],
+    args: ['exec', '--approve-for-me', '--json', '--color', 'never', '--ephemeral', '-m', config.codexModel, '-C', cwd, prompt],
     cwd,
   };
   const generation = npm(['run', 'strategy:generate', '--', now]);
