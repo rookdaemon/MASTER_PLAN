@@ -52,6 +52,15 @@ describe('streamlined update workflows', () => {
     expect(guardian).not.toContain('git push');
   });
 
+  it('recovers validated host Guardian work left by an interrupted publisher', async () => {
+    const launcher = await fileSystem.readText('scripts/run-host-guardian-cycle.sh');
+    expect(launcher).toContain('publish_pending_cycle');
+    expect(launcher).toContain('npm run strategy:verify');
+    expect(launcher).toContain('npm run docs:verify');
+    expect(launcher).toContain('npm run lint');
+    expect(launcher).toContain('npm test');
+  });
+
   it('documents CI-only update handling without independent agent-review requirements', async () => {
     const [agents, operations] = await Promise.all([
       fileSystem.readText('AGENTS.md'),
