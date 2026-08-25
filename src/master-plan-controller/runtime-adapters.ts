@@ -113,20 +113,42 @@ export class NodeScheduler implements SchedulerPort {
 
 export class NodeProcess implements ProcessPort {
   async run(request: ProcessRequest): Promise<ProcessResult> {
+    if (request.timeoutMs !== undefined && (!Number.isSafeInteger(request.timeoutMs) || request.timeoutMs <= 0)) {
+      throw new Error('process timeout must be positive');
+    }
     return new Promise((resolveResult, reject) => {
       const child = spawn(request.command, request.args, {
         cwd: request.cwd,
         env: request.environment === undefined ? process.env : { ...process.env, ...request.environment },
         shell: false,
+        detached: process.platform !== 'win32',
       });
       let stdout = '';
       let stderr = '';
+      let timedOut = false;
+      const timeout = request.timeoutMs === undefined ? undefined : setTimeout(() => {
+        timedOut = true;
+        if (child.pid === undefined) return;
+        if (process.platform === 'win32') child.kill('SIGTERM');
+        else process.kill(-child.pid, 'SIGTERM');
+      }, request.timeoutMs);
+      timeout?.unref();
       child.stdout.setEncoding('utf8');
       child.stderr.setEncoding('utf8');
       child.stdout.on('data', (chunk: string) => { stdout += chunk; });
       child.stderr.on('data', (chunk: string) => { stderr += chunk; });
-      child.on('error', reject);
-      child.on('close', (exitCode) => resolveResult({ exitCode: exitCode ?? 1, stdout, stderr }));
+      child.on('error', (error) => {
+        if (timeout) clearTimeout(timeout);
+        reject(error);
+      });
+      child.on('close', (exitCode) => {
+        if (timeout) clearTimeout(timeout);
+        resolveResult({
+          exitCode: timedOut ? 124 : exitCode ?? 1,
+          stdout,
+          stderr: timedOut ? `${stderr}\nProcess timed out after ${request.timeoutMs}ms.`.trim() : stderr,
+        });
+      });
     });
   }
 }

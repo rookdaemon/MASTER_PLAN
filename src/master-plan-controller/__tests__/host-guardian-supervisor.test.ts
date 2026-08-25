@@ -8,6 +8,8 @@ const config: HostGuardianConfig = {
   statePath: '.guardian/host-guardian-state.json',
   intervalMs: 60 * 60 * 1_000,
   codexModel: 'gpt-5.6-sol',
+  codexTimeoutMs: 15 * 60 * 1_000,
+  deterministicCommandTimeoutMs: 5 * 60 * 1_000,
 };
 
 describe('host Guardian supervisor', () => {
@@ -19,8 +21,8 @@ describe('host Guardian supervisor', () => {
 
     expect(result.ran).toBe(true);
     expect(process.requests).toEqual([
-      expect.objectContaining({ command: 'codex', args: expect.arrayContaining(['exec', '--approve-for-me', '--ephemeral', '-m', 'gpt-5.6-sol']) }),
-      expect.objectContaining({ command: 'npm', args: ['run', 'strategy:generate', '--', NOW] }),
+      expect.objectContaining({ command: 'codex', timeoutMs: 15 * 60 * 1_000, args: expect.arrayContaining(['exec', '--approve-for-me', '--ephemeral', '-m', 'gpt-5.6-sol']) }),
+      expect.objectContaining({ command: 'npm', timeoutMs: 5 * 60 * 1_000, args: ['run', 'strategy:generate', '--', NOW] }),
       expect.objectContaining({ command: 'npm', args: ['run', 'strategy:execute', '--', NOW] }),
       expect.objectContaining({ command: 'npm', args: ['run', 'strategy:verify'] }),
       expect.objectContaining({ command: 'npm', args: ['run', 'docs:verify'] }),
