@@ -77,9 +77,16 @@ async function loadState(fs: FileSystemPort, path: string): Promise<State> {
     if (parsed.completedAt) assertTimestamp(parsed.completedAt);
     return { version: 1, ...(parsed.completedAt ? { completedAt: parsed.completedAt } : {}) };
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith('File not found:')) return { version: 1 };
+    if (isMissingFile(error)) return { version: 1 };
     throw error;
   }
+}
+
+function isMissingFile(error: unknown): boolean {
+  return error instanceof Error && (
+    error.message.startsWith('File not found:') ||
+    (typeof (error as NodeJS.ErrnoException).code === 'string' && (error as NodeJS.ErrnoException).code === 'ENOENT')
+  );
 }
 
 function isDue(last: string | undefined, intervalMs: number, now: string): boolean {
