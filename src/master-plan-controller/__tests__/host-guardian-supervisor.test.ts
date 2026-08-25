@@ -43,6 +43,18 @@ describe('host Guardian supervisor', () => {
     expect(process.requests).toEqual([]);
   });
 
+  it('treats the Node filesystem ENOENT form as an absent runtime state file', async () => {
+    const missingStateFs = {
+      readText: async () => { throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' }); },
+      writeText: async () => undefined,
+      listFiles: async () => [],
+    };
+    const process = new InMemoryProcess(Array.from({ length: 8 }, () => ({ exitCode: 0, stdout: '{}', stderr: '' })));
+
+    await expect(runHostGuardianSupervisor({ fs: missingStateFs, process, clock: new InMemoryClock(NOW) }, config))
+      .resolves.toEqual({ ran: true });
+  });
+
   it('does not record a failed Codex or deterministic command as complete', async () => {
     const fs = new InMemoryFileSystem();
     const process = new InMemoryProcess([{ exitCode: 1, stdout: '', stderr: 'authentication unavailable' }]);
