@@ -28,11 +28,12 @@ updates are integrated after deterministic verification.
 
 The authenticated repository host, not GitHub Actions, owns scheduled Guardian
 execution. Its cron entry runs `scripts/run-host-guardian-cycle.sh`, which
-locks a dedicated Git worktree, invokes Codex non-interactively with workspace-write sandboxing,
-then performs one deterministic bounded cycle. A changed cycle is pushed on a
-Guardian branch; CI remains responsible for deterministic validation of that
-commit. The host's Codex and GitHub CLI credentials stay in the service
-account and are never added to this repository or passed to CI.
+locks the primary `main` checkout, fast-forwards it to `origin/main`, invokes
+Codex non-interactively with workspace-write sandboxing, then performs one
+deterministic bounded cycle. A changed cycle is locally validated and pushed
+directly to `main`; CI remains responsible for deterministic validation of that
+commit. The host's Codex and GitHub CLI credentials stay in the service account
+and are never added to this repository or passed to CI.
 
 Each subprocess has a hard deadline: 15 minutes for Codex and five minutes
 for each deterministic command. A deadline expires the subprocess group,

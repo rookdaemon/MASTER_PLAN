@@ -52,13 +52,17 @@ describe('streamlined update workflows', () => {
     expect(guardian).not.toContain('git push');
   });
 
-  it('recovers validated host Guardian work left by an interrupted publisher', async () => {
+  it('runs and publishes Guardian work from the validated primary main checkout', async () => {
     const launcher = await fileSystem.readText('scripts/run-host-guardian-cycle.sh');
-    expect(launcher).toContain('publish_pending_cycle');
+    expect(launcher).toContain('git -C "$repo_root" merge --ff-only origin/main');
+    expect(launcher).toContain('git -C "$repo_root" branch --show-current');
+    expect(launcher).not.toContain('git worktree');
+    expect(launcher).not.toContain('guardian/host-supervisor');
     expect(launcher).toContain('npm run strategy:verify');
     expect(launcher).toContain('npm run docs:verify');
     expect(launcher).toContain('npm run lint');
     expect(launcher).toContain('npm test');
+    expect(launcher).toContain('git -C "$repo_root" push origin main');
   });
 
   it('documents CI-only update handling without independent agent-review requirements', async () => {
